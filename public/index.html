@@ -1,1 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Проверка связи с сервером</title>
+<style>
+:root{--bg:#1b1030;--card:#2a1740;--ink:#fbe8d3;--dim:#b9a3cc;--rose:#ff9bb3;--ok:#7dff9a;--bad:#ff6b81;--warn:#ffd24d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1030;--card:#2a1740;--ink:#fbe8d3;--dim:#b9a3cc}}
+:root[data-theme="dark"]{--bg:#1b1030;--card:#2a1740;--ink:#fbe8d3;--dim:#b9a3cc}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif;padding:20px}
+main{max-width:680px;margin:0 auto}
+h1{font-style:italic;color:var(--rose);font-size:26px;margin:0 0 6px}
+p,ol{color:var(--dim);margin:6px 0}
+.card{background:var(--card);border-radius:14px;padding:16px;margin:14px 0}
+input,button{font:inherit;border-radius:10px;border:0;padding:9px 13px}
+input{background:#1b1030;color:var(--ink);width:120px;text-transform:uppercase;letter-spacing:2px}
+input.t{text-transform:none;letter-spacing:0}
+button{background:var(--rose);color:#2a1235;cursor:pointer;margin:4px 6px 4px 0}
+button:disabled{opacity:.4;cursor:default}
+ul{list-style:none;padding:0;margin:0}
+#checks li{padding:6px 0;border-bottom:1px solid #ffffff14;display:flex;gap:8px}
+#checks li::before{content:"…";width:1.4em;color:var(--dim)}
+#checks li.ok::before{content:"✓";color:var(--ok)}#checks li.bad::before{content:"✗";color:var(--bad)}#checks li.warn::before{content:"!";color:var(--warn)}
+#checks b{min-width:170px;font-weight:400}#checks span{color:var(--dim)}
+#verdict{font-size:19px;font-style:italic;margin-top:10px}
+pre{white-space:pre-wrap;color:var(--dim);font-size:13px;max-height:160px;overflow:auto;margin:8px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Проверка связи с сервером</h1>
+<p>Все игроки заходят через сервер, поэтому проверяем именно его. Нужны два человека, лучше из разных сетей (например, офис и дом).</p>
+<ol>
+<li style="display:list-item">Оба открывают этот адрес в браузере и ждут надпись «подключились к серверу». Первый раз бесплатный сервер просыпается до минуты.</li>
+<li style="display:list-item">Оба вводят один и тот же код комнаты и жмут «Войти». Первый вошедший становится хостом.</li>
+<li style="display:list-item">Когда в списке двое, нажмите «Нагрузочный тест», а потом «Скопировать отчёт».</li>
+</ol>
+<div class="card">
+  <div>Сервер: <input id="srv" class="t" style="width:250px" placeholder="имя.onrender.com"> <button id="conn">Подключиться</button></div>
+  <div style="margin-top:8px">Комната: <input id="room" maxlength="8" value="TEST"> Имя: <input id="name" class="t" maxlength="20" style="width:130px"> <button id="join" disabled>Войти</button></div>
+  <div id="plist" style="margin-top:8px;color:var(--dim)">В комнате: —</div>
+</div>
+<div class="card">
+<ul id="checks">
+<li id="c-ws" data-label="WebSocket в браузере"><b>WebSocket в браузере</b><span>проверяем…</span></li>
+<li id="c-srv" data-label="Сервер"><b>Сервер</b><span>не подключены</span></li>
+<li id="c-room" data-label="Комната"><b>Комната</b><span>—</span></li>
+<li id="c-rtt" data-label="Задержка до сервера"><b>Задержка до сервера</b><span>—</span></li>
+<li id="c-rel" data-label="Задержка между игроками"><b>Между игроками</b><span>—</span></li>
+<li id="c-load" data-label="Нагрузочный тест"><b>Нагрузочный тест</b><span>не запускали</span></li>
+</ul>
+<div id="verdict"></div>
+<button id="load" disabled>Нагрузочный тест (10 с)</button><button id="report">Скопировать отчёт</button>
+<pre id="log"></pre>
+</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let ws=null,me=null,players=[],rttS=[],rttR=[],load=null;
+const mark=(id,st,t)=>{const el=$('#c-'+id);el.className=st;el.querySelector('span').textContent=t};
+const log=t=>{$('#log').textContent=new Date().toLocaleTimeString()+'  '+t+'\n'+$('#log').textContent};
+const stat=a=>a.length?{avg:a.reduce((x,y)=>x+y,0)/a.length,min:Math.min(...a),max:Math.max(...a)}:null;
+const color=(avg,good,mid)=>avg<good?'ok':avg<mid?'warn':'bad';
+function copyText(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>log(msg),()=>prompt('Скопируйте вручную:',t));else prompt('Скопируйте вручную:',t)}
 
+mark('ws',window.WebSocket?'ok':'bad',window.WebSocket?'есть':'нет, нужен современный браузер');
+$('#srv').value=location.protocol.startsWith('http')?location.host:'';
+$('#name').value='';
+
+function wsUrl(){
+  const h=$('#srv').value.trim().replace(/^(https?|wss?):\/\//,'').replace(/\/.*$/,'');
+  const local=/^(localhost|127\.|192\.168\.|10\.)/.test(h);
+  return (local&&location.protocol!=='https:'?'ws://':'wss://')+h+'/ws';
+}
+function connect(){
+  if(ws)ws.close();
+  const t0=performance.now();
+  mark('srv','warn','подключаемся… (бесплатный сервер может просыпаться до минуты)');
+  ws=new WebSocket(wsUrl());
+  const to=setTimeout(()=>{if(ws.readyState!==1){ws.close();mark('srv','bad','нет ответа 75 секунд: сервер недоступен или сеть блокирует WebSocket')}},75000);
+  ws.onopen=()=>{clearTimeout(to);mark('srv','ok','подключились к серверу за '+((performance.now()-t0)/1000).toFixed(1)+' с');$('#join').disabled=false};
+  ws.onmessage=e=>onMsg(JSON.parse(e.data));
+  ws.onclose=()=>{clearTimeout(to);if($('#c-srv').className==='ok')mark('srv','bad','соединение разорвано');me=null;$('#join').disabled=true;$('#load').disabled=true};
+  ws.onerror=()=>log('Ошибка соединения с сервером');
+}
+$('#conn').onclick=connect;
+$('#join').onclick=()=>ws.send(JSON.stringify({t:'join',room:$('#room').value,name:$('#name').value}));
+if(window.WebSocket&&$('#srv').value)connect();
+
+const reply=(to,data)=>ws.send(JSON.stringify({t:'msg',to,data}));
+const sendRelay=data=>ws.send(JSON.stringify({t:'msg',to:me.host?'all':'host',data}));
+function showPlayers(){$('#plist').textContent='В комнате: '+players.map(p=>p.name+(p.host?' (хост)':'')).join(', ');$('#load').disabled=!(me&&players.length>1)}
+
+function onMsg(m){
+  const now=performance.now();
+  if(m.t==='echo'){rttS.push(now-m.ts);if(rttS.length>30)rttS.shift();const s=stat(rttS);
+    mark('rtt',color(s.avg,80,200),'средняя '+Math.round(s.avg)+' мс, от '+Math.round(s.min)+' до '+Math.round(s.max)+' мс')}
+  else if(m.t==='joined'){me=m;players=m.players;mark('room','ok','комната '+m.room+', вы '+(m.host?'хост':'игрок'));showPlayers()}
+  else if(m.t==='players'){players=m.players;showPlayers()}
+  else if(m.t==='host_left'){me=null;mark('room','bad','хост вышел, комната закрыта');showPlayers()}
+  else if(m.t==='error'){log('Сервер: '+m.msg);mark('room','bad',m.msg)}
+  else if(m.t==='msg'){const d=m.data;
+    if(d.k==='ping')reply(m.from,{k:'pong',ts:d.ts});
+    else if(d.k==='pong'){rttR.push(now-d.ts);if(rttR.length>30)rttR.shift();const s=stat(rttR);
+      mark('rel',color(s.avg,120,300),'средняя '+Math.round(s.avg)+' мс, от '+Math.round(s.min)+' до '+Math.round(s.max)+' мс')}
+    else if(d.k==='load')reply(m.from,{k:'ack',ts:d.ts});
+    else if(d.k==='ack'&&load)load.rtts.push(now-d.ts)}
+}
+setInterval(()=>{if(ws&&ws.readyState===1){ws.send(JSON.stringify({t:'echo',ts:performance.now()}));if(me&&players.length>1)sendRelay({k:'ping',ts:performance.now()})}},1000);
+
+$('#load').onclick=()=>{
+  if(!me||players.length<2)return;
+  const N=300,pad='x'.repeat(2000);let i=0;load={sent:0,rtts:[],exp:me.host?players.length-1:1};
+  $('#load').disabled=true;mark('load','warn','идёт…');
+  const iv=setInterval(()=>{if(i>=N){clearInterval(iv);setTimeout(finish,2500);return}
+    sendRelay({k:'load',i,ts:performance.now(),pad});load.sent++;i++},33);
+};
+function finish(){
+  const expected=load.sent*load.exp,got=load.rtts.length,loss=Math.max(0,100*(1-got/expected)),s=stat(load.rtts);
+  const good=loss<2&&s&&s.avg<200,mid=loss<5&&s&&s.avg<400;
+  mark('load',good?'ok':mid?'warn':'bad','отправлено '+load.sent+', ответов '+got+' из '+expected+', потери '+loss.toFixed(1)+'%, средняя задержка '+Math.round(s?s.avg:0)+' мс');
+  $('#verdict').textContent=good?'Для нашей игры связь подойдёт.':mid?'Играть можно, но возможны рывки.':'Связь слишком слабая.';
+  $('#load').disabled=!(me&&players.length>1);
+}
+$('#report').onclick=()=>{
+  const lines=[...document.querySelectorAll('#checks li')].map(li=>li.dataset.label+': '+li.querySelector('span').textContent);
+  copyText('Проверка связи с сервером (Башня принцессы)\n'+new Date().toLocaleString()+'\n'+navigator.userAgent+'\n\n'+lines.join('\n')+'\n'+$('#verdict').textContent,'Отчёт скопирован, вставьте его в чат');
+};
+</script>
+</body>
+</html>
