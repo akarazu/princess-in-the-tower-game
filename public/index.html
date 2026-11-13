@@ -28,6 +28,10 @@ button:disabled{opacity:.4;cursor:default}
 .row .ok{margin-left:auto;color:var(--ok)}
 #status{color:var(--dim);font-size:14px}
 .hide{display:none}
+canvas#c{display:none}
+body.playing{padding:0;background:#000}
+body.playing main{display:none}
+body.playing canvas#c{display:block;width:min(100%,calc(100vh * 1.40625));margin:0 auto}
 </style>
 </head>
 <body>
@@ -68,7 +72,9 @@ button:disabled{opacity:.4;cursor:default}
 
 <div id="start-view" class="card hide"><h2>Игра начинается!</h2><p>Лобби работает. Сама игра подключится на следующем этапе.</p><div id="final"></div></div>
 </main>
+<canvas id="c" width="900" height="640"></canvas>
 <script src="shared.js"></script>
+<script src="game.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 let ws=null,me=null,players=[],room='',want=-1,phase='gather',k=0;   // want: дракон, которого игрок примеряет (закрепляется по кнопке «Готов»)
@@ -111,14 +117,13 @@ $('#link').onclick=()=>{const u=location.origin+'/?room='+me.room;
 
 function onMsg(m){
   if(m.t==='joined'){me=m;players=m.players;phase=m.phase;k=m.k;$('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;render()}
-  else if(m.t==='players'){players=m.players;phase=m.phase;k=m.k;render()}
+  else if(m.t==='players'){players=m.players;phase=m.phase;k=m.k;if(Game.active)Game.onMsg(m);else render()}
   else if(m.t==='error'){
     if($('#lobby-view').classList.contains('hide'))$('#err').textContent=m.msg;
     else{if(m.msg.includes('занят'))want=-1;render();$('#err2').textContent=m.msg}}
   else if(m.t==='host_left'){alert('Хост вышел, комната закрыта.');location.href=location.pathname}
-  else if(m.t==='started'){sessionStorage.setItem('ptw-lobby',JSON.stringify({me,players:m.players}));
-    $('#lobby-view').classList.add('hide');$('#start-view').classList.remove('hide');
-    $('#final').innerHTML=m.players.map(p=>'<div class="row"><span class="dot" style="background:'+colOf(p)+'"></span>'+esc(p.name)+' — '+nameOf(p)+(m.auto&&m.auto.includes(p.id)?' (выдан автоматически)':'')+'</div>').join('')}
+  else if(m.t==='started'){$('#lobby-view').classList.add('hide');document.body.classList.add('playing');Game.start({ws,me,players:m.players})}
+  else if(m.t==='msg'){Game.onMsg(m)}
 }
 function render(){
   const picking=phase==='pick';
