@@ -22,7 +22,7 @@ button.sec{background:#3c2458;color:var(--ink)}
 button:disabled{opacity:.4;cursor:default}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .col{display:flex;align-items:center;gap:8px;text-align:left;background:#1b1030;color:var(--ink);margin:0;padding:8px 10px}
-.col.me{outline:2px solid #fff}.col small{color:var(--dim);display:block;line-height:1.1}
+.col.me{outline:2px solid #fff}.col.try{outline:2px dashed #fff}.col small{color:var(--dim);display:block;line-height:1.1}
 .dot{width:18px;height:18px;border-radius:50%;flex:none}
 .row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #ffffff14}
 .row .ok{margin-left:auto;color:var(--ok)}
@@ -49,9 +49,20 @@ button:disabled{opacity:.4;cursor:default}
   <button id="link" class="sec">Скопировать ссылку для коллег</button>
   <h2 style="margin-top:10px">Игроки (<span id="count">0</span>)</h2>
   <div id="players"></div>
-  <h2 style="margin-top:14px">Выберите дракона</h2>
-  <div id="colors" class="grid"></div>
-  <div style="margin-top:14px"><button id="ready">Я готов</button><button id="start" class="hide">Начать игру</button> <span id="hint" style="color:var(--dim)"></span></div>
+
+  <div id="gather-box" style="margin-top:12px">
+    <button id="lock" class="hide">Все в сборе</button>
+    <p id="wait"></p>
+  </div>
+
+  <div id="pick-box" class="hide">
+    <h2 style="margin-top:14px">Выберите дракона</h2>
+    <div id="colors" class="grid"></div>
+    <div style="margin-top:14px">
+      <button id="ready">Я готов</button><button id="start" class="hide">Начать игру</button><button id="reopen" class="sec hide">Ещё кто-то заходит</button>
+    </div>
+  </div>
+  <p id="hint"></p>
   <div id="err2" style="color:var(--bad)"></div>
 </div>
 
@@ -60,14 +71,20 @@ button:disabled{opacity:.4;cursor:default}
 <script src="shared.js"></script>
 <script>
 const $=s=>document.querySelector(s);
-let ws=null,me=null,players=[],room='',ready=false;
+let ws=null,me=null,players=[],room='',want=-1,phase='gather',k=0;   // want: дракон, которого игрок примеряет (закрепляется по кнопке «Готов»)
 const qs=new URLSearchParams(location.search);
 $('#room').value=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 $('#name').value=localStorage.getItem('ptw-name')||'';
 if($('#room').value){$('#host-box').classList.add('hide')}   // пришли по ссылке: создавать комнату не нужно
 
+const colOf=p=>p.color>=0?COLORS[p.color][1]:'#555',nameOf=p=>p.color>=0?COLORS[p.color][0]:p.hover>=0?'смотрит на '+COLORS[p.hover][0]:'выбирает…';
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const note=(owner,mine,i)=>{if(owner)return mine?'':'<small>'+esc(owner.name)+'</small>';   // подпись под цветом: владелец или те, кто присматривается
+  const hs=players.filter(p=>!p.ready&&p.hover===i&&p.id!==me.id).map(p=>p.name);
+  return hs.length?'<small>смотрят: '+esc(hs.slice(0,2).join(', '))+(hs.length>2?' +'+(hs.length-2):'')+'</small>':''};
+const send=o=>ws.send(JSON.stringify(o));
+
 function connect(){
-  const t0=performance.now();
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
   ws.onopen=()=>{$('#status').textContent='Подключились к серверу.';$('#create').disabled=false;$('#join').disabled=false};
   ws.onmessage=e=>onMsg(JSON.parse(e.data));
@@ -77,40 +94,62 @@ function enter(create){
   const name=$('#name').value.trim()||'Игрок';localStorage.setItem('ptw-name',name);
   room=create?Array.from(crypto.getRandomValues(new Uint8Array(5)),b=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b%31]).join(''):$('#room').value.trim();
   $('#err').textContent='';
-  ws.send(JSON.stringify({t:'join',room,name,create}));
+  send({t:'join',room,name,create});
 }
 $('#create').onclick=()=>enter(true);
 $('#join').onclick=()=>enter(false);
-$('#ready').onclick=()=>{ready=!ready;ws.send(JSON.stringify({t:'ready',ready}))};
-$('#start').onclick=()=>ws.send(JSON.stringify({t:'start'}));
+$('#lock').onclick=()=>send({t:'lock'});
+$('#reopen').onclick=()=>{if(confirm('Вернуться к сбору? Все выбранные драконы сбросятся.'))send({t:'reopen'})};
+$('#ready').onclick=()=>{const m0=players.find(p=>p.id===me.id);
+  if(m0&&m0.ready){send({t:'ready',ready:false});if(want>=0)send({t:'hover',color:want})}
+  else send({t:'ready',ready:true,color:want})};
+$('#start').onclick=()=>{const pend=players.filter(p=>!p.ready).length;
+  if(pend&&!confirm(pend+' игрок(ов) ещё не закрепили дракона. Им выдадут свободных. Начать игру?'))return;
+  send({t:'start'})};
 $('#link').onclick=()=>{const u=location.origin+'/?room='+me.room;
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>$('#hint').textContent='Ссылка скопирована',()=>prompt('Скопируйте ссылку:',u));else prompt('Скопируйте ссылку:',u)};
 
 function onMsg(m){
-  if(m.t==='joined'){me=m;players=m.players;$('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;$('#start').classList.toggle('hide',!m.host);render()}
-  else if(m.t==='players'){players=m.players;render()}
-  else if(m.t==='error'){($('#lobby-view').classList.contains('hide')?$('#err'):$('#err2')).textContent=m.msg}
+  if(m.t==='joined'){me=m;players=m.players;phase=m.phase;k=m.k;$('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;render()}
+  else if(m.t==='players'){players=m.players;phase=m.phase;k=m.k;render()}
+  else if(m.t==='error'){
+    if($('#lobby-view').classList.contains('hide'))$('#err').textContent=m.msg;
+    else{if(m.msg.includes('занят'))want=-1;render();$('#err2').textContent=m.msg}}
   else if(m.t==='host_left'){alert('Хост вышел, комната закрыта.');location.href=location.pathname}
   else if(m.t==='started'){sessionStorage.setItem('ptw-lobby',JSON.stringify({me,players:m.players}));
     $('#lobby-view').classList.add('hide');$('#start-view').classList.remove('hide');
-    $('#final').innerHTML=m.players.map(p=>'<div class="row"><span class="dot" style="background:'+COLORS[p.color][1]+'"></span>'+esc(p.name)+' — '+COLORS[p.color][0]+'</div>').join('')}
+    $('#final').innerHTML=m.players.map(p=>'<div class="row"><span class="dot" style="background:'+colOf(p)+'"></span>'+esc(p.name)+' — '+nameOf(p)+(m.auto&&m.auto.includes(p.id)?' (выдан автоматически)':'')+'</div>').join('')}
 }
-const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function render(){
+  const picking=phase==='pick';
+  if(!picking||want>=k||players.some(p=>p.ready&&p.color===want&&p.id!==me.id))want=-1;   // выбор сброшен или дракона успели закрепить другие
+  const me0=players.find(p=>p.id===me.id),locked=!!(me0&&me0.ready);
   $('#count').textContent=players.length;
-  $('#players').innerHTML=players.map(p=>'<div class="row"><span class="dot" style="background:'+COLORS[p.color][1]+'"></span>'+esc(p.name)+(p.host?' (хост)':'')+(p.id===me.id?' (вы)':'')+'<span class="ok">'+(p.ready||p.host?'✓':'')+'</span></div>').join('');
-  $('#colors').innerHTML='';
-  COLORS.forEach(([name,col],i)=>{
-    const owner=players.find(p=>p.color===i),mine=owner&&owner.id===me.id;
-    const b=document.createElement('button');b.className='col'+(mine?' me':'');b.disabled=!!owner&&!mine;
-    b.innerHTML='<span class="dot" style="background:'+col+'"></span><span>'+name+(owner&&!mine?'<small>'+esc(owner.name)+'</small>':'')+'</span>';
-    b.onclick=()=>ws.send(JSON.stringify({t:'pick',color:i}));$('#colors').appendChild(b)});
-  const me2=players.find(p=>p.id===me.id);ready=!!(me2&&me2.ready);
-  $('#ready').textContent=ready?'Я не готов':'Я готов';$('#ready').classList.toggle('hide',me.host);
-  const guests=players.filter(p=>!p.host),n=guests.filter(p=>p.ready).length;
-  $('#start').disabled=n<guests.length;
-  $('#hint').textContent=me.host?'Готовы '+n+' из '+guests.length:'';
+  $('#players').innerHTML=players.map(p=>'<div class="row"><span class="dot" style="background:'+colOf(p)+'"></span>'+esc(p.name)+(picking?' · '+nameOf(p):'')+(p.host?' (хост)':'')+(p.id===me.id?' (вы)':'')+'<span class="ok">'+(picking&&p.ready?'✓':'')+'</span></div>').join('');
+  $('#gather-box').classList.toggle('hide',picking);
+  $('#pick-box').classList.toggle('hide',!picking);
+  $('#lock').classList.toggle('hide',!me.host);
+  $('#lock').textContent='Все в сборе ('+players.length+')';
+  $('#wait').textContent=me.host?'Когда все зашли, нажмите «Все в сборе»: новых игроков принимать не будем, а число драконов подстроится под число игроков.':'Ждём, пока хост нажмёт «Все в сборе».';
   $('#err2').textContent='';
+  if(!picking){$('#hint').textContent='';return}
+  $('#colors').innerHTML='';
+  COLORS.slice(0,k).forEach(([name,col],i)=>{
+    const owner=players.find(p=>p.ready&&p.color===i),mine=!!owner&&owner.id===me.id;   // занят только закреплённый дракон
+    const b=document.createElement('button');
+    b.className='col'+(mine?' me':!locked&&want===i?' try':'');
+    b.disabled=(!!owner&&!mine)||locked;
+    b.innerHTML='<span class="dot" style="background:'+col+'"></span><span>'+name+note(owner,mine,i)+'</span>';
+    b.onclick=()=>{want=i;render();send({t:'hover',color:i})};
+    $('#colors').appendChild(b)});
+  const label=me.host?'Зафиксировать дракона':'Я готов';
+  $('#ready').textContent=locked?(me.host?'Снять фиксацию':'Снять готовность'):label;
+  $('#ready').disabled=!locked&&want<0;
+  $('#start').classList.toggle('hide',!me.host);$('#reopen').classList.toggle('hide',!me.host);
+  const pend=players.filter(p=>!p.ready).length;
+  $('#hint').textContent=(locked?(me.host?'':'Дракон закреплён. Чтобы выбрать другого, снимите готовность.')
+    :want>=0?'Вы примеряете: '+COLORS[want][0]+'. Нажмите «'+label+'», чтобы закрепить дракона.':'Выберите дракона.')
+    +(me.host?' Закреплены '+(players.length-pend)+' из '+players.length+(pend?'. Остальным при старте выдадим свободных.':'.'):'');
 }
 connect();
 </script>
