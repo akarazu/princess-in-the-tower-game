@@ -78,7 +78,7 @@ wss.on('connection', ws => {
       return;
     }
     const r = rooms.get(c.room);
-    if (!r || r.started) return;
+    if (!r) return;
     const isHost = c.id === r.host;
     if (m.t === 'lock' && isHost && r.phase === 'gather') {                    // «Все в сборе»: фиксируем состав и число драконов
       r.phase = 'pick'; r.k = Math.min(NCOLORS, Math.max(MIN_DRAGONS, r.clients.size + SPARE));
@@ -106,7 +106,7 @@ wss.on('connection', ws => {
         const i = (o.hover >= 0 && !used.has(o.hover)) ? o.hover : [...Array(r.k).keys()].find(k => !used.has(k));
         o.color = i; o.ready = true; o.hover = -1; used.add(i); auto.push(o.id);
       }
-      r.started = true; toAll(r, { t: 'started', players: list(r), auto });
+      r.started = true; r.phase = 'play'; toAll(r, { t: 'started', players: list(r), auto });
     } else if (m.t === 'msg') {
       const out = JSON.stringify({ t: 'msg', from: c.id, data: m.data });
       if (isHost) {                                                             // хост пишет всем или одному игроку
