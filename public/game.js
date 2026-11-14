@@ -2,9 +2,9 @@
 (function(){
 
 // ===== Константы и данные =====
-const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=H/2+45;
-const TOTAL=10,TOWER_R=70,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:20,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:16,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:34,sz:70},king:{e:'👑',hp:200,sp:22,dmg:45,r:40,sz:84},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:18,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:18,sz:34,rng:280,rate:3.4,kind:'bag'}};
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=H/2;
+const TOTAL=10,TOWER_R=70,MOUTH_X=36,MOUTH_Y=9,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:16,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:34,sz:70},king:{e:'👑',hp:200,sp:22,dmg:45,r:40,sz:84},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:18,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:18,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={3:'Новый поклонник: бард с серенадами!',4:'Новый поклонник: маг лечит и защищает щитами!',6:'Новый поклонник: купец с мешками золота!',5:'Босс: Прекрасный принц со свитой',10:'Финал: отец принцессы и вся свита'};
 const Q={hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!']};
 const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Ноты',c:'#7fd6ff'}];
@@ -18,10 +18,10 @@ const ENEMY_INTRO={knight:1,bard:3,mage:4,merchant:6},ENEMY_W={knight:4,bard:1,m
 const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55,r:Math.random()*1.4+.3}));
 
 // ===== Картинки: фон, замок, дракон. Если не загрузились, рисуем как раньше (эмодзи) =====
-const IMG={},DFR=9,FFR=6,dragonCache={};
-let castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;   // перекрашиваем не больше одного цвета за кадр, чтобы не было подвисания
+const IMG={},DFR=9,FFR=6,KFR=6,dragonCache={};
+let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;   // перекрашиваем не больше одного цвета за кадр, чтобы не было подвисания
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}   // целый, повреждённый, сильно повреждённый
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -42,8 +42,10 @@ function dragonFor(ci){
 function drawDragonSprite(p){
   const sh=dragonFor(p.ci)||IMG.dragon;if(!sh){emoji('🐲',p.x,p.y,46);return}
   if(!p.face)p.face=1;
-  const fw=sh.width/DFR,fh=sh.height,w=96,h=w*fh/fw,f=p.asleep?0:Math.floor((typeof performance!=='undefined'?performance.now():0)/140+p.id*2)%DFR;
-  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.face,1);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
+  p.ph=(p.ph||p.id*2)+(p.asleep?0:frameDt*1000/(140/(1+.3*(p.lv?p.lv[2]:0))));   // быстрые крылья: взмахи чаще
+  p.dtilt=(p.dtilt||0)+((p.tilt||0)-(p.dtilt||0))*.3;
+  const fw=sh.width/DFR,fh=sh.height,w=96,h=w*fh/fw,f=p.asleep?0:Math.floor(p.ph)%DFR;
+  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.face,1);ctx.rotate(p.dtilt);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
 // Холст подгоняется под окно: игровое поле 16:9 стоит по центру, а вокруг продолжается фон (на любом экране без чёрных полос)
 function resizeCanvas(){
   const vw=typeof innerWidth==='number'?innerWidth:W,vh=typeof innerHeight==='number'?innerHeight:H,a=Math.min(2.6,Math.max(1.2,vw/vh));
@@ -51,7 +53,7 @@ function resizeCanvas(){
   K=Math.max(1,Math.min(2,vh*(typeof devicePixelRatio==='number'?devicePixelRatio:1)/cvH));
   cv.width=Math.round(cvW*K);cv.height=Math.round(cvH*K)}
 function drawBg(){const im=IMG.bg,s=Math.max(cvW/im.width,cvH/im.height),w=im.width*s,h=im.height*s;
-  ctx.drawImage(im,Math.min(0,Math.max(cvW-w,cvW/2-w/2)),Math.min(0,Math.max(cvH-h,CY+oy-.57*h)),w,h)}
+  ctx.drawImage(im,Math.min(0,Math.max(cvW-w,cvW/2-w/2)),Math.min(0,Math.max(cvH-h,CY+oy-.5*h)),w,h)}
 function drawBall(b){
   const sh=IMG.fire,t=typeof performance!=='undefined'?performance.now():0;
   if(!sh){ctx.fillStyle=b.col;ctx.shadowColor=b.col;ctx.shadowBlur=16;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,6.283);ctx.fill();ctx.shadowBlur=0;return}
@@ -59,16 +61,21 @@ function drawBall(b){
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang||0);
   ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.05,0,h*.42,0,6.283);ctx.fill();ctx.globalAlpha=1;   // цветной ореол: чей это огонь
   ctx.drawImage(sh,f*fw,0,fw,fh,-w*.55,-h/2,w,h);ctx.restore()}
+function drawEnemy(e){
+  if(e.k==='knight'&&IMG.knight){   // рыцарь идёт к башне лицом по ходу движения, шаги анимированы
+    const sh=IMG.knight,fw=sh.width/KFR,fh=sh.height,h=58,w=h*fw/fh,t=typeof performance!=='undefined'?performance.now():0,f=Math.floor(t/110+e.id)%KFR;
+    ctx.save();ctx.translate(e.x,e.y);if(e.x>CX)ctx.scale(-1,1);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
+  else emoji(e.t.e,e.x,e.y,e.t.sz)}
 function drawCastle(){
   if(!castleV.length){emoji('🏰',CX,CY,100);return}
-  const st=tower>66?0:tower>33?1:2,im=castleV[st],w=210,h=w*im.height/im.width;
+  const fr=tower/towerMax,st=fr>.66?0:fr>.33?1:2,im=castleV[st],w=210,h=w*im.height/im.width;
   ctx.drawImage(im,CX-w/2,CY-h/2,w,h);
   if(st>0){const tt=(typeof performance!=='undefined'?performance.now():0)/1000;
     for(let i=0;i<3+st*2;i++){const u=(tt*.35+i*.37)%1;ctx.globalAlpha=(1-u)*.35;ctx.fillStyle='#bbb';ctx.beginPath();
       ctx.arc(CX+(i%3-1)*40+Math.sin(tt+i)*6,CY-h*.45-u*70,10+u*16,0,6.283);ctx.fill()}ctx.globalAlpha=1}}
 
 // ===== Состояние мира (общее для всех игроков) =====
-let state='play',wave=0,tower=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
+let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false;
 
 // ===== Игроки: всё личное хранится здесь =====
@@ -79,7 +86,7 @@ const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
 const capped=(p,i)=>p.lv[i]>=[4,5,3,3][i];
 const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
-  return{id,ci,name:'',nid:'',gone:false,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,ready:false,
+  return{id,ci,name:'',nid:'',gone:false,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,ready:false,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
     in:{mx:0,my:0,ax:CX,ay:0,fire:false}}   // ввод игрока: сюда же придут данные по сети
 }
@@ -115,7 +122,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=100;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0}
 function nextWave(){
   wave++;queue=[];spawned=0;
   const n=Math.round((4+wave*2.2)*(1+.85*Math.sqrt(players.length-1))*(BOSS[wave]?.85:1));   // больше игроков — больше врагов
@@ -171,8 +178,9 @@ function updatePlayer(p,dt){
   const{mx,my,ax,ay,fire}=p.in,l=Math.hypot(mx,my);
   if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
   p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y));
-  if(Math.abs(ax-p.x)>28)p.face=ax>p.x?1:-1;if(!p.face)p.face=1;   // смотрит в сторону прицела; рядом с драконом поворот не меняется
-  if(fire&&p.cd<=0&&p.frz<=0){const sx=p.x+p.face*34,sy=p.y-6,a=Math.atan2(ay-sy,ax-sx);   // огонь вылетает изо рта
+  if(Math.abs(ax-p.x)>28)p.face=ax>p.x?1:-1;if(!p.face)p.face=1;
+  p.tilt+=(Math.max(-.26,Math.min(.26,Math.atan2(ay-p.y,Math.max(Math.abs(ax-p.x),60))))-p.tilt)*Math.min(1,dt*12);   // наклон корпуса к прицелу, до 15 градусов   // смотрит в сторону прицела; рядом с драконом поворот не меняется
+  if(fire&&p.cd<=0&&p.frz<=0){const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(ay-sy,ax-sx);   // огонь вылетает изо рта
     const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
     p.cd=.5*Math.pow(.85,p.lv[1])}}
 
@@ -269,7 +277,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.textAlign='center';ctx.textBaseline='middle';
   drawCastle();
-  for(const e of enemies){emoji(e.t.e,e.x,e.y,e.t.sz);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(e.k==='bard')emoji('🎵',e.x+16,e.y-22,16);else if(inspV>1&&!e.t.rng)emoji('🎶',e.x+14,e.y-22,14);
+  for(const e of enemies){drawEnemy(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(e.k==='bard')emoji('🎵',e.x+16,e.y-22,16);else if(inspV>1&&!e.t.rng)emoji('🎶',e.x+14,e.y-22,14);
     if(e.hp<e.max){ctx.fillStyle='#0008';ctx.fillRect(e.x-18,e.y-e.t.r-10,36,4);ctx.fillStyle='#ff6b81';ctx.fillRect(e.x-18,e.y-e.t.r-10,36*e.hp/e.max,4)}}
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
@@ -286,7 +294,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,106,20)}
   ctx.textAlign='right';text('Отшито поклонников: '+score,W-20,28,20,'#fbe8d3');text('F — во весь экран',W-14,H-14,13,'#fbe8d399');
   ctx.textAlign='center';text('Нервы принцессы',CX,24,16,'#fbe8d3','italic');
-  ctx.fillStyle='#0006';ctx.fillRect(CX-150,36,300,14);ctx.fillStyle=tower>35?'#ff9bb3':'#ff4d4d';ctx.fillRect(CX-150,36,300*tower/100,14);
+  ctx.fillStyle='#0006';ctx.fillRect(CX-150,36,300,14);ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';ctx.fillRect(CX-150,36,300*tower/towerMax,14);
   {const bn=enemies.filter(o=>o.hp>0&&o.k==='bard').length;if(state==='play'&&chorusT>0)text('Припев! Враги быстрее на 60%',CX,70,15,'#ff9bb3','italic');else if(state==='play'&&bn)text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,70,15,'#d9c3e8','italic')}
   if(quipT>0&&state==='play'){ctx.font='italic 18px Georgia,serif';const w=ctx.measureText(quip).width+32;
     ctx.fillStyle='#fff3e6';ctx.beginPath();ctx.roundRect(CX-w/2,CY-130,w,36,12);ctx.fill();text(quip,CX,CY-112,18,'#3b1c3f','italic')}
@@ -313,7 +321,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3]]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
     E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0]),
     B:balls.map(b=>[b.id,r1(b.x),r1(b.y),b.owner,r10(b.r),Math.round(b.ang*100)]),
     N:notes.map(n=>[n.id,n.k==='bag'?1:0,r1(n.x),r1(n.y),r1(n.tx),r1(n.ty),Math.round(n.t*100)/100]),
@@ -340,12 +348,13 @@ function guestFrame(dt,now){
   state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;chorusCd=b.cC;inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);if(p!==me)p.face=(q[4]&8)?-1:1;p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   // свой дракон: двигается без задержки; к позиции хоста подтягивается мягко (сильнее, если стоит, спит или сильно разошлись)
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
   clampP(me);if(!me.asleep&&Math.abs(mouse.x-me.x)>28)me.face=mouse.x>me.x?1:-1;if(!me.face)me.face=1;
+  me.tilt+=(Math.max(-.26,Math.min(.26,Math.atan2(mouse.y-me.y,Math.max(Math.abs(mouse.x-me.x),60))))-me.tilt)*Math.min(1,dt*12);
   const au=b.P[me.id],err=Math.hypot(au[0]-me.x,au[1]-me.y);
   const gain=(me.asleep||me.frz>0)?.3:err>150?.15:(mx||my)?0:.12,g=1-Math.pow(1-gain,dt*60);
   me.x+=(au[0]-me.x)*g;me.y+=(au[1]-me.y)*g;
@@ -359,7 +368,7 @@ function guestFrame(dt,now){
 }
 
 function loop(t){
-  const dt=Math.min(.05,(t-last)/1000||0);last=t;
+  const dt=Math.min(.05,(t-last)/1000||0);last=t;frameDt=dt;
   if(isHost){
     if(state==='play')update(dt);
     else{parts=[];if(state==='shop'){shopT+=dt;shopLeft=SHOP_TIME-shopT;if(shopLeft<=0)nextFromShop()}}
@@ -373,7 +382,7 @@ function loop(t){
 function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
   ws=o.ws;
   players=o.players.map((q,i)=>{const p=makePlayer(i,q.color);p.name=q.name;p.nid=q.id;const a=i/o.players.length*6.283;p.x=CX+Math.cos(a)*110;p.y=CY+Math.sin(a)*110;return p});
-  me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;
+  me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*(1+.6*Math.sqrt(players.length-1)));
   resetWorld();
   if(isHost){nextWave();say('Они опять идут… Драконы, вся надежда на вас!',4)}
   requestAnimationFrame(loop);
