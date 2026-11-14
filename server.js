@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 const PUB = fs.existsSync(path.join(__dirname, 'public')) ? path.join(__dirname, 'public') : __dirname;
 const MAX_PLAYERS = 16, NCOLORS = 16, SPARE = 2, MIN_DRAGONS = 4;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.json': 'application/json' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.json': 'application/json' };
 
 const server = http.createServer((req, res) => {
   if (req.url === '/health') { res.end('ok'); return; }
@@ -24,7 +24,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Файл не найден на сервере: ' + p + '\nПроверьте, что index.html лежит в папке public.');
       return;
     }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }).end(data);
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': ['.html', '.js'].includes(path.extname(f)) ? 'no-cache' : 'public, max-age=3600' }).end(data);
   });
 });
 
