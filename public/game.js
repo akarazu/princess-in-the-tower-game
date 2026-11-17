@@ -3,11 +3,11 @@
 
 // ===== Константы и данные =====
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=Math.round(H*.512);
-const TOTAL=10,TOWER_R=70,MOUTH_X=36,MOUTH_Y=9,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:34,sz:70},king:{e:'👑',hp:200,sp:22,dmg:45,r:40,sz:84},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:18,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:18,sz:34,rng:280,rate:3.4,kind:'bag'}};
+const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:40,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:18,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={3:'Новый поклонник: бард с серенадами!',4:'Новый поклонник: маг лечит и защищает щитами!',6:'Новый поклонник: купец с мешками золота!',5:'Босс: Прекрасный принц со свитой',10:'Финал: отец принцессы и вся свита'};
 const Q={hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!']};
-const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Ноты',c:'#7fd6ff'}];
+const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Свитки',c:'#ecd9a8'}];
 // b — базовая цена, s — прирост цены за покупку, t — валюта (0 золото, 1 ноты)
 const UP=[{n:'Усиленное дыхание',d:'урон +1, шар крупнее',b:8,s:5,t:0},{n:'Частое дыхание',d:'стреляет на 20% чаще',b:3,s:2,t:1},{n:'Быстрые крылья',d:'скорость +20%',b:3,s:2,t:1},{n:'Драконий щит',d:'поглощает удар',b:10,s:5,t:0}];
 // настройки монет: шанс золота с рыцаря, срок жизни обычной и боссовой монеты, когда начинать мигать
@@ -21,7 +21,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,dragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;   // перекрашиваем не больше одного цвета за кадр, чтобы не было подвисания
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}   // целый, повреждённый, сильно повреждённый
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -59,13 +59,19 @@ function drawBall(b){
   if(!sh){ctx.fillStyle=b.col;ctx.shadowColor=b.col;ctx.shadowBlur=16;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,6.283);ctx.fill();ctx.shadowBlur=0;return}
   const fw=sh.width/FFR,fh=sh.height,w=34+(b.r-7.5)*7,h=w*fh/fw,f=Math.floor(t/60+b.id)%FFR;
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang||0);
-  ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.05,0,h*.42,0,6.283);ctx.fill();ctx.globalAlpha=1;   // цветной ореол: чей это огонь
-  ctx.drawImage(sh,f*fw,0,fw,fh,-w*.55,-h/2,w,h);ctx.restore()}
-const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180}};   // враги со спрайтами: число кадров, высота, длительность кадра
+  ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.32,0,h*.4,0,6.283);ctx.fill();ctx.globalAlpha=1;   // цветной ореол: чей это огонь
+  ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);ctx.restore()}   // хвост шара у рта, огонь растёт вперёд
+const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130}};   // враги со спрайтами: число кадров, высота, длительность кадра
 function drawEnemy(e){
-  const key=(e.k==='bard'&&IMG.bardIdle&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3)?'bardIdle':e.k,sp=SPR[key],sh=sp&&IMG[key];   // остановился на дистанции — играет на лютне
+  let key=e.k,fo=-1;const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;   // остановился на дистанции: бард играет, маг колдует
+  if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
+  else if(e.k==='mage'&&near&&IMG.mageCast)key='mageCast';
+  else if(e.k==='prince'){const ci=castInfo(e);
+    if(ci[0]>0&&IMG.princeCast){key='princeCast';fo=Math.floor(ci[0]/100*SPR.princeCast.fr)}   // руки поднимаются по мере предложения
+    else if(ci[2]>0&&IMG.princeThrow){key='princeThrow';fo=Math.floor(ci[2]/100*SPR.princeThrow.fr)}}   // бросок роз
+  const sp=SPR[key],sh=sp&&IMG[key];
   if(sh){   // идёт к башне лицом по ходу движения, шаги анимированы
-    const fw=sh.width/sp.fr,fh=sh.height,h=sp.h,w=h*fw/fh,t=typeof performance!=='undefined'?performance.now():0,f=Math.floor(t/sp.ms+e.id)%sp.fr;
+    const fw=sh.width/sp.fr,fh=sh.height,h=sp.h,w=h*fw/fh,t=typeof performance!=='undefined'?performance.now():0,f=fo>=0?Math.min(sp.fr-1,fo):Math.floor(t/sp.ms+e.id)%sp.fr;
     ctx.save();ctx.translate(e.x,e.y);if(e.x>CX)ctx.scale(-1,1);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
   else emoji(e.t.e,e.x,e.y,e.t.sz)}
 function drawCastle(){
@@ -79,7 +85,7 @@ function drawCastle(){
 
 // ===== Состояние мира (общее для всех игроков) =====
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
-let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false;
+let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false,zones=[],markId=-1,markT=0;
 
 // ===== Игроки: всё личное хранится здесь =====
 let players=[],me=null,isHost=false,ws=null;
@@ -100,11 +106,11 @@ function pos(e){const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)*cv
 cv.addEventListener('pointermove',pos);
 cv.addEventListener('pointerdown',e=>{pos(e);
   if(state==='shop'){if(shopT>.4)shopClick();return}
-  mouse.down=true});
-addEventListener('pointerup',()=>mouse.down=false);
-addEventListener('keydown',e=>{if(!active)return;if(e.code==='KeyF'&&document.documentElement&&document.documentElement.requestFullscreen){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}keys[e.code]=true;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
+  mouse.down=true;lastIn=0});
+addEventListener('pointerup',()=>{mouse.down=false;lastIn=0});
+addEventListener('keydown',e=>{if(!active)return;if(e.code==='KeyF'&&document.documentElement&&document.documentElement.requestFullscreen){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}keys[e.code]=true;lastIn=0;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
   if(state==='shop'&&shopT>.4){if(e.code==='Space'||e.code==='Enter')goReq();if(/^Digit[1-4]$/.test(e.code))buyReq(+e.code[5]-1)}});
-addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('keyup',e=>{keys[e.code]=false;lastIn=0});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false});
 
 // ===== Вспомогательное =====
@@ -125,7 +131,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];markId=-1}
 function nextWave(){
   wave++;queue=[];spawned=0;
   const n=Math.round((4+wave*2.2)*(1+.85*Math.sqrt(players.length-1))*(BOSS[wave]?.85:1));   // больше игроков — больше врагов
@@ -138,7 +144,7 @@ function nextWave(){
   phase='break';phaseT=3;spawnT=0;if(BOSS[wave])say(pick(Q[BOSS[wave]]),4);else if(NEWQ[wave])say(pick(Q[NEWQ[wave]]),4)}
 function pickType(){const ks=Object.keys(ENEMY_INTRO).filter(k=>ENEMY_INTRO[k]<=wave),w=ks.map(k=>ENEMY_W[k]*(wave-ENEMY_INTRO[k]<2?2.5:1));   // новичок первые 2 волны в 2,5 раза чаще
   let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<ks.length;i++){r-=w[i];if(r<=0)return ks[i]}return ks[0]}
-function spawn(k){spawned++;const a=Math.random()*6.283,t=T[k],s=k==='prince'||k==='king'?1+(players.length-1)*.5:1+(wave-1)*.2;enemies.push({id:++uid,k,t,x:CX+Math.cos(a)*(W/2+230),y:CY+Math.sin(a)*(H/2+150),hp:t.hp*s,max:t.hp*s})}
+function spawn(k){spawned++;const a=Math.random()*6.283,t=T[k],s=k==='prince'?1+(players.length-1)*BOSSCFG.hpPrince:k==='king'?1+(players.length-1)*BOSSCFG.hpKing:1+(wave-1)*.2;enemies.push({id:++uid,k,t,x:CX+Math.cos(a)*(W/2+230),y:CY+Math.sin(a)*(H/2+150),hp:t.hp*s,max:t.hp*s})}
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}   // уровни игрока после покупки улучшения
 function descNew(p,i){const n=capped(p,i)?p:nx(p,i);   // подпись «было → стало»
   return['пламени×урон: '+flames(p)+'×'+dmgOf(p)+' → '+flames(n)+'×'+dmgOf(n),
@@ -149,7 +155,61 @@ function drop(e,o){const D={knight:[Math.random()<DROP.chance?1:0,0],bard:[0,1],
   D.forEach((v,t)=>{if(v)pickups.push({id:++uid,x:e.x+(t?12:-12),y:e.y,v,t,life:isBoss(e)?DROP.boss:DROP.life,own:o.id,res:3})})}   // 3 секунды монета только для убийцы
 function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.h=Math.min(maxH(p),p.h+1);p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
 // способности дальних врагов: маг лечит раненого союзника, купец бросает мешок в дракона, бард — ноту в башню
-function lonely(e){return e.t.kind==='heal'&&!enemies.some(o=>o.hp>0&&o.t.kind!=='heal')&&!queue.some(k=>T[k].kind!=='heal')}   // остались одни саппорты
+// ===== Способности боссов (все числа можно крутить здесь) =====
+const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:20,disgraceEvery:24,disgraceT:8};
+const THROW_T=.8;
+function castInfo(e){   // [прогресс предложения %, прогресс срыва %, прогресс броска роз %]
+  if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/THROW_T)*100)):0;
+    return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
+  return[e.cast||0,e.ip||0,e.thr||0]}
+function bossAI(e,dt){
+  const a=e.ab||(e.ab=e.k==='prince'?{t1:5,cast:0,castT:BOSSCFG.castT,castHp:0,cd:6,stun:0}:{t1:4,t2:12,stun:0}),f=e.hp<e.max*.5?.6:1;   // меньше половины здоровья: способности чаще
+  e.hold=false;
+  if(a.thr>0)a.thr-=dt;
+  if(a.stun>0){a.stun-=dt;e.hold=true;return}
+  if(e.k==='prince'){
+    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.roseEvery*f;roseRain(e)}
+    if(a.cast>0){                                         // предложение: надо набрать общий урон, пока идёт каст
+      e.hold=true;a.cast-=dt;
+      if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){a.cast=0;a.stun=BOSSCFG.stun;a.cd=BOSSCFG.castCd;say('Предложение сорвано! Принц оглушён!');tag(e,'Оглушён!');boom(e.x,e.y,'#ffd24d',16)}
+      else if(a.cast<=0){tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);a.cd=BOSSCFG.castCd;e.hold=false;shake=14;boom(CX,CY,'#ff9bb3',24);say('Принц успел сделать предложение! Принцесса в смятении!')}
+    }else{
+      a.cd-=dt;
+      if(a.cd<=0&&Math.hypot(CX-e.x,CY-e.y)<=230){a.cast=a.castT;a.castHp=e.hp;e.hold=true;say('Принц делает предложение! Собьём его, пока не поздно!',4);tag(e,'Предложение!')}
+    }
+  }else{
+    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.decreeEvery*f;decree(e)}
+    a.t2-=dt;if(a.t2<=0){a.t2=BOSSCFG.disgraceEvery*f;disgrace(e)}
+  }
+}
+function roseRain(e){   // красные круги: через секунду-полторы удар, забирает щит или сердечко
+  const n=Math.min(12,3+Math.ceil(players.length*.6)),alive=players.filter(p=>!p.asleep&&!p.gone);
+  for(let i=0;i<n;i++){
+    let x,y;
+    if(alive.length&&Math.random()<.6){const p=alive[Math.random()*alive.length|0];x=p.x+(Math.random()-.5)*90;y=p.y+(Math.random()-.5)*90}
+    else{x=80+Math.random()*(W-160);y=130+Math.random()*(H-200)}
+    zones.push({id:++uid,x:Math.max(40,Math.min(W-40,x)),y:Math.max(90,Math.min(H-40,y)),r:BOSSCFG.roseR,t:0,d:BOSSCFG.roseDelay})}
+  say('Принц осыпает всех розами! Уходите с красных кругов!');tag(e,'Розы!');e.ab.thr=THROW_T}
+function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
+function disgrace(e){   // опала: рыцари бросают замок и гонятся за помеченным драконом (они обведены красным)
+  const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return;
+  const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
+  say('Король объявил '+p.name+' похитителем принцессы! Беги, остальные прикрывайте!',4);tag(e,'Взять дракона!')}
+function drawZones(){const t=typeof performance!=='undefined'?performance.now()/1000:0;
+  for(const z of zones){const u=Math.min(1,z.t/z.d);
+    ctx.globalAlpha=.12+.28*u;ctx.fillStyle='#ff2d55';ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.fill();
+    ctx.globalAlpha=.55+.4*Math.sin(t*14);ctx.strokeStyle='#ff4d6d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.stroke();ctx.lineWidth=1;ctx.globalAlpha=1;
+    emoji('🌹',z.x,z.y,24)}}
+function drawEnemyMarks(e){
+  const t=typeof performance!=='undefined'?performance.now()/1000:0;
+  if(e.chase){ctx.strokeStyle='rgba(255,60,60,'+(.65+.3*Math.sin(t*10))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+9,0,6.283);ctx.stroke();ctx.lineWidth=1}
+  const ci=castInfo(e);
+  if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-34;
+    ctx.fillStyle='#0009';ctx.fillRect(x,y,w,16);ctx.fillStyle='#ffd24d';ctx.fillRect(x,y,w*ci[0]/100,8);ctx.fillStyle='#ff5a4d';ctx.fillRect(x,y+8,w*ci[1]/100,8);
+    emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
+const isCaster=kind=>kind==='heal'||kind==='bag';   // маги и купцы
+function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}   // на поле остались только маги и купцы
+function lonely(e){return e.t.kind==='heal'&&casterOnly()}   // остались одни саппорты: маги бегут к замку   // остались одни саппорты
 function shieldAllies(e){const c=enemies.filter(o=>o!==e&&o.hp>0&&!o.sh&&!isBoss(o)).sort(()=>Math.random()-.5).slice(0,Math.max(0,Math.min(2,6-enemies.filter(o=>o.sh).length)));   // не больше 6 щитов на поле
   for(const o of c){o.sh=2;boom(o.x,o.y,'#8fd8ff',6)}if(c.length)tag(e,'Щит!')}
 function woundedNear(e){for(const o of enemies){if(o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=260)return true}return false}
@@ -164,6 +224,11 @@ function cast(e,dx,dy,d,force){
   if(k==='bag'){let bd=1e9;for(const p of players){if(p.asleep)continue;const q=Math.hypot(p.x-e.x,p.y-e.y);if(q<bd){bd=q;tx=p.x;ty=p.y}}}
   const a=Math.atan2(ty-e.y,tx-e.x),v=k==='bag'?130:110;
   
+  if(k==='bag'&&casterOnly()&&notes.filter(n=>n.k==='bag').length<15){   // остались одни купцы: «Распродажа», три мешка веером вокруг дракона и вдвое чаще
+    tag(e,'Распродажа!');e.cdn=e.t.rate*.5;
+    for(let i=0;i<3;i++){const an=i*2.094+Math.random()*.6,bx=Math.max(30,Math.min(W-30,tx+Math.cos(an)*75)),by=Math.max(80,Math.min(H-30,ty+Math.sin(an)*75));
+      notes.push({id:++uid,x:e.x,y:e.y,vx:0,vy:0,hp:1,k:'bag',dmg:0,r:12,life:5,sx:e.x,sy:e.y,tx:bx,ty:by,t:0,d:1.1})}
+    return}
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)say('Дракона разбудили!');else{p.w[0]=Math.floor(p.w[0]*.75);say('Дракон проснулся. Часть золота потерялась по дороге.')}}
@@ -182,7 +247,7 @@ function updatePlayer(p,dt){
   if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
   p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y));
   if(Math.abs(ax-p.x)>28)p.face=ax>p.x?1:-1;if(!p.face)p.face=1;
-  p.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(ay-p.y,Math.max(Math.abs(ax-p.x),1))))-p.tilt)*Math.min(1,dt*30);   // корпус поворачивается к прицелу, до 60 градусов   // смотрит в сторону прицела; рядом с драконом поворот не меняется
+  p.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(ay-p.y,Math.max(Math.abs(ax-p.x),1))))-p.tilt)*Math.min(1,dt*60);   // корпус поворачивается к прицелу, до 60 градусов   // смотрит в сторону прицела; рядом с драконом поворот не меняется
   if(fire&&p.cd<=0&&p.frz<=0){const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(ay-sy,ax-sx);   // огонь вылетает изо рта
     const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
     p.cd=.5*Math.pow(.85,p.lv[1])}}
@@ -200,16 +265,20 @@ function update(dt){
   if(bn){chorusCd-=dt;if(chorusCd<=0){chorusCd=8;chorusT=3;say('Бард запел припев! Враги ускорились!')}}else{chorusCd=Math.max(chorusCd,5);chorusT=0}
   chorusT=Math.max(0,chorusT-dt);
   const insp=inspV=chorusT>0?1.6:1;
+  if(markId>=0){markT-=dt;const mp=players[markId];if(markT<=0||!mp||mp.asleep||mp.gone){markId=-1;say('Опала закончилась.')}}
+  players.forEach(p=>{p.mark=p.id===markId});
   for(const e of enemies){if(e.hp<=0)continue;
-    const dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);
+    let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;
+    if(e.t.boss)bossAI(e,dt);
+    if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}   // опала: гонятся за помеченным драконом
     const lone=lonely(e);if(lone&&!e.rush){e.rush=true;say('Маги остались без прикрытия и бегут к башне!')}
     if(e.t.rng&&d<=e.t.rng&&e.x>24&&e.x<W-24&&e.y>64&&e.y<H-24&&!lone){e.cdn=(e.cdn??1+Math.random())-dt;   // дальний враг стоит и бросает снаряд
       if(e.cdn<=0){e.cdn=e.t.rate;cast(e,dx,dy,d)}
       if(e.t.kind==='heal'){e.scd=(e.scd??1.5+Math.random()*2)-dt;if(e.scd<=0){e.scd=2.5;shieldAllies(e)}}
       }
-    else{const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);e.x+=dx/d*sm*dt;e.y+=dy/d*sm*dt}
+    else if(!e.hold){const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);e.x+=dx/d*sm*dt;e.y+=dy/d*sm*dt}
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
-    if(e.hp>0&&d<TOWER_R){tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
+    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;   // нет мага — щиты исчезают
   for(const n of notes){
@@ -221,6 +290,8 @@ function update(dt){
     if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){tower-=n.dmg;n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4)say(pick(Q.note))}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
+  for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
+  zones=zones.filter(z=>z.t<z.d);
   for(const c of pickups){if(!players[c.own].asleep)c.life-=dt;c.res-=dt;
     
     let best=null,bd=1e9;
@@ -258,18 +329,30 @@ function drawDragon(p){
   if(!(p.inv>0&&Math.floor(p.inv*10)%2)){ctx.globalAlpha=p.asleep?.45:1;drawDragonSprite(p);ctx.globalAlpha=1}
   if(p.asleep){emoji('💤',p.x+24,p.y-28,22);ctx.lineWidth=4;ctx.beginPath();
     ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
+  if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}   // помечен королём
   if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
   if(p.sh>0){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=3;for(let i=0;i<p.sh;i++){ctx.beginPath();ctx.arc(p.x,p.y,36+i*5,0,6.283);ctx.stroke()}ctx.lineWidth=1}
   
   text(p.name,p.x,p.y+50,14,c)}
+function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#e8a92a';ctx.lineWidth=Math.max(1,r*.12);ctx.beginPath();ctx.arc(x,y,r*.62,0,6.283);ctx.stroke();
+  ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(x-r*.3,y-r*.3,r*.16,0,6.283);ctx.fill();ctx.lineWidth=1}
+function drawScroll(x,y,r){const w=r*1.5,h=r*1.9;   // пергамент (ноты): лист, свёрнутые края и линии нотного стана
+  ctx.fillStyle='#ecd9a8';ctx.strokeStyle='#8a6a2e';ctx.lineWidth=Math.max(1.5,r*.15);
+  ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,r*.18);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#d6bd80';ctx.beginPath();ctx.ellipse(x,y-h/2,w/2+r*.12,r*.28,0,0,6.283);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(x,y+h/2,w/2+r*.12,r*.28,0,0,6.283);ctx.fill();ctx.stroke();
+  ctx.lineWidth=Math.max(1,r*.1);for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(x-w*.32,y+i*h*.2);ctx.lineTo(x+w*.32,y+i*h*.2);ctx.stroke()}ctx.lineWidth=1}
+const drawIcon=(t,x,y,r)=>t?drawScroll(x,y,r):drawCoin(x,y,r);
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
-  text('Золото: '+me.w[0],CX-110,140,24,CUR[0].c);text('Ноты: '+me.w[1],CX+110,140,24,CUR[1].c);
+  ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
   UP.forEach((u,i)=>{const x=SX+i*206,y=190,cap=capped(me,i),ok=!cap&&me.w[u.t]>=cost(me,i);
     ctx.fillStyle=ok?'#3a2050':'#2a1740';ctx.strokeStyle=ok?CUR[u.t].c:'#6b4a85';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,190,190,14);ctx.fill();ctx.stroke();ctx.lineWidth=1;
     text(u.n,x+95,y+40,17,'#fbe8d3','italic');text(descOf(me,i),x+95,y+80,14,'#d9c3e8');text('Куплено: '+me.lv[i],x+95,y+118,14,'#d9c3e8');
-    text(cap?'Максимум':cost(me,i)+' '+(u.t?'нот':'золота')+' ['+(i+1)+']',x+95,y+158,19,ok?CUR[u.t].c:'#8a7096')});
+    if(cap)text('Максимум',x+95,y+158,19,'#8a7096');
+    else{ctx.textAlign='right';text(String(cost(me,i)),x+84,y+158,22,ok?CUR[u.t].c:'#8a7096');ctx.textAlign='center';ctx.save();if(!ok)ctx.globalAlpha*=.55;drawIcon(u.t,x+108,y+155,12);ctx.restore();text('['+(i+1)+']',x+160,y+158,14,'#8a7096')}});
   ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Ждём остальных':'Дальше',CX,481,22,'#2a1235');
   text('Нажмите на улучшение или клавишу 1–4, чтобы купить. Пробел — готов к следующей волне.',CX,545,15,'#d9c3e8','italic');
   text('Осталось '+Math.max(0,Math.ceil(shopLeft))+' с · готовы '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
@@ -280,24 +363,22 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   ctx.translate(ox,oy);
   ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.textAlign='center';ctx.textBaseline='middle';
-  const drawE=e=>{drawEnemy(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(e.k==='bard')emoji('🎵',e.x+16,e.y-22,16);else if(inspV>1&&!e.t.rng)emoji('🎶',e.x+14,e.y-22,14);
+  const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(e.k==='bard')emoji('🎵',e.x+16,e.y-22,16);else if(inspV>1&&!e.t.rng)emoji('🎶',e.x+14,e.y-22,14);
     if(e.hp<e.max){ctx.fillStyle='#0008';ctx.fillRect(e.x-18,e.y-e.t.r-10,36,4);ctx.fillStyle='#ff6b81';ctx.fillRect(e.x-18,e.y-e.t.r-10,36*e.hp/e.max,4)}};
-  for(const e of enemies)if(e.y<CY+8)drawE(e);   // севернее двери: за замком
-  drawCastle();
-  for(const e of enemies)if(e.y>=CY+8)drawE(e);
+  drawZones();
+  drawCastle();   // замок рисуется под врагами: они всегда видны поверх него
+  for(const e of enemies)drawE(e);
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
   for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.tx,n.ty,40,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r+4,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji(bg?'💰':'🎵',n.x,n.y,24)}
-  for(const k of pickups){if(k.life<DROP.warn&&Math.floor(k.life*8)%2)continue;const r=7+Math.min(k.v,10)*.6;ctx.fillStyle=CUR[k.t].c;ctx.strokeStyle=k.t?'#2a6f99':'#b8860b';ctx.lineWidth=2;ctx.beginPath();
-    if(k.t){ctx.moveTo(k.x,k.y-r-2);ctx.lineTo(k.x+r,k.y);ctx.lineTo(k.x,k.y+r+2);ctx.lineTo(k.x-r,k.y);ctx.closePath()}else ctx.arc(k.x,k.y,r,0,6.283);
-    ctx.fill();ctx.stroke();ctx.lineWidth=1}
+  for(const k of pickups){if(k.life<DROP.warn&&Math.floor(k.life*8)%2)continue;drawIcon(k.t,k.x,k.y,8+Math.min(k.v,10)*.6)}
   players.filter(p=>!p.gone).forEach(drawDragon);
   for(const b of balls)drawBall(b);
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
-  if(me){ctx.textAlign='left';text('Волна '+wave+' из '+TOTAL,20,28,20,'#fbe8d3');text('Золото: '+me.w[0],20,54,18,CUR[0].c);text('Ноты: '+me.w[1],20,76,18,CUR[1].c);
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,106,20)}
+  if(me){ctx.textAlign='left';text('Волна '+wave+' из '+TOTAL,20,28,20,'#fbe8d3');drawIcon(0,32,54,11);text(String(me.w[0]),50,56,22,CUR[0].c);drawIcon(1,32,82,11);text(String(me.w[1]),50,84,22,CUR[1].c);
+    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,118,20)}
   ctx.textAlign='right';text('Отшито поклонников: '+score,W-20,28,20,'#fbe8d3');text('F — во весь экран',W-14,H-14,13,'#fbe8d399');
   ctx.textAlign='center';text('Нервы принцессы',CX,24,16,'#fbe8d3','italic');
   ctx.fillStyle='#0006';ctx.fillRect(CX-150,36,300,14);ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';ctx.fillRect(CX-150,36,300*tower/towerMax,14);
@@ -307,13 +388,20 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,CX,H-70,34,'#fbe8d3','italic');
   if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',CX,H-70,34,'#ffdd88','italic');
   if(state==='shop')drawShop();
-  else if(state!=='play'){
-    ctx.fillStyle='rgba(20,8,35,.78)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
-    const top=players.slice().sort((a,b)=>b.kills-a.kills).slice(0,5).map(p=>p.name+' '+p.kills).join(', ');
-    const L=state==='win'?['Принцесса в безопасности!','Отшито поклонников: '+score,'Лучшие драконы: '+top]
-      :['Нервы сдали…','Поклонники прорвались. Дошли до волны '+wave+' из '+TOTAL+'.','Лучшие драконы: '+top+'. Отшито: '+score];
-    text(L[0],CX,CY-80,52,'#ff9bb3','italic');text(L[1],CX,CY-10,20,'#fbe8d3');text(L[2],CX,CY+22,20,'#fbe8d3');
-    text('Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',CX,CY+90,18,'#ffdd88','italic')}
+  else if(state!=='play'){   // итоги: таблица драконов по числу отшитых поклонников
+    ctx.fillStyle='rgba(20,8,35,.88)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
+    text(state==='win'?'Принцесса в безопасности!':'Нервы сдали…',CX,64,44,'#ff9bb3','italic');
+    text(state==='win'?'Отшито поклонников всего: '+score:'Дошли до волны '+wave+' из '+TOTAL+' · отшито поклонников: '+score,CX,100,18,'#fbe8d3');
+    const rows=players.filter(p=>!p.gone).slice().sort((a,b)=>b.kills-a.kills),top=134,rh=Math.min(34,(H-top-60)/Math.max(1,rows.length));
+    ctx.textAlign='left';text('№',CX-300,top,13,'#b9a3cc','italic');text('Дракон',CX-250,top,13,'#b9a3cc','italic');text('Игрок',CX-110,top,13,'#b9a3cc','italic');
+    ctx.textAlign='right';text('Отшито',CX+300,top,13,'#b9a3cc','italic');
+    rows.forEach((p,i)=>{const y=top+22+i*rh,fs=Math.min(20,rh*.62);
+      if(p===me){ctx.fillStyle='rgba(255,155,179,.18)';ctx.fillRect(CX-315,y-rh*.6,630,rh*.9)}
+      ctx.textAlign='left';if(i<3)emoji(['🥇','🥈','🥉'][i],CX-292,y,fs+2);else text(String(i+1),CX-300,y,fs,'#fbe8d3');
+      ctx.fillStyle=COLORS[p.ci][1];ctx.beginPath();ctx.arc(CX-241,y-1,8,0,6.283);ctx.fill();
+      text(COLORS[p.ci][0],CX-224,y,fs,'#fbe8d3');text(p.name,CX-110,y,fs,p===me?'#ffdd88':'#fbe8d3');
+      ctx.textAlign='right';text(String(p.kills),CX+300,y,fs+2,'#ffd24d')});
+    ctx.textAlign='center';text('Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',CX,H-22,15,'#ffdd88','italic')}
 }
 
 // ===== Сеть: хост считает весь мир и рассылает снимки, гости рисуют их и присылают ввод =====
@@ -327,8 +415,9 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
-    E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
+    E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0,e.chase?1:0,...castInfo(e)]),
+    Z:zones.map(z=>[z.id,r1(z.x),r1(z.y),z.r,Math.round(z.t*100)/100,z.d]),
     B:balls.map(b=>[b.id,r1(b.x),r1(b.y),b.owner,r10(b.r),Math.round(b.ang*100)]),
     N:notes.map(n=>[n.id,n.k==='bag'?1:0,r1(n.x),r1(n.y),r1(n.tx),r1(n.ty),Math.round(n.t*100)/100]),
     K:pickups.map(c=>[c.id,r1(c.x),r1(c.y),c.v,c.t,r10(c.life)]),
@@ -342,11 +431,11 @@ function stepParts(dt){for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=d
 // Кадр гостя: отправить ввод, подвинуть своего дракона сразу, остальное показать по снимкам хоста с небольшой задержкой (интерполяция)
 function guestFrame(dt,now){
   const k=keys,mx=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my=(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0);
-  if(now-lastIn>60){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:mouse.down?1:0})}
+  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:mouse.down?1:0})}
   stepParts(dt);
   if(state==='shop')shopT+=dt;else shopT=0;
   const L=snaps.length;if(!L)return;
-  const b=snaps[L-1],rt=now-130;
+  const b=snaps[L-1],rt=now-120;
   let a=snaps[0],nx=b;
   for(let i=0;i<L;i++){if(snaps[i].recv<=rt)a=snaps[i]}
   for(let i=0;i<L;i++){if(snaps[i].recv>rt){nx=snaps[i];break}}
@@ -354,13 +443,13 @@ function guestFrame(dt,now){
   state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;chorusCd=b.cC;inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   // свой дракон: двигается без задержки; к позиции хоста подтягивается мягко (сильнее, если стоит, спит или сильно разошлись)
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
   clampP(me);if(!me.asleep&&Math.abs(mouse.x-me.x)>28)me.face=mouse.x>me.x?1:-1;if(!me.face)me.face=1;
-  me.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(mouse.y-me.y,Math.max(Math.abs(mouse.x-me.x),1))))-me.tilt)*Math.min(1,dt*30);
+  me.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(mouse.y-me.y,Math.max(Math.abs(mouse.x-me.x),1))))-me.tilt)*Math.min(1,dt*60);
   me.cd=(me.cd||0)-dt;   // свои шары рисуем сразу (урон всё равно считает хост), иначе при движении огонь появлялся в старой точке
   if(mouse.down&&!me.asleep&&me.frz<=0&&me.cd<=0){
     const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx),nf=flames(me),dm=dmgOf(me);
@@ -374,7 +463,8 @@ function guestFrame(dt,now){
   const gain=(me.asleep||me.frz>0)?.3:err>150?.15:(mx||my)?0:.12,g=1-Math.pow(1-gain,dt*60);
   me.x+=(au[0]-me.x)*g;me.y+=(au[1]-me.y)*g;
   const mp=arr=>new Map((arr||[]).map(e=>[e[0],e])),ea=mp(a.E),ba=mp(a.B),ka=mp(a.K);
-  enemies=nx.E.map(e=>{const o=ea.get(e[0]),kk=KINDS[e[1]];return{id:e[0],k:kk,t:T[kk],x:o?lp(o[2],e[2]):e[2],y:o?lp(o[3],e[3]):e[3],hp:e[4],max:e[5],sh:e[6]}});
+  enemies=nx.E.map(e=>{const o=ea.get(e[0]),kk=KINDS[e[1]];return{id:e[0],k:kk,t:T[kk],x:o?lp(o[2],e[2]):e[2],y:o?lp(o[3],e[3]):e[3],hp:e[4],max:e[5],sh:e[6],chase:e[7],cast:e[8],ip:e[9],thr:e[10]}});
+  zones=(b.Z||[]).map(e=>({id:e[0],x:e[1],y:e[2],r:e[3],t:e[4],d:e[5]}));
   balls=nx.B.filter(e=>e[3]!==me.id).map(e=>{const o=ba.get(e[0]);return{id:e[0],x:o?lp(o[1],e[1]):e[1],y:o?lp(o[2],e[2]):e[2],r:e[4],ang:e[5]/100,col:COLORS[players[e[3]].ci][1]}}).concat(myBalls);
   notes=nx.N.map(e=>({id:e[0],k:e[1]?'bag':'note',x:e[2],y:e[3],tx:e[4],ty:e[5],t:e[6],r:12}));
   pickups=nx.K.map(e=>{const o=ka.get(e[0]);return{id:e[0],x:o?lp(o[1],e[1]):e[1],y:o?lp(o[2],e[2]):e[2],v:e[3],t:e[4],life:e[5]}});
