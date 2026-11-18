@@ -136,39 +136,51 @@ function dragonMouthPosition(p, angleOverride) {
   };
 }
 
-// Рассчитываем наклон относительно направления морды.
-// При взгляде влево горизонтальная компонента меняет знак вместе с face.
+// Наклон спрайта рассчитывается по направлению от центра дракона к курсору.
+// Для левого направления учитываем зеркальное отображение спрайта.
+// При строго вертикальном наведении угол получается ровно +/- PI/2.
 function dragonAimTilt(p, ax, ay) {
-  let angle = Number.isFinite(p.tilt) ? p.tilt : 0;
+  const dx = ax - p.x;
+  const dy = ay - p.y;
   const face = p.face < 0 ? -1 : 1;
 
-  for (let i = 0; i < 8; i++) {
-    const mouth = dragonMouthPosition(p, angle);
-    const forwardDx = (ax - mouth.x) * face;
-    const dy = ay - mouth.y;
-
-    angle = Math.atan2(dy, Math.max(forwardDx, 0.001));
-  }
-
-  return Math.max(-1.55, Math.min(1.55, angle));
+  return Math.atan2(dy, face * dx);
 }
 
-// Единая точка старта и мировое направление для обычного и особого выстрела.
+// Точка старта берётся из фактической матрицы спрайта,
+// а направление — из курсора относительно центра дракона.
+// Это не даёт смещению рта превращать вертикальный выстрел в диагональный.
 function dragonShotFromMouth(p, ax, ay) {
   const mouth = dragonMouthPosition(p);
-  const dx = ax - mouth.x;
-  const dy = ay - mouth.y;
+  const dx = ax - p.x;
+  const dy = ay - p.y;
   const length = Math.hypot(dx, dy) || 1;
-
   const dirX = dx / length;
   const dirY = dy / length;
-  const muzzleClearance = 6;
+  const muzzleClearance = 3;
 
   return {
     x: mouth.x + dirX * muzzleClearance,
     y: mouth.y + dirY * muzzleClearance,
     angle: Math.atan2(dirY, dirX)
   };
+}
+
+// Несколько шаров располагаются поперёк траектории, но летят параллельно.
+// Раньше они расходились веером по углу (±0.16 рад), из-за чего
+// вертикальный залп визуально выглядел диагональным.
+function dragonVolleyPositions(shot, count, spacing = 9) {
+  const sideX = -Math.sin(shot.angle);
+  const sideY = Math.cos(shot.angle);
+
+  return Array.from({ length: count }, (_, i) => {
+    const offset = (i - (count - 1) / 2) * spacing;
+    return {
+      x: shot.x + sideX * offset,
+      y: shot.y + sideY * offset,
+      angle: shot.angle
+    };
+  });
 }
 
 // Локальный и удалённые драконы рисуются с тем же углом,
@@ -1030,7 +1042,7 @@ function updatePlayer(p,dt){
 
   // Сначала выбираем сторону, в которую смотрит дракон.
   // Порог небольшой, чтобы разворот влево/вправо не запаздывал.
-  if(Math.abs(ax-p.x)>6){
+  if(Math.abs(ax-p.x)>1){
     p.face=ax>p.x?1:-1;
   }
   if(!p.face)p.face=1;
@@ -1047,13 +1059,13 @@ function updatePlayer(p,dt){
     const nf=flames(p);
     const dm=dmgOf(p);
 
-    for(let i=0;i<nf;i++){
-      const angle=shot.angle+(i-(nf-1)/2)*.16;
-
+    const volley=dragonVolleyPositions(shot,nf);
+    for(const pellet of volley){
+      const angle=pellet.angle;
       balls.push({
         id:++uid,
-        x:shot.x,
-        y:shot.y,
+        x:pellet.x,
+        y:pellet.y,
         ang:angle,
         vx:Math.cos(angle)*540,
         vy:Math.sin(angle)*540,
@@ -1459,7 +1471,7 @@ inspV=b.iv;shopLeft=b.sl;
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
   clampP(me);
 
-  if(!me.asleep&&Math.abs(mouse.x-me.x)>6){
+  if(!me.asleep&&Math.abs(mouse.x-me.x)>1){
     me.face=mouse.x>me.x?1:-1;
   }
   if(!me.face)me.face=1;
@@ -1477,13 +1489,13 @@ inspV=b.iv;shopLeft=b.sl;
     const nf=flames(me);
     const dm=dmgOf(me);
 
-    for(let i=0;i<nf;i++){
-      const angle=shot.angle+(i-(nf-1)/2)*.16;
-
+    const volley=dragonVolleyPositions(shot,nf);
+    for(const pellet of volley){
+      const angle=pellet.angle;
       myBalls.push({
         id:++uid,
-        x:shot.x,
-        y:shot.y,
+        x:pellet.x,
+        y:pellet.y,
         ang:angle,
         vx:Math.cos(angle)*540,
         vy:Math.sin(angle)*540,
