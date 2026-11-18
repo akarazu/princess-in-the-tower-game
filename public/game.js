@@ -126,6 +126,64 @@ function dragonMouthPosition(p) {
   };
 }
 
+function dragonMouthPosition(p, angleOverride) {
+  const angle = Number.isFinite(angleOverride)
+    ? angleOverride
+    : (Number.isFinite(p.dtilt) ? p.dtilt : p.tilt || 0);
+
+  const face = p.face < 0 ? -1 : 1;
+  const cs = Math.cos(angle);
+  const sn = Math.sin(angle);
+
+  return {
+    x: p.x + face * (MOUTH_X * cs - MOUTH_Y * sn),
+    y: p.y + MOUTH_X * sn + MOUTH_Y * cs
+  };
+}
+
+// Подбираем угол поворота головы с учётом положения рта.
+function dragonAimTilt(p, ax, ay) {
+  let angle = p.tilt || 0;
+
+  // Несколько итераций уточняют положение рта и угол прицеливания.
+  for (let i = 0; i < 5; i++) {
+    const mouth = dragonMouthPosition(p, angle);
+    angle = Math.atan2(
+      ay - mouth.y,
+      Math.max(Math.abs(ax - mouth.x), 0.001)
+    );
+  }
+
+  return Math.max(-1.55, Math.min(1.55, angle));
+}
+
+// Общий расчёт точки появления и направления пламени.
+function dragonShotFromMouth(p, ax, ay) {
+  const mouth = dragonMouthPosition(p);
+
+  return {
+    x: mouth.x,
+    y: mouth.y,
+    angle: Math.atan2(ay - mouth.y, ax - mouth.x)
+  };
+}
+
+// Синхронизируем угол спрайта с углом прицеливания.
+function updateDragonDrawAngle(p, dt) {
+  const target = p.tilt || 0;
+
+  if (p === me) {
+    p.dtilt = target;
+  } else {
+    const current = Number.isFinite(p.dtilt)
+      ? p.dtilt
+      : target;
+
+    p.dtilt = current +
+      (target - current) * Math.min(1, dt * 18);
+  }
+}
+
 function drawDragonSprite(p){
   const stunned=p.asleep&&!p.dead;
   const sh=stunned
@@ -140,7 +198,9 @@ function drawDragonSprite(p){
 
   // Advance the stunned animation even while the player is asleep.
   p.ph=(p.ph||p.id*2)+frameDt*1000/frameMs;
-  p.dtilt=p===me?(p.tilt||0):(p.dtilt||0)+((p.tilt||0)-(p.dtilt||0))*.55;
+  const drawAngle = Number.isFinite(p.dtilt)
+  ? p.dtilt
+  : (p.tilt || 0);
 
   const fw=sh.width/frameCount;
   const fh=sh.height;
@@ -151,7 +211,7 @@ function drawDragonSprite(p){
   ctx.save();
   ctx.translate(p.x,p.y);
   ctx.scale(p.face,1);
-  ctx.rotate(p.dtilt);
+  ctx.rotate(drawAngle);
   ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);
   ctx.restore();
 }
@@ -923,27 +983,24 @@ function updatePlayer(p,dt){
   const{mx,my,ax,ay,fire}=p.in,l=Math.hypot(mx,my);
   if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
   p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y));
-  if(Math.abs(ax-p.x)>28)p.face=ax>p.x?1:-1;if(!p.face)p.face=1;
-  const targetTilt = Math.atan2(
-  ay - p.y,
-  Math.max(Math.abs(ax - p.x), 1)
-);
+  if(Math.abs(ax-p.x)>6)
+  p.face=ax>p.x?1:-1;
+
+if(!p.face)p.face=1;
+const targetTilt = dragonAimTilt(p, ax, ay);
 
 p.tilt += (
-  Math.max(-1.45, Math.min(1.45, targetTilt))
-  - p.tilt
-) * Math.min(1, dt * 60);
-  if(fire&&p.cd<=0&&p.frz<=0){
+  targetTilt - p.tilt
+) * Math.min(1, dt * 18);
 
-const mouth = dragonMouthPosition(me);
+updateDragonDrawAngle(p, dt);
+if(fire&&p.cd<=0&&p.frz<=0){
 
-const sx = mouth.x;
-const sy = mouth.y;
+const shot = dragonShotFromMouth(me, mouse.x, mouse.y);
 
-  const a = Math.atan2(
-    ay - sy,
-    ax - sx
-  );
+const sx = shot.x;
+const sy = shot.y;
+const a = shot.angle;
     const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
     p.cd=.5*Math.pow(.85,p.lv[1])}
   p.acd-=dt;
@@ -1324,7 +1381,14 @@ inspV=b.iv;shopLeft=b.sl;
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
   clampP(me);if(!me.asleep&&Math.abs(mouse.x-me.x)>28)me.face=mouse.x>me.x?1:-1;if(!me.face)me.face=1;
-  me.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(mouse.y-me.y,Math.max(Math.abs(mouse.x-me.x),1))))-me.tilt)*Math.min(1,dt*60);
+  const targetTilt = dragonAimTilt(me, mouse.x, mouse.y);
+
+me.tilt += (
+  targetTilt - me.tilt
+) * Math.min(1, dt * 18);
+
+// Угол отрисовки совпадает с углом прицеливания.
+players.forEach(p => updateDragonDrawAngle(p, dt));
   me.cd=(me.cd||0)-dt;
   if(mouse.down&&!me.asleep&&me.frz<=0&&me.cd<=0){
     const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx),nf=flames(me),dm=dmgOf(me);
