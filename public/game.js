@@ -500,7 +500,7 @@ function bossPathPoint(path, u) {
   };
 }
 
-function makeBossPath(k, x, y, targetRadius) {
+function makeBossPath(k, x, y, targetRadius, targetPoint, maxAmplitude) {
   // Учитываем размер спрайта, чтобы босс оставался в пределах экрана.
   const margin = Math.max(T[k].r + 16, 54);
   x = Math.max(margin, Math.min(W - margin, x));
@@ -512,7 +512,11 @@ function makeBossPath(k, x, y, targetRadius) {
 
   let tx, ty;
 
-  if (targetRadius !== undefined) {
+  if (targetPoint) {
+    // Дополнительная заданная точка используется для патруля короля по краю поля.
+    tx = Math.max(margin, Math.min(W - margin, targetPoint.x));
+    ty = Math.max(margin, Math.min(H - margin, targetPoint.y));
+  } else if (targetRadius !== undefined) {
     // Отдельная точка для отхода и повторного сближения принца.
     tx = CX - dxToCenter / centerDistance * targetRadius;
     ty = CY - dyToCenter / centerDistance * targetRadius;
@@ -554,7 +558,7 @@ function makeBossPath(k, x, y, targetRadius) {
   const distance = Math.hypot(dx, dy) || 1;
   const normalX = -dy / distance;
   const normalY = dx / distance;
-  const wantedAmplitude = k === 'king' ? 320 : 230;
+  const wantedAmplitude = maxAmplitude !== undefined ? maxAmplitude : (k === 'king' ? 320 : 230);
 
   // Проверяем оба направления изгиба. Выбираем то, у которого больше
   // свободного места внутри экрана, чтобы сохранить выраженную кривую
@@ -616,6 +620,31 @@ function makeBossPath(k, x, y, targetRadius) {
   }
 
   return path;
+}
+
+
+// Пока король отдаёт пять указов, он патрулирует по внешней дуге поля,
+// а не стоит на месте и не идёт преждевременно прямо к башне.
+function makeKingPatrolPath(e) {
+  const a = e.ab || (e.ab = {});
+  const margin = Math.max(T.king.r + 16, 54);
+  const rx = Math.max(80, W / 2 - margin - 24);
+  const ry = Math.max(80, H / 2 - margin - 24);
+
+  if (!Number.isFinite(a.patrolAngle)) {
+    a.patrolAngle = Math.atan2((e.y - CY) / ry, (e.x - CX) / rx);
+    a.patrolDirection = e.id % 2 === 0 ? -1 : 1;
+  }
+
+  a.patrolAngle += (a.patrolDirection || 1) * 0.48;
+  const targetPoint = {
+    x: CX + rx * Math.cos(a.patrolAngle),
+    y: CY + ry * Math.sin(a.patrolAngle)
+  };
+
+  // Небольшой изгиб сохраняет характерную траекторию короля,
+  // но не уводит его через центр к башне до пятого указа.
+  e.path = makeBossPath('king', e.x, e.y, undefined, targetPoint, 24);
 }
 
 function spawn(k){
@@ -688,6 +717,11 @@ function bossAI(e,dt){
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
+
+  if(e.k==='king'&&!a.patrolStarted&&!a.approachStarted){
+    a.patrolStarted=true;
+    makeKingPatrolPath(e);
+  }
 
   // Пока длится оглушение, босс не двигается и не атакует.
   if(a.stun>0){
@@ -823,9 +857,9 @@ if(!a.arrived){
 
   if(a.pend){
 
-    // Король остаётся на исходной позиции, пока не выполнит пять указов.
-    // После пятого указа завершаем текущую анимацию и только затем идём к башне.
-    e.hold=!a.approachStarted;
+    // Во время указов король продолжает патрулировать по внешней дуге.
+    // К башне он перейдёт только после завершения пятого указа.
+    e.hold=false;
 
     if(a.thr<=0){
       a.pend=null;
@@ -868,7 +902,7 @@ if(!a.arrived){
     a.thr=a.thrT=KING_ACT;
   }
 
-  e.hold=!a.approachStarted;
+  e.hold=false;
 }
 function throwPrinceRing(e){
   const sx=e.x;
@@ -1414,6 +1448,10 @@ if (e.path) {
 
     if (e.path.u >= 1) {
       e.path.arrived = true;
+
+      if (e.k === 'king' && e.ab && !e.ab.approachStarted) {
+        makeKingPatrolPath(e);
+      }
 
       if (e.k === 'prince' && e.ab) {
         if (e.ab.afterStun && e.ab.repositionPathStarted) {
