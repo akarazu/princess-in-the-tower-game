@@ -396,7 +396,7 @@ function bossAI(e,dt){
         'prince',
         e.x,
         e.y,
-        TOWER_R+e.t.r+72
+        TOWER_R+e.t.r+120
       );
     }
 
@@ -424,7 +424,7 @@ if(a.thr>0&&a.action){
       a.arrived=false;
 
       a.cd=0;
-      a.t1=1.5;
+      a.t1=0.5;
     }
   }
 
@@ -462,14 +462,17 @@ if(a.thr>0&&a.action){
     }
 
 
+
 if(!a.arrived){
 
-  // Цветы доступны и при первом, и при повторном приближении.
+  // Цветы бросаются на обоих этапах движения:
+  // при отходе от башни и при повторном приближении.
+
   a.t1-=dt;
 
   if(a.t1<=0){
 
-    // При повторном приближении броски чаще.
+    // После оглушения атакует чаще.
     a.t1=a.afterStun
       ? 3.5
       : BOSSCFG.roseEvery*f;
@@ -480,6 +483,7 @@ if(!a.arrived){
 
   return;
 }
+
 
 
     // Вблизи башни — только предложение и последующий бросок кольца.
@@ -785,17 +789,23 @@ if (e.path) {
 
       if (e.k === 'prince' && e.ab) {
         if (e.ab.afterStun && e.ab.repositionPathStarted) {
-          if (!e.ab.repositioned) {
-            // Первый этап после оглушения завершён: принц теперь снова
-            // направляется к обычной точке остановки перед башней.
-            e.ab.repositioned = true;
-            e.path = makeBossPath(
-              'prince',
-              e.x,
-              e.y,
-              TOWER_R + e.t.r + 12
-            );
-          } else {
+if (!e.ab.repositioned) {
+
+  // Первый этап завершён.
+  // Начинаем возвращение к башне.
+
+  e.ab.repositioned = true;
+
+  // Следующий бросок цветов не придётся долго ждать.
+  e.ab.t1 = 0.5;
+
+  e.path = makeBossPath(
+    'prince',
+    e.x,
+    e.y,
+    TOWER_R + e.t.r + 12
+  );
+} else {
             // Повторно приблизился к башне — можно делать предложение.
             e.ab.afterStun = false;
             e.ab.repositionPathStarted = false;
