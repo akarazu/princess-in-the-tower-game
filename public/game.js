@@ -41,10 +41,10 @@ NEWQ={
 const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55,r:Math.random()*1.4+.3}));
 
 // ===== Картинки =====
-const IMG={},DFR=9,FFR=6,KFR=6,dragonCache={};
+const IMG={},DFR=9,FFR=6,KFR=6,SDFR=4,dragonCache={},stunnedDragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -61,13 +61,77 @@ function dragonFor(ci){
   for(let i=0;i<d.length;i+=4){if(d[i+3]<20||d[i+1]<=d[i]||d[i+1]<=d[i+2])continue;const h=rgb2hsv(d[i],d[i+1],d[i+2]);
     if(h[0]>55&&h[0]<175&&h[1]>.3){const rgb=hsv2rgb(T[0],Math.min(1,h[1]*T[1]/.75),Math.min(1,h[2]*(.65+.35*T[2])));d[i]=rgb[0];d[i+1]=rgb[1];d[i+2]=rgb[2]}}
   x.putImageData(id,0,0);return dragonCache[ci]=c}
+  function dragonStunnedFor(ci){
+  if(stunnedDragonCache[ci])return stunnedDragonCache[ci];
+  if(!IMG.dragonStunned)return null;
+
+  const im=IMG.dragonStunned;
+  const c=document.createElement('canvas');
+  c.width=im.width;
+  c.height=im.height;
+  const x=c.getContext('2d');
+  x.drawImage(im,0,0);
+
+  // Use exactly the same player-palette mapping as the normal dragon.
+  const hex=COLORS[ci][1];
+  const target=rgb2hsv(
+    parseInt(hex.slice(1,3),16),
+    parseInt(hex.slice(3,5),16),
+    parseInt(hex.slice(5,7),16)
+  );
+
+  const imageData=x.getImageData(0,0,c.width,c.height);
+  const d=imageData.data;
+
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3]<20||d[i+1]<=d[i]||d[i+1]<=d[i+2])continue;
+
+    const h=rgb2hsv(d[i],d[i+1],d[i+2]);
+    if(h[0]>55&&h[0]<175&&h[1]>.3){
+      const rgb=hsv2rgb(
+        target[0],
+        Math.min(1,h[1]*target[1]/.75),
+        Math.min(1,h[2]*(.65+.35*target[2]))
+      );
+      d[i]=rgb[0];
+      d[i+1]=rgb[1];
+      d[i+2]=rgb[2];
+    }
+  }
+
+  x.putImageData(imageData,0,0);
+  return stunnedDragonCache[ci]=c;
+}
 function drawDragonSprite(p){
-  const sh=dragonFor(p.ci)||IMG.dragon;if(!sh){emoji('🐲',p.x,p.y,46);return}
+  const stunned=p.asleep&&!p.dead;
+  const sh=stunned
+    ?(dragonStunnedFor(p.ci)||IMG.dragonStunned||dragonFor(p.ci)||IMG.dragon)
+    :(dragonFor(p.ci)||IMG.dragon);
+
+  if(!sh){emoji('🐲',p.x,p.y,46);return}
   if(!p.face)p.face=1;
-  p.ph=(p.ph||p.id*2)+(p.asleep?0:frameDt*1000/(140/(1+.3*(p.lv?p.lv[2]:0))));
+
+  const frameCount=stunned?SDFR:DFR;
+  const frameMs=stunned?300:140/(1+.3*(p.lv?p.lv[2]:0));
+
+  // Advance the stunned animation even while the player is asleep.
+  p.ph=(p.ph||p.id*2)+frameDt*1000/frameMs;
   p.dtilt=p===me?(p.tilt||0):(p.dtilt||0)+((p.tilt||0)-(p.dtilt||0))*.55;
-  const fw=sh.width/DFR,fh=sh.height,w=96,h=w*fh/fw,f=p.asleep?0:Math.floor(p.ph)%DFR;
-  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.face,1);ctx.rotate(p.dtilt);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
+
+  const fw=sh.width/frameCount;
+  const fh=sh.height;
+  const w=96;
+  const h=w*fh/fw;
+  const f=Math.floor(p.ph)%frameCount;
+
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  ctx.scale(p.face,1);
+  ctx.rotate(p.dtilt);
+  ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);
+  ctx.restore();
+}
+
 function resizeCanvas(){
   const vw=typeof innerWidth==='number'?innerWidth:W,vh=typeof innerHeight==='number'?innerHeight:H,a=Math.min(2.6,Math.max(1.2,vw/vh));
   cvW=Math.round(Math.max(W,H*a));cvH=Math.round(Math.max(H,W/a));ox=(cvW-W)/2;oy=(cvH-H)/2;
@@ -93,28 +157,24 @@ function drawEnemy(e){
   else if(e.k==='prince'){
     const ci=castInfo(e);
     const action=e.bossAction||(e.ab&&e.ab.action);
-    const stunned=!!((e.ab&&e.ab.stun>0)||e.stunned);
+const stunned=!!((e.ab&&e.ab.stun>0)||e.stunned);
 
-    // Оглушение имеет приоритет над всеми остальными анимациями принца.
-    // GIF уже содержит собственную анимацию, поэтому кадры не нарезаем.
-    if(stunned&&IMG.princeStunned){
-      key='princeStunned';
-      fo=-1;
-    }
-    // Цветы: поднятие рук
-    else if(action==='rose'&&ci[2]>0&&IMG.princeCast){
-      key='princeCast';
-      fo=Math.floor(ci[2]/100*SPR.princeCast.fr);
-    }
-    // Кольцо: бросок вперёд
-    else if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
-      key='princeThrow';
-      fo=Math.floor(ci[2]/100*SPR.princeThrow.fr);
-    }
-    else if(ci[0]>0&&IMG.princeCast){
-      key='princeCast';
-      fo=Math.floor(ci[0]/100*SPR.princeCast.fr);
-    }
+if(stunned&&IMG.princeStunned){
+  key='princeStunned';
+  fo=-1;
+}
+else if(action==='rose'&&ci[2]>0&&IMG.princeCast){
+  key='princeCast';
+  fo=Math.floor(ci[2]/100*SPR.princeCast.fr);
+}
+else if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
+  key='princeThrow';
+  fo=Math.floor(ci[2]/100*SPR.princeThrow.fr);
+}
+else if(ci[0]>0&&IMG.princeCast){
+  key='princeCast';
+  fo=Math.floor(ci[0]/100*SPR.princeCast.fr);
+}
   }
 
   if(e.k==='merchant'){
