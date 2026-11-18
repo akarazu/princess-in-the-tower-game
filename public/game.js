@@ -144,6 +144,16 @@ function dragonAimTilt(p, ax, ay) {
   const dy = ay - p.y;
   const face = p.face < 0 ? -1 : 1;
 
+  // When the dragon faces left and aims almost vertically,
+  // snap its body/head angle to an exact vertical direction.
+  // This prevents tiny horizontal cursor offsets from tilting the flame.
+  const nearVerticalLeft = face < 0 &&
+    Math.abs(dx) <= Math.abs(dy) * 0.15;
+
+  if (nearVerticalLeft) {
+    return dy < 0 ? -Math.PI / 2 : Math.PI / 2;
+  }
+
   return Math.atan2(dy, face * dx);
 }
 
@@ -154,9 +164,25 @@ function dragonShotFromMouth(p, ax, ay) {
   const mouth = dragonMouthPosition(p);
   const dx = ax - p.x;
   const dy = ay - p.y;
-  const length = Math.hypot(dx, dy) || 1;
-  const dirX = dx / length;
-  const dirY = dy / length;
+
+  let dirX;
+  let dirY;
+
+  // Special correction for near-vertical aiming while facing left.
+  // Keep the projectile exactly vertical instead of letting a few
+  // horizontal pixels in the cursor position create a diagonal angle.
+  const nearVerticalLeft = p.face < 0 &&
+    Math.abs(dx) <= Math.abs(dy) * 0.15;
+
+  if (nearVerticalLeft) {
+    dirX = 0;
+    dirY = dy < 0 ? -1 : 1;
+  } else {
+    const length = Math.hypot(dx, dy) || 1;
+    dirX = dx / length;
+    dirY = dy / length;
+  }
+
   const muzzleClearance = 3;
 
   return {
