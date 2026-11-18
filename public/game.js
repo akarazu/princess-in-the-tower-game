@@ -4,7 +4,7 @@
 // ===== Константы и данные =====
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=Math.round(H*.512);
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:40,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:18,sz:34,rng:280,rate:3.4,kind:'bag'}};
+const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={3:'Новый поклонник: бард с серенадами!',4:'Новый поклонник: маг лечит и защищает щитами!',6:'Новый поклонник: купец с мешками золота!',5:'Босс: Прекрасный принц со свитой',10:'Финал: отец принцессы и вся свита'};
 const Q={hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!']};
 const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Свитки',c:'#ecd9a8'}];
@@ -21,7 +21,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,dragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;   // перекрашиваем не больше одного цвета за кадр, чтобы не было подвисания
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast'])loadImg(k,'assets/'+k+'.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}   // целый, повреждённый, сильно повреждённый
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -61,7 +61,7 @@ function drawBall(b){
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang||0);
   ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.32,0,h*.4,0,6.283);ctx.fill();ctx.globalAlpha=1;   // цветной ореол: чей это огонь
   ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);ctx.restore()}   // хвост шара у рта, огонь растёт вперёд
-const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130}};   // враги со спрайтами: число кадров, высота, длительность кадра
+const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130},merchant:{fr:8,h:64,ms:120},merchantIdle:{fr:4,h:64,ms:450},merchantThrow:{fr:6,h:64,ms:100},king:{fr:8,h:112,ms:130},kingIdle:{fr:8,h:112,ms:140},kingSwing:{fr:8,h:112,ms:120}};   // враги со спрайтами: число кадров, высота, длительность кадра
 function drawEnemy(e){
   let key=e.k,fo=-1;const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;   // остановился на дистанции: бард играет, маг колдует
   if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
@@ -69,6 +69,12 @@ function drawEnemy(e){
   else if(e.k==='prince'){const ci=castInfo(e);
     if(ci[0]>0&&IMG.princeCast){key='princeCast';fo=Math.floor(ci[0]/100*SPR.princeCast.fr)}   // руки поднимаются по мере предложения
     else if(ci[2]>0&&IMG.princeThrow){key='princeThrow';fo=Math.floor(ci[2]/100*SPR.princeThrow.fr)}}   // бросок роз
+  if(e.k==='merchant'){const th=castInfo(e)[2];   // бросок мешка, стоит на дистанции, идёт
+    if(th>0&&IMG.merchantThrow){key='merchantThrow';fo=Math.floor(th/100*SPR.merchantThrow.fr)}
+    else if(near&&IMG.merchantIdle)key='merchantIdle'}
+  else if(e.k==='king'){const pr=castInfo(e)[2];   // замах скипетром: сначала поза ожидания (предупреждение), потом взмах
+    if(pr>0&&pr<38&&IMG.kingIdle)key='kingIdle';
+    else if(pr>=38&&IMG.kingSwing){key='kingSwing';fo=Math.floor((pr-38)/62*SPR.kingSwing.fr)}}
   const sp=SPR[key],sh=sp&&IMG[key];
   if(sh){   // идёт к башне лицом по ходу движения, шаги анимированы
     const fw=sh.width/sp.fr,fh=sh.height,h=sp.h,w=h*fw/fh,t=typeof performance!=='undefined'?performance.now():0,f=fo>=0?Math.min(sp.fr-1,fo):Math.floor(t/sp.ms+e.id)%sp.fr;
@@ -90,28 +96,30 @@ let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',qu
 // ===== Игроки: всё личное хранится здесь =====
 let players=[],me=null,isHost=false,ws=null;
 const maxH=p=>3,flames=p=>1+Math.min(2,Math.ceil(p.lv[0]/2)),dmgOf=p=>1+Math.floor(p.lv[0]/2),shMax=p=>p.lv[3]>=3?2:p.lv[3]>=1?1:0,SH_T=[0,10,7,6];
-const wakeTime=()=>players.length>1?12:6;
+const wakeTime=()=>15;   // секунд, чтобы поднять упавшего дракона
 const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
-const capped=(p,i)=>p.lv[i]>=[4,5,3,3][i];
-const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
+const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
+const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1','взрыв по правой кнопке (раз в 5 с)'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
-  return{id,ci,name:'',nid:'',gone:false,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,ready:false,
+  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,ready:false,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
     in:{mx:0,my:0,ax:CX,ay:0,fire:false}}   // ввод игрока: сюда же придут данные по сети
 }
 
 // ===== Ввод (локальный игрок) =====
-const mouse={x:CX,y:0,down:false},keys={};
+const mouse={x:CX,y:0,down:false,alt:false},keys={};
 function pos(e){const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)*cvW/r.width-ox;mouse.y=(e.clientY-r.top)*cvH/r.height-oy}
 cv.addEventListener('pointermove',pos);
 cv.addEventListener('pointerdown',e=>{pos(e);
   if(state==='shop'){if(shopT>.4)shopClick();return}
+  if(e.button===2){mouse.alt=true;lastIn=0;return}
   mouse.down=true;lastIn=0});
-addEventListener('pointerup',()=>{mouse.down=false;lastIn=0});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('pointerup',e=>{if(e.button===2)mouse.alt=false;else mouse.down=false;lastIn=0});
 addEventListener('keydown',e=>{if(!active)return;if(e.code==='KeyF'&&document.documentElement&&document.documentElement.requestFullscreen){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}keys[e.code]=true;lastIn=0;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
   if(state==='shop'&&shopT>.4){if(e.code==='Space'||e.code==='Enter')goReq();if(/^Digit[1-4]$/.test(e.code))buyReq(+e.code[5]-1)}});
 addEventListener('keyup',e=>{keys[e.code]=false;lastIn=0});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;mouse.alt=false});
 
 // ===== Вспомогательное =====
 const pick=a=>a[Math.random()*a.length|0];
@@ -153,13 +161,21 @@ function descNew(p,i){const n=capped(p,i)?p:nx(p,i);   // подпись «бы�
     'щит: '+shMax(p)+' → '+shMax(n)+', восст. '+(SH_T[n.lv[3]]||'—')+' с'][i]}
 function drop(e,o){const D={knight:[Math.random()<DROP.chance?1:0,0],bard:[0,1],mage:[2,0],merchant:[2,0],prince:[10,4],king:[20,8]}[e.k];
   D.forEach((v,t)=>{if(v)pickups.push({id:++uid,x:e.x+(t?12:-12),y:e.y,v,t,life:isBoss(e)?DROP.boss:DROP.life,own:o.id,res:3})})}   // 3 секунды монета только для убийцы
-function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.h=Math.min(maxH(p),p.h+1);p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
+function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.dead=false;p.h=Math.min(maxH(p),p.h+1);p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
 // способности дальних врагов: маг лечит раненого союзника, купец бросает мешок в дракона, бард — ноту в башню
 // ===== Способности боссов (все числа можно крутить здесь) =====
+const BLAST={cd:5,r:55,mult:1};   // взрывное пламя: перезарядка, радиус, множитель урона относительно обычного пламени
+function damageEnemy(e,dmg,o){
+  if(e.hp<=0)return;if(e.sh>0){const ab=Math.min(e.sh,dmg);e.sh-=ab;dmg-=ab}
+  e.hp-=dmg;if(e.hp<=0){o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);if(isBoss(e)||Math.random()<.06)say(pick(Q.kill))}}
+function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLAST.mult));
+  boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
+  for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
+  for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
 const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:20,disgraceEvery:24,disgraceT:8};
-const THROW_T=.8;
+const THROW_T=.8,KING_ACT=1.3;
 function castInfo(e){   // [прогресс предложения %, прогресс срыва %, прогресс броска роз %]
-  if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/THROW_T)*100)):0;
+  if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
   return[e.cast||0,e.ip||0,e.thr||0]}
 function bossAI(e,dt){
@@ -178,8 +194,13 @@ function bossAI(e,dt){
       if(a.cd<=0&&Math.hypot(CX-e.x,CY-e.y)<=230){a.cast=a.castT;a.castHp=e.hp;e.hold=true;say('Принц делает предложение! Собьём его, пока не поздно!',4);tag(e,'Предложение!')}
     }
   }else{
-    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.decreeEvery*f;decree(e)}
-    a.t2-=dt;if(a.t2<=0){a.t2=BOSSCFG.disgraceEvery*f;disgrace(e)}
+    if(a.pend){   // король замахивается скипетром: сначала поза (0,5 с, предупреждение), потом эффект и взмах
+      e.hold=true;
+      if(a.thr<=0)a.pend=null;
+      else if(a.thr<=KING_ACT-.5&&!a.did){a.did=true;if(a.pend==='decree')decree(e);else disgrace(e)}
+      return}
+    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.decreeEvery*f;a.pend='decree';a.did=false;a.thr=a.thrT=KING_ACT}
+    a.t2-=dt;if(a.t2<=0){a.t2=BOSSCFG.disgraceEvery*f;a.pend='disgrace';a.did=false;a.thr=a.thrT=KING_ACT}
   }
 }
 function roseRain(e){   // красные круги: через секунду-полторы удар, забирает щит или сердечко
@@ -199,16 +220,26 @@ function drawZones(){const t=typeof performance!=='undefined'?performance.now()/
   for(const z of zones){const u=Math.min(1,z.t/z.d);
     ctx.globalAlpha=.12+.28*u;ctx.fillStyle='#ff2d55';ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.fill();
     ctx.globalAlpha=.55+.4*Math.sin(t*14);ctx.strokeStyle='#ff4d6d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.stroke();ctx.lineWidth=1;ctx.globalAlpha=1;
-    emoji('🌹',z.x,z.y,24)}}
+    if(IMG.bouquet)drawSheet(IMG.bouquet,6,z.x,z.y,46,t*9+z.id);else emoji('🌹',z.x,z.y,24)}}
 function drawEnemyMarks(e){
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
   if(e.chase){ctx.strokeStyle='rgba(255,60,60,'+(.65+.3*Math.sin(t*10))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+9,0,6.283);ctx.stroke();ctx.lineWidth=1}
   const ci=castInfo(e);
   if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-34;
     ctx.fillStyle='#0009';ctx.fillRect(x,y,w,16);ctx.fillStyle='#ffd24d';ctx.fillRect(x,y,w*ci[0]/100,8);ctx.fillStyle='#ff5a4d';ctx.fillRect(x,y+8,w*ci[1]/100,8);
-    emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
+    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,32,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';   // маги и купцы
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}   // на поле остались только маги и купцы
+function drawRoster(){   // сколько драконов в строю: цветной кружок (в строю), красное кольцо с секундами (упал), череп (погиб)
+  const ps=players.filter(p=>!p.gone),act=ps.filter(p=>!p.asleep).length,t=typeof performance!=='undefined'?performance.now()/1000:0;
+  ctx.textAlign='right';text('Драконы в строю: '+act+' из '+ps.length,W-20,52,15,'#fbe8d3');
+  ps.forEach((p,i)=>{const x=W-34-(i%8)*27,y=78+Math.floor(i/8)*28;
+    ctx.globalAlpha=p.dead?.35:p.asleep?.7:1;ctx.fillStyle=COLORS[p.ci][1];ctx.beginPath();ctx.arc(x,y,10,0,6.283);ctx.fill();ctx.globalAlpha=1;
+    if(p===me){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,13,0,6.283);ctx.stroke();ctx.lineWidth=1}
+    ctx.textAlign='center';
+    if(p.dead)emoji('💀',x,y,14);
+    else if(p.asleep){ctx.strokeStyle='rgba(255,70,70,'+(.6+.4*Math.sin(t*8))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,12,0,6.283);ctx.stroke();ctx.lineWidth=1;text(String(Math.max(0,Math.ceil(p.wt))),x,y+4,11,'#fff')}
+    else text(p.name.slice(0,1).toUpperCase(),x,y+4,12,'#1b1030')})}
 function lonely(e){return e.t.kind==='heal'&&casterOnly()}   // остались одни саппорты: маги бегут к замку   // остались одни саппорты
 function shieldAllies(e){const c=enemies.filter(o=>o!==e&&o.hp>0&&!o.sh&&!isBoss(o)).sort(()=>Math.random()-.5).slice(0,Math.max(0,Math.min(2,6-enemies.filter(o=>o.sh).length)));   // не больше 6 щитов на поле
   for(const o of c){o.sh=2;boom(o.x,o.y,'#8fd8ff',6)}if(c.length)tag(e,'Щит!')}
@@ -225,23 +256,25 @@ function cast(e,dx,dy,d,force){
   const a=Math.atan2(ty-e.y,tx-e.x),v=k==='bag'?130:110;
   
   if(k==='bag'&&casterOnly()&&notes.filter(n=>n.k==='bag').length<15){   // остались одни купцы: «Распродажа», три мешка веером вокруг дракона и вдвое чаще
-    tag(e,'Распродажа!');e.cdn=e.t.rate*.5;
+    tag(e,'Распродажа!');e.cdn=e.t.rate*.5;e.actL=e.actT=.6;
     for(let i=0;i<3;i++){const an=i*2.094+Math.random()*.6,bx=Math.max(30,Math.min(W-30,tx+Math.cos(an)*75)),by=Math.max(80,Math.min(H-30,ty+Math.sin(an)*75));
       notes.push({id:++uid,x:e.x,y:e.y,vx:0,vy:0,hp:1,k:'bag',dmg:0,r:12,life:5,sx:e.x,sy:e.y,tx:bx,ty:by,t:0,d:1.1})}
     return}
+  if(k==='bag')e.actL=e.actT=.6;
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)say('Дракона разбудили!');else{p.w[0]=Math.floor(p.w[0]*.75);say('Дракон проснулся. Часть золота потерялась по дороге.')}}
 function hitDragon(p,e){if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else{e.hp-=1;if(e.hp<=0){p.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,p)}}
-  if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;say('Ой, дракон уснул от цветов…')}}
+  if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;say('Дракон упал! Его надо поднять за 15 секунд.')}}
 
 function updatePlayer(p,dt){
   if(p.gone){p.asleep=true;return}
   p.inv=Math.max(0,p.inv-dt);p.cd-=dt;p.frz=Math.max(0,p.frz-dt);
   if(p.lv[3]>0&&p.sh<shMax(p)){p.shT+=dt;if(p.shT>=SH_T[p.lv[3]]){p.sh++;p.shT=0}}   // щит восстанавливается
-  if(p.asleep){p.slept+=dt;p.wt-=dt;
+  if(p.asleep){if(p.dead)return;p.slept+=dt;p.wt-=dt;   // погибший лежит до магазина
     if(players.some(o=>o!==p&&!o.asleep&&Math.hypot(o.x-p.x,o.y-p.y)<50))p.rv+=dt;   // друг рядом будит за 2 секунды
-    if(p.rv>=2)wakeUp(p,true);else if(p.wt<=0)wakeUp(p,false);
+    if(p.rv>=2)wakeUp(p,true);
+    else if(p.wt<=0){p.dead=true;p.w[0]=Math.floor(p.w[0]*.75);say(p.name+' погиб: до магазина дракон выбывает.',4);boom(p.x,p.y,'#9a8aa8',16)}   // никто не подлетел
     return}
   const{mx,my,ax,ay,fire}=p.in,l=Math.hypot(mx,my);
   if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
@@ -250,16 +283,22 @@ function updatePlayer(p,dt){
   p.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(ay-p.y,Math.max(Math.abs(ax-p.x),1))))-p.tilt)*Math.min(1,dt*60);   // корпус поворачивается к прицелу, до 60 градусов   // смотрит в сторону прицела; рядом с драконом поворот не меняется
   if(fire&&p.cd<=0&&p.frz<=0){const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(ay-sy,ax-sx);   // огонь вылетает изо рта
     const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
-    p.cd=.5*Math.pow(.85,p.lv[1])}}
+    p.cd=.5*Math.pow(.85,p.lv[1])}
+  p.acd-=dt;
+  if(p.in.alt&&p.lv[0]>=5&&p.acd<=0&&p.frz<=0){   // правая кнопка: взрывной шар
+    const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(p.in.ay-sy,p.in.ax-sx);
+    balls.push({id:++uid,x:sx,y:sy,ang:a,vx:Math.cos(a)*470,vy:Math.sin(a)*470,life:1.1,col:COLORS[p.ci][1],dmg:dmgOf(p),r:16,owner:p.id,blast:true});p.acd=BLAST.cd}}
 
 function update(dt){
   const k=keys;
-  Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down});
+  Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down,alt:mouse.alt});
   for(const p of players)updatePlayer(p,dt);
+  if(!players.some(p=>!p.asleep&&!p.gone)){state='lose';return}   // все драконы лежат: поднять некому, конец игры
   for(const b of balls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
     for(const e of enemies){if(e.hp>0&&b.life>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;let dm=b.dmg;if(e.sh>0){const ab=Math.min(e.sh,dm);e.sh-=ab;dm-=ab;boom(b.x,b.y,'#8fd8ff',8);if(dm<=0)continue}e.hp-=dm;boom(b.x,b.y,'#ffb347',5);
       if(e.hp<=0){const o=players[b.owner];o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);if(isBoss(e)||Math.random()<.06)say(pick(Q.kill))}}}}
   for(const b of balls)for(const n of notes){if(n.hp>0&&b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){n.hp=0;b.life=0;boom(n.x,n.y,'#7fd6ff',8)}}   // шар сбивает ноту, награды за это нет
+  for(const b of balls)if(b.blast&&b.life<=0)explode(b);   // взрывной шар детонирует при попадании или в конце полёта
   balls=balls.filter(b=>b.life>0);
   const bn=enemies.filter(o=>o.hp>0&&o.k==='bard').length;   // припев барда раз в 8 секунд ускоряет всех (кроме бардов) на 3 секунды
   if(bn){chorusCd-=dt;if(chorusCd<=0){chorusCd=8;chorusT=3;say('Бард запел припев! Враги ускорились!')}}else{chorusCd=Math.max(chorusCd,5);chorusT=0}
@@ -268,7 +307,7 @@ function update(dt){
   if(markId>=0){markT-=dt;const mp=players[markId];if(markT<=0||!mp||mp.asleep||mp.gone){markId=-1;say('Опала закончилась.')}}
   players.forEach(p=>{p.mark=p.id===markId});
   for(const e of enemies){if(e.hp<=0)continue;
-    let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;
+    let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;if(e.actL>0){e.actL-=dt;e.thr=e.actL>0?Math.max(1,Math.round((1-e.actL/e.actT)*100)):0}
     if(e.t.boss)bossAI(e,dt);
     if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}   // опала: гонятся за помеченным драконом
     const lone=lonely(e);if(lone&&!e.rush){e.rush=true;say('Маги остались без прикрытия и бегут к башне!')}
@@ -326,8 +365,9 @@ function drawDragon(p){
   const c=COLORS[p.ci][1];
   ctx.fillStyle=c;ctx.globalAlpha=.4;ctx.beginPath();ctx.arc(p.x,p.y,30,0,6.283);ctx.fill();ctx.globalAlpha=1;
   ctx.strokeStyle=c;ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;
-  if(!(p.inv>0&&Math.floor(p.inv*10)%2)){ctx.globalAlpha=p.asleep?.45:1;drawDragonSprite(p);ctx.globalAlpha=1}
-  if(p.asleep){emoji('💤',p.x+24,p.y-28,22);ctx.lineWidth=4;ctx.beginPath();
+  if(!(p.inv>0&&Math.floor(p.inv*10)%2)){ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;drawDragonSprite(p);ctx.globalAlpha=1}
+  if(p.dead)emoji('💀',p.x,p.y-34,26);
+  else if(p.asleep){text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');emoji('💤',p.x+24,p.y-28,22);ctx.lineWidth=4;ctx.beginPath();
     ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
   if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}   // помечен королём
   if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
@@ -343,7 +383,8 @@ function drawScroll(x,y,r){const w=r*1.5,h=r*1.9;   // пергамент (но�
   ctx.fillStyle='#d6bd80';ctx.beginPath();ctx.ellipse(x,y-h/2,w/2+r*.12,r*.28,0,0,6.283);ctx.fill();ctx.stroke();
   ctx.beginPath();ctx.ellipse(x,y+h/2,w/2+r*.12,r*.28,0,0,6.283);ctx.fill();ctx.stroke();
   ctx.lineWidth=Math.max(1,r*.1);for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(x-w*.32,y+i*h*.2);ctx.lineTo(x+w*.32,y+i*h*.2);ctx.stroke()}ctx.lineWidth=1}
-const drawIcon=(t,x,y,r)=>t?drawScroll(x,y,r):drawCoin(x,y,r);
+function drawSheet(sh,fr,x,y,h,ph){const fw=sh.width/fr,fh=sh.height,w=h*fw/fh;ctx.drawImage(sh,(Math.floor(ph)%fr)*fw,0,fw,fh,x-w/2,y-h/2,w,h)}
+const drawIcon=(t,x,y,r)=>t?(IMG.scroll?ctx.drawImage(IMG.scroll,x-r*1.3*IMG.scroll.width/IMG.scroll.height,y-r*1.3,r*2.6*IMG.scroll.width/IMG.scroll.height,r*2.6):drawScroll(x,y,r)):drawCoin(x,y,r);
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
@@ -370,7 +411,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   for(const e of enemies)drawE(e);
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
-  for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.tx,n.ty,40,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r+4,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji(bg?'💰':'🎵',n.x,n.y,24)}
+  for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.tx,n.ty,40,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r+4,0,6.283);ctx.stroke();ctx.lineWidth=1;if(bg&&IMG.coinBag)drawSheet(IMG.coinBag,6,n.x,n.y,36,(typeof performance!=='undefined'?performance.now():0)/110+n.id);else emoji(bg?'💰':'🎵',n.x,n.y,24)}
   for(const k of pickups){if(k.life<DROP.warn&&Math.floor(k.life*8)%2)continue;drawIcon(k.t,k.x,k.y,8+Math.min(k.v,10)*.6)}
   players.filter(p=>!p.gone).forEach(drawDragon);
   for(const b of balls)drawBall(b);
@@ -378,8 +419,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
   if(me){ctx.textAlign='left';text('Волна '+wave+' из '+TOTAL,20,28,20,'#fbe8d3');drawIcon(0,32,54,11);text(String(me.w[0]),50,56,22,CUR[0].c);drawIcon(1,32,82,11);text(String(me.w[1]),50,84,22,CUR[1].c);
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,118,20)}
-  ctx.textAlign='right';text('Отшито поклонников: '+score,W-20,28,20,'#fbe8d3');text('F — во весь экран',W-14,H-14,13,'#fbe8d399');
+    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,118,20);
+    if(me.lv[0]>=5){const rdy=me.acd<=0,f=rdy?1:1-me.acd/BLAST.cd;ctx.strokeStyle=rdy?'#ffd24d':'#8a7096';ctx.lineWidth=3;ctx.beginPath();ctx.arc(34,150,14,-1.57,-1.57+6.283*f);ctx.stroke();ctx.lineWidth=1;ctx.textAlign='center';text('ПКМ',34,154,10,rdy?'#ffd24d':'#b9a3cc')}}
+  ctx.textAlign='right';text('Отшито поклонников: '+score,W-20,28,20,'#fbe8d3');text('F — во весь экран',W-14,H-14,13,'#fbe8d399');drawRoster();
   ctx.textAlign='center';text('Нервы принцессы',CX,24,16,'#fbe8d3','italic');
   ctx.fillStyle='#0006';ctx.fillRect(CX-150,36,300,14);ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';ctx.fillRect(CX-150,36,300*tower/towerMax,14);
   {const bn=enemies.filter(o=>o.hp>0&&o.k==='bard').length;if(state==='play'&&chorusT>0)text('Припев! Враги быстрее на 60%',CX,70,15,'#ff9bb3','italic');else if(state==='play'&&bn)text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,70,15,'#d9c3e8','italic')}
@@ -390,7 +432,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   if(state==='shop')drawShop();
   else if(state!=='play'){   // итоги: таблица драконов по числу отшитых поклонников
     ctx.fillStyle='rgba(20,8,35,.88)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
-    text(state==='win'?'Принцесса в безопасности!':'Нервы сдали…',CX,64,44,'#ff9bb3','italic');
+    text(state==='win'?'Принцесса в безопасности!':(tower<=0?'Нервы сдали…':'Все драконы пали…'),CX,64,44,'#ff9bb3','italic');
     text(state==='win'?'Отшито поклонников всего: '+score:'Дошли до волны '+wave+' из '+TOTAL+' · отшито поклонников: '+score,CX,100,18,'#fbe8d3');
     const rows=players.filter(p=>!p.gone).slice().sort((a,b)=>b.kills-a.kills),top=134,rh=Math.min(34,(H-top-60)/Math.max(1,rows.length));
     ctx.textAlign='left';text('№',CX-300,top,13,'#b9a3cc','italic');text('Дракон',CX-250,top,13,'#b9a3cc','italic');text('Игрок',CX-110,top,13,'#b9a3cc','italic');
@@ -415,7 +457,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
     E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0,e.chase?1:0,...castInfo(e)]),
     Z:zones.map(z=>[z.id,r1(z.x),r1(z.y),z.r,Math.round(z.t*100)/100,z.d]),
     B:balls.map(b=>[b.id,r1(b.x),r1(b.y),b.owner,r10(b.r),Math.round(b.ang*100)]),
@@ -431,7 +473,7 @@ function stepParts(dt){for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=d
 // Кадр гостя: отправить ввод, подвинуть своего дракона сразу, остальное показать по снимкам хоста с небольшой задержкой (интерполяция)
 function guestFrame(dt,now){
   const k=keys,mx=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my=(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0);
-  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:mouse.down?1:0})}
+  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:mouse.down?1:0,al:mouse.alt?1:0})}
   stepParts(dt);
   if(state==='shop')shopT+=dt;else shopT=0;
   const L=snaps.length;if(!L)return;
@@ -443,7 +485,7 @@ function guestFrame(dt,now){
   state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;chorusCd=b.cC;inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   // свой дракон: двигается без задержки; к позиции хоста подтягивается мягко (сильнее, если стоит, спит или сильно разошлись)
@@ -455,6 +497,10 @@ function guestFrame(dt,now){
     const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx),nf=flames(me),dm=dmgOf(me);
     for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;myBalls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,r:6+dm*1.5,col:COLORS[me.ci][1]})}
     me.cd=.5*Math.pow(.85,me.lv[1])}
+  me.acd=(me.acd||0)-dt;
+  if(mouse.alt&&me.lv[0]>=5&&!me.asleep&&me.frz<=0&&me.acd<=0){   // свой взрывной шар рисуем сразу
+    const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx);
+    myBalls.push({id:++uid,x:sx,y:sy,ang:a,vx:Math.cos(a)*470,vy:Math.sin(a)*470,life:1.1,r:16,col:COLORS[me.ci][1]});me.acd=BLAST.cd}
   for(const b of myBalls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
     for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;break}
     for(const n of notes)if(b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){b.life=0;break}}
@@ -500,7 +546,7 @@ function onMsg(m){
   const d=m.data;
   if(isHost){
     const p=playerByNid(m.from);if(!p||p.gone)return;
-    if(d.k==='in')Object.assign(p.in,{mx:+d.mx||0,my:+d.my||0,ax:+d.ax||0,ay:+d.ay||0,fire:!!d.f});
+    if(d.k==='in')Object.assign(p.in,{mx:+d.mx||0,my:+d.my||0,ax:+d.ax||0,ay:+d.ay||0,fire:!!d.f,alt:!!d.al});
     else if(d.k==='buy'&&state==='shop'&&d.i>=0&&d.i<UP.length)buy(p,d.i|0);
     else if(d.k==='go'&&state==='shop'){p.ready=true;checkGo()}
   }else if(d.k==='snap'){
