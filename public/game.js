@@ -690,7 +690,7 @@ function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLA
   boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
   for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
-const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:10,disgraceT:8};
+const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:5.2,disgraceT:8};
 const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5,KING_MIN_DISGRACES=5;
 function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
@@ -855,45 +855,66 @@ if(!a.arrived){
     if(a.thr===0)a.action=null;
   }
 
-  if(a.pend){
+  // Король не продолжает действия после достижения лимита.
+  // Если очередная опала ожидает выполнения, но рыцарей уже нет,
+  // отменяем её без объявления и не увеличиваем счётчик обвинений.
+  const knightsRemain=enemies.some(o=>o.k==='knight'&&o.hp>0);
 
-    // Во время указов король продолжает патрулировать по внешней дуге.
-    // К башне он перейдёт только после завершения пятого указа.
+  if(a.pend){
     e.hold=false;
 
-    if(a.thr<=0){
+    const pendingDecreeDone=a.pend==='decree'&&(a.decreeCount||0)>=KING_MIN_DECREES;
+    const pendingAccusationImpossible=a.pend==='disgrace'&&!knightsRemain;
+
+    if(pendingDecreeDone||pendingAccusationImpossible){
       a.pend=null;
-    }
-    else if(a.thr<=KING_ACT-.5&&!a.did){
-      a.did=true;
-
-      if(a.pend==='decree'){
-        decree(e);
+      a.thr=0;
+      a.did=false;
+    }else{
+      if(a.thr<=0){
+        a.pend=null;
       }
-      else{
-        disgrace(e);
-      }
-    }
+      else if(a.thr<=KING_ACT-.5&&!a.did){
+        a.did=true;
 
-    return;
+        if(a.pend==='decree'){
+          decree(e);
+        }
+        else{
+          disgrace(e);
+        }
+      }
+
+      return;
+    }
   }
 
-  // Король отправляется к башне только после пяти указов с призывом
-  // стражи И пяти отдельных обвинений драконов в похищении принцессы.
   const decreesDone=(a.decreeCount||0)>=KING_MIN_DECREES;
   const accusationsDone=(a.disgraceCount||0)>=KING_MIN_DISGRACES;
-  if(!a.approachStarted&&decreesDone&&accusationsDone){
+  const accusationsCanContinue=knightsRemain&&!accusationsDone;
+
+  // Пять указов обязательны. Пять обвинений король произносит только
+  // пока на поле есть живые рыцари. Если рыцари закончились, опала
+  // отменяется, и после пятого указа король сразу идёт к башне.
+  if(!a.approachStarted&&decreesDone&&(accusationsDone||!knightsRemain)){
     a.approachStarted=true;
+    a.pend=null;
+    a.thr=0;
     e.path=makeBossPath('king',e.x,e.y);
-    say('Король отдал пять указов и пять раз объявил драконов похитителями. Теперь он направляется к башне!',4);
+
+    if(!knightsRemain){
+      say('На поле больше нет рыцарей. Король отменяет опалу и направляется к башне!',4);
+    }else{
+      say('Король отдал пять указов и пять раз объявил драконов похитителями. Теперь он направляется к башне!',4);
+    }
     tag(e,'К башне!');
   }
 
-  // После выполнения своей части король больше не повторяет действие.
-  // Таймеры двух типов действий идут параллельно, пока король патрулирует.
+  // Таймеры независимы: максимум пять указов и максимум пять обвинений.
+  // Обвинения не запускаются, когда живых рыцарей на поле больше нет.
   if(!a.approachStarted){
     if(!decreesDone)a.t1-=dt;
-    if(!accusationsDone)a.t2-=dt;
+    if(accusationsCanContinue)a.t2-=dt;
 
     if(!decreesDone&&a.t1<=0){
       a.t1=BOSSCFG.decreeEvery*f;
@@ -901,7 +922,7 @@ if(!a.arrived){
       a.did=false;
       a.thr=a.thrT=KING_ACT;
     }
-    else if(!accusationsDone&&a.t2<=0){
+    else if(accusationsCanContinue&&a.t2<=0){
       a.t2=BOSSCFG.disgraceEvery*f;
       a.pend='disgrace';
       a.did=false;
@@ -1029,18 +1050,30 @@ e.ab.action='rose';
 e.hold=false;
 }
 function decree(e){
+  const a=e.ab;
+  // Жёсткий предел: никакие повторные вызовы не создадут шестой указ.
+  if(a&&(a.decreeCount||0)>=KING_MIN_DECREES)return;
+
   const n=4+Math.ceil(Math.sqrt(players.length)*2);
   for(let i=0;i<n;i++)spawn('knight');
-  const count=e.ab?(e.ab.decreeCount=(e.ab.decreeCount||0)+1):1;
+  const count=a?(a.decreeCount=(a.decreeCount||0)+1):1;
   say(count>=KING_MIN_DECREES?'Пятый королевский указ! Стража собрана.':'Королевский указ '+count+'/'+KING_MIN_DECREES+': стража, на помощь!');
   tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
 }
 function disgrace(e){
-  const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return;
+  // Опала имеет смысл только пока на поле есть живые рыцари.
+  // Если их уже нет, не объявляем игрока похитителем и не считаем действие.
+  if(!enemies.some(o=>o.k==='knight'&&o.hp>0))return false;
+
+  const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return false;
+  const a=e.ab;
+  if(a&&(a.disgraceCount||0)>=KING_MIN_DISGRACES)return false;
+
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
-  const count=e.ab?(e.ab.disgraceCount=(e.ab.disgraceCount||0)+1):1;
+  const count=a?(a.disgraceCount=(a.disgraceCount||0)+1):1;
   say('Король в '+count+'-й раз объявил '+p.name+' похитителем принцессы! Драконы, защищайтесь! ('+count+'/'+KING_MIN_DISGRACES+')',4);
   tag(e,'Похититель '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
+  return true;
 }
 function drawZones(){
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
