@@ -411,7 +411,7 @@ const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
 const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
 const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1','взрыв по правой кнопке (раз в 5 с)'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
-  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,ready:false,
+  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
     in:{mx:0,my:0,ax:CX,ay:0,fire:false}}
 }
@@ -1019,6 +1019,8 @@ function drawRoster(){
   const viewRight=cvW-ox;
   const viewTop=-oy;
   const right=viewRight-20;
+  // The rightmost marker's outer edge lines up with the right-aligned HUD labels.
+  const markerRight=right-9;
   const cols=Math.min(9,Math.max(1,ps.length));
   const gap=28;
   const top=viewTop+82;
@@ -1032,7 +1034,7 @@ function drawRoster(){
   ps.forEach((p,i)=>{
     const col=i%cols;
     const row=Math.floor(i/cols);
-    const x=right-col*gap;
+    const x=markerRight-col*gap;
     const y=top+row*27;
 
     ctx.globalAlpha=p.dead?.38:p.asleep?.72:1;
@@ -1149,6 +1151,7 @@ function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;r
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;say('Дракон упал! Его надо поднять за 15 секунд.')}}
 
 function updatePlayer(p,dt){
+  p.coinGlow=Math.max(0,(p.coinGlow||0)-dt);
   if(p.gone){p.asleep=true;return}
 
   p.inv=Math.max(0,p.inv-dt);
@@ -1443,7 +1446,7 @@ e.path = makeBossPath(
     let best=null,bd=1e9;
     for(const p of players){if(p.asleep||(c.res>0&&c.own!==p.id))continue;const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<bd){bd=d;best=p}}
     if(best){if(bd<(c.v>=10?200:130)){const m=bd||1;c.x+=(best.x-c.x)/m*260*dt;c.y+=(best.y-c.y)/m*260*dt}
-      if(bd<28){best.w[c.t]+=c.v;if(!c.t)best.earned+=c.v;c.life=0;c.got=true;boom(c.x,c.y,CUR[c.t].c,4)}}}
+      if(bd<28){best.w[c.t]+=c.v;if(!c.t){best.earned+=c.v;best.coinGlow=.9;}c.life=0;c.got=true;boom(c.x,c.y,CUR[c.t].c,4)}}}
   for(const c of pickups)if(c.life<=0&&!c.got)boom(c.x,c.y,'#9a8aa8',5);
   pickups=pickups.filter(c=>c.life>0);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
@@ -1470,26 +1473,95 @@ e.path = makeBossPath(
 function emoji(ch,x,y,sz){ctx.font=sz+'px '+FONT;ctx.fillText(ch,x,y)}
 function text(s,x,y,sz,col,style=''){ctx.font=style+' '+sz+'px Georgia,serif';ctx.fillStyle=col;ctx.fillText(s,x,y)}
 function drawDragon(p){
-  drawShadow(
-  p.x,
-  p.y + 38,
-  42,
-  12,
-  0.18
-);
+  const now=typeof performance!=='undefined'?performance.now():0;
+
+  // Soft golden aura briefly appears after collecting a gold coin.
+  if((p.coinGlow||0)>0){
+    const strength=Math.min(1,p.coinGlow/.9);
+    const pulse=.84+.16*Math.sin(now/75+p.id);
+    ctx.save();
+    const radius=76;
+    const glow=ctx.createRadialGradient(p.x,p.y,18,p.x,p.y,radius);
+    glow.addColorStop(0,'rgba(255,205,55,'+(0.25*strength*pulse)+')');
+    glow.addColorStop(.58,'rgba(255,190,35,'+(0.18*strength*pulse)+')');
+    glow.addColorStop(1,'rgba(255,190,35,0)');
+    ctx.fillStyle=glow;
+    ctx.beginPath();
+    ctx.ellipse(p.x,p.y+2,76,59,0,0,6.283);
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,213,75,'+(0.72*strength*pulse)+')';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.ellipse(p.x,p.y+2,58,43,0,0,6.283);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawShadow(p.x,p.y+38,42,12,0.18);
+
+  // Shield rings are drawn behind the dragon and outside its silhouette,
+  // so they frame the character instead of crossing over its body/wings.
+  if(p.sh>0){
+    ctx.save();
+    const pulse=.88+.12*Math.sin(now/150+p.id);
+    for(let i=0;i<p.sh;i++){
+      ctx.strokeStyle='rgba(143,216,255,'+(0.72*pulse)+')';
+      ctx.lineWidth=2.5;
+      ctx.beginPath();
+      ctx.ellipse(p.x,p.y+2,66+i*8,49+i*7,0,0,6.283);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   const c=COLORS[p.ci][1];
-  ctx.fillStyle=c;ctx.globalAlpha=.4;ctx.beginPath();ctx.arc(p.x,p.y,30,0,6.283);ctx.fill();ctx.globalAlpha=1;
-  ctx.strokeStyle=c;ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;
-  if(!(p.inv>0&&Math.floor(p.inv*10)%2)){ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;drawDragonSprite(p);ctx.globalAlpha=1}
-  if(p.dead)emoji('💀',p.x,p.y-34,26);
-  else if(p.asleep){
-  text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
-  ctx.lineWidth=4;ctx.beginPath();
-    ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
-  if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}
-  if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
-  if(p.sh>0){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=3;for(let i=0;i<p.sh;i++){ctx.beginPath();ctx.arc(p.x,p.y,36+i*5,0,6.283);ctx.stroke()}ctx.lineWidth=1}
-  text(p.name,p.x,p.y+50,14,c)}
+  ctx.fillStyle=c;
+  ctx.globalAlpha=.4;
+  ctx.beginPath();
+  ctx.arc(p.x,p.y,30,0,6.283);
+  ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=c;
+  ctx.lineWidth=3;
+  ctx.stroke();
+  ctx.lineWidth=1;
+
+  if(!(p.inv>0&&Math.floor(p.inv*10)%2)){
+    ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;
+    drawDragonSprite(p);
+    ctx.globalAlpha=1;
+  }
+
+  if(p.dead){
+    emoji('💀',p.x,p.y-34,26);
+  }else if(p.asleep){
+    text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));
+    ctx.stroke();
+    ctx.lineWidth=1;
+  }
+
+  if(p.mark){
+    const t=now/1000;
+    ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,48,0,6.283);
+    ctx.stroke();
+    ctx.lineWidth=1;
+    emoji('👑',p.x,p.y-54,26);
+  }
+
+  // Merchant's gold-bag effect uses the animated coinBag sprite already in assets.
+  if(p.frz>0){
+    if(IMG.coinBag)drawSheet(IMG.coinBag,6,p.x+54,p.y-38,30,now/110+p.id);
+    else emoji('💰',p.x+54,p.y-38,22);
+  }
+
+  text(p.name,p.x,p.y+50,14,c);
+}
 function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
   ctx.strokeStyle='#e8a92a';ctx.lineWidth=Math.max(1,r*.12);ctx.beginPath();ctx.arc(x,y,r*.62,0,6.283);ctx.stroke();
   ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(x-r*.3,y-r*.3,r*.16,0,6.283);ctx.fill();ctx.lineWidth=1}
@@ -1501,6 +1573,81 @@ function drawScroll(x,y,r){const w=r*1.5,h=r*1.9;
   ctx.lineWidth=Math.max(1,r*.1);for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(x-w*.32,y+i*h*.2);ctx.lineTo(x+w*.32,y+i*h*.2);ctx.stroke()}ctx.lineWidth=1}
 function drawSheet(sh,fr,x,y,h,ph){const fw=sh.width/fr,fh=sh.height,w=h*fw/fh;ctx.drawImage(sh,(Math.floor(ph)%fr)*fw,0,fw,fh,x-w/2,y-h/2,w,h)}
 const drawIcon=(t,x,y,r)=>t?(IMG.scroll?ctx.drawImage(IMG.scroll,x-r*1.3*IMG.scroll.width/IMG.scroll.height,y-r*1.3,r*2.6*IMG.scroll.width/IMG.scroll.height,r*2.6):drawScroll(x,y,r)):drawCoin(x,y,r);
+
+function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, viewBottom, preferredY){
+  const viewportWidth=Math.max(160,viewRight-viewLeft);
+  const viewportHeight=Math.max(140,viewBottom-viewTop);
+  const padX=15, padY=9, fontSize=17, lineHeight=21;
+  const boxMaxWidth=Math.max(128,viewportWidth-32);
+  const maxTextWidth=Math.max(100,boxMaxWidth-padX*2);
+  const words=String(message||'').trim().split(/\s+/).filter(Boolean);
+  const lines=[];
+  let line='';
+
+  ctx.save();
+  ctx.font='italic '+fontSize+'px Georgia,serif';
+
+  const pushLongWord=(word)=>{
+    let part='';
+    for(const ch of Array.from(word)){
+      const test=part+ch;
+      if(part&&ctx.measureText(test).width>maxTextWidth){
+        if(line){lines.push(line);line='';}
+        lines.push(part);
+        part=ch;
+      }else part=test;
+    }
+    if(part){
+      if(line&&ctx.measureText(line+' '+part).width<=maxTextWidth)line+=' '+part;
+      else{if(line)lines.push(line);line=part;}
+    }
+  };
+
+  for(const word of words){
+    const candidate=line?line+' '+word:word;
+    if(ctx.measureText(candidate).width<=maxTextWidth){
+      line=candidate;
+    }else if(ctx.measureText(word).width>maxTextWidth){
+      if(line){lines.push(line);line='';}
+      pushLongWord(word);
+    }else{
+      if(line)lines.push(line);
+      line=word;
+    }
+  }
+  if(line)lines.push(line);
+  if(!lines.length)lines.push('');
+
+  // Keep even unusually long lines inside short/tall viewports.
+  const maxLines=Math.max(1,Math.floor((viewportHeight-116-padY*2)/lineHeight));
+  if(lines.length>maxLines){
+    lines.length=maxLines;
+    let last=lines[maxLines-1];
+    while(last.length&&ctx.measureText(last+'…').width>maxTextWidth)last=last.slice(0,-1);
+    lines[maxLines-1]=last+'…';
+  }
+
+  const measuredWidth=Math.max(...lines.map(v=>ctx.measureText(v).width));
+  const boxWidth=Math.min(boxMaxWidth,measuredWidth+padX*2);
+  const boxHeight=lines.length*lineHeight+padY*2;
+  const minX=viewLeft+16;
+  const maxX=Math.max(minX,viewRight-16-boxWidth);
+  const boxX=Math.max(minX,Math.min(maxX,centerX-boxWidth/2));
+  const minY=viewTop+70;
+  const maxY=Math.max(minY,viewBottom-boxHeight-18);
+  const boxY=Math.max(minY,Math.min(maxY,preferredY));
+
+  ctx.fillStyle='#fff3e6';
+  ctx.beginPath();
+  ctx.roundRect(boxX,boxY,boxWidth,boxHeight,12);
+  ctx.fill();
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.font='italic '+fontSize+'px Georgia,serif';
+  ctx.fillStyle='#3b1c3f';
+  lines.forEach((row,i)=>ctx.fillText(row,boxX+boxWidth/2,boxY+padY+lineHeight*(i+.5),maxTextWidth));
+  ctx.restore();
+}
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
@@ -1629,8 +1776,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     text('F — весь экран',hudRight,hudBottom,11,'#e9d9ed');
   }
 
-  if(quipT>0&&state==='play'){ctx.font='italic 18px Georgia,serif';const w=ctx.measureText(quip).width+32;
-    ctx.fillStyle='#fff3e6';ctx.beginPath();ctx.roundRect(CX-w/2,CY-215,w,36,12);ctx.fill();text(quip,CX,CY-197,18,'#3b1c3f','italic')}
+  if(quipT>0&&state==='play'){
+    drawPrincessSpeech(quip,(viewLeft+viewRight)/2,viewLeft,viewRight,viewTop,viewBottom,CY-215);
+  }
   if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,(viewLeft+viewRight)/2,viewBottom-70,34,'#fbe8d3','italic');
   if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',(viewLeft+viewRight)/2,viewBottom-70,34,'#ffdd88','italic');
   if(state==='shop')drawShop();
@@ -1748,7 +1896,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
    E:enemies.map(e=>[
   e.id,KINDS.indexOf(e.k),
   r1(e.x),r1(e.y),r10(e.hp),r1(e.max),
@@ -1795,7 +1943,7 @@ chorusBardId=b.cb??null;
 inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];p.coinGlow=q[17]||0;
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
