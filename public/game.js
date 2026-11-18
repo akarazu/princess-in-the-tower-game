@@ -236,17 +236,28 @@ function bossPathPoint(path, u) {
     : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
 
   return {
-    x: path.sx + (CX - path.sx) * u
+    x: path.sx + (path.tx - path.sx) * u
       + path.px * path.amplitude * bend,
 
-    y: path.sy + (CY - path.sy) * u
+    y: path.sy + (path.ty - path.sy) * u
       + path.py * path.amplitude * bend
   };
 }
 function makeBossPath(k, x, y) {
-  const dx = CX - x;
-  const dy = CY - y;
-  const d = Math.hypot(dx, dy) || 1;
+  const dxToCenter = CX - x;
+  const dyToCenter = CY - y;
+  const centerDistance = Math.hypot(dxToCenter, dyToCenter) || 1;
+
+  // Принц останавливается перед башней.
+  // Король сохраняет прежнюю конечную точку.
+  const stopRadius = k === 'prince' ? TOWER_R + 48 : 0;
+
+  const tx = CX - dxToCenter / centerDistance * stopRadius;
+  const ty = CY - dyToCenter / centerDistance * stopRadius;
+
+  const dx = tx - x;
+  const dy = ty - y;
+  const distance = Math.hypot(dx, dy) || 1;
 
   const side = Math.random() < 0.5 ? -1 : 1;
 
@@ -254,11 +265,14 @@ function makeBossPath(k, x, y) {
     kind: k,
     sx: x,
     sy: y,
-    px: -dy / d * side,
-    py: dx / d * side,
+    tx,
+    ty,
+    px: -dy / distance * side,
+    py: dx / distance * side,
     amplitude: k === 'prince' ? 230 : 285,
     u: 0,
-    len: 0
+    len: 0,
+    arrived: false
   };
 
   let prev = bossPathPoint(path, 0);
@@ -309,6 +323,7 @@ function castInfo(e){
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
   return[e.cast||0,e.ip||0,e.thr||0]}
 
+
 function bossAI(e,dt){
   const a=e.ab||(e.ab=e.k==='prince'
     ?{
@@ -320,14 +335,14 @@ function bossAI(e,dt){
       stun:0,
       thr:0,
       thrT:THROW_T,
-      action:null
+      action:null,
+      arrived:false
     }
     :{t1:4,t2:12,stun:0});
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
 
-  // Оглушение
   if(a.stun>0){
     a.stun=Math.max(0,a.stun-dt);
     e.hold=true;
@@ -336,25 +351,34 @@ function bossAI(e,dt){
 
   if(e.k==='prince'){
 
-    // Фаза активного броска цветов или кольца
-    // Другие действия в это время запрещены
+    // Достиг максимального приближения к башне.
+    const reached=!!(e.path&&(e.path.arrived||e.path.u>=1));
+
+    if(reached&&!a.arrived){
+      a.arrived=true;
+      a.cd=0;
+      a.t1=Infinity;
+
+      say('Принц приблизился к башне и делает предложение!',4);
+      tag(e,'Предложение!');
+    }
+
+    // Во время броска предметов другие действия запрещены.
     if(a.thr>0){
       a.thr=Math.max(0,a.thr-dt);
       e.hold=true;
 
-      if(a.thr===0){
-        a.action=null;
-      }
+      if(a.thr===0)a.action=null;
 
       return;
     }
 
-    // Фаза предложения
+    // Фаза предложения.
     if(a.cast>0){
-      e.hold=true;
       a.cast=Math.max(0,a.cast-dt);
+      e.hold=true;
 
-      // Предложение можно сорвать уроном
+      // Игроки могут сорвать предложение уроном.
       if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){
         a.cast=0;
         a.stun=BOSSCFG.stun;
@@ -368,7 +392,7 @@ function bossAI(e,dt){
         return;
       }
 
-      // Кольцо бросается только после окончания предложения
+      // Кольцо бросается только после завершения предложения.
       if(a.cast===0){
         a.cd=BOSSCFG.castCd;
         throwPrinceRing(e);
@@ -377,22 +401,22 @@ function bossAI(e,dt){
       return;
     }
 
-    // Проверяем время следующего броска цветов
-    a.t1-=dt;
+    // Пока принц приближается, он использует цветы.
+    if(!a.arrived){
+      a.t1-=dt;
 
-    if(a.t1<=0){
-      a.t1=BOSSCFG.roseEvery*f;
-      roseRain(e);
+      if(a.t1<=0){
+        a.t1=BOSSCFG.roseEvery*f;
+        roseRain(e);
+      }
+
       return;
     }
 
-    // Проверяем возможность начать предложение
+    // После приближения остаются только предложение и кольцо.
     a.cd-=dt;
 
-    if(
-      a.cd<=0&&
-      Math.hypot(CX-e.x,CY-e.y)<=230
-    ){
+    if(a.cd<=0){
       a.cast=a.castT;
       a.castHp=e.hp;
       a.action='proposal';
@@ -406,13 +430,19 @@ function bossAI(e,dt){
     return;
   }
 
-  // Поведение короля
+  // Поведение короля не изменяется.
+  if(a.thr>0){
+    a.thr=Math.max(0,a.thr-dt);
+    e.hold=true;
+
+    if(a.thr===0)a.action=null;
+  }
+
   if(a.pend){
     e.hold=true;
 
-    if(a.thr<=0){
-      a.pend=null;
-    }
+    if(a.thr<=0)a.pend=null;
+
     else if(a.thr<=KING_ACT-.5&&!a.did){
       a.did=true;
 
@@ -441,6 +471,7 @@ function bossAI(e,dt){
     a.thr=a.thrT=KING_ACT;
   }
 }
+
 
 
 function throwPrinceRing(e){
@@ -568,7 +599,8 @@ function roseRain(e){
 
   // Анимация поднятия рук
   e.ab.thr=e.ab.thrT=THROW_T;
-  e.ab.action='rose';
+e.ab.action='rose';
+e.hold=true;
 }
 function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
 function disgrace(e){
@@ -697,20 +729,32 @@ function update(dt){
     }
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
-      if (e.path) {
-        e.path.u = Math.min(
-          1,
-          e.path.u + sm * dt / e.path.len
-        );
+if (e.path) {
+  if (e.path.u < 1) {
+    e.path.u = Math.min(
+      1,
+      e.path.u + sm * dt / e.path.len
+    );
 
-        const q = bossPathPoint(e.path, e.path.u);
+    const q = bossPathPoint(e.path, e.path.u);
 
-        e.x = q.x;
-        e.y = q.y;
-      } else {
-        e.x += dx / d * sm * dt;
-        e.y += dy / d * sm * dt;
+    e.x = q.x;
+    e.y = q.y;
+
+    if (e.path.u >= 1) {
+      e.path.arrived = true;
+
+      if (e.k === 'prince' && e.ab) {
+        e.ab.arrived = true;
+        e.ab.cd = 0;
+        e.ab.t1 = Infinity;
       }
+    }
+  }
+} else {
+  e.x += dx / d * sm * dt;
+  e.y += dy / d * sm * dt;
+}
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
     if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
