@@ -447,7 +447,7 @@ const isBoss=e=>e.k==='prince'||e.k==='king';
 function say(t,s=3){quip=t;quipT=s}
 function tag(e,txt){tags.push({x:e.x,y:e.y-34,txt,life:1.3})}
 function boom(x,y,col,n){if(isHost&&evs.length<40)evs.push([Math.round(x),Math.round(y),col,n]);spark(x,y,col,n)}
-function spark(x,y,col,n){if(parts.length>400)return;for(let i=0;i<n;i++){const a=Math.random()*6.283,v=40+Math.random()*140;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.5+Math.random()*.3,col})}}
+function spark(x,y,col,n){if(parts.length>400)return;for(let i=0;i<n;i++){const a=Math.random()*6.283,v=30+Math.random()*100;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.42+Math.random()*.25,col})}}
 
 // ===== Магазин =====
 function buy(p,i){const c=cost(p,i),t=UP[i].t;if(p.w[t]>=c&&!capped(p,i)){p.w[t]-=c;p.lv[i]++;if(i===3){p.sh=shMax(p);p.shT=0}}}
@@ -661,8 +661,8 @@ function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLA
   boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
   for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
-const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:20,disgraceEvery:24,disgraceT:8};
-const THROW_T=.8,KING_ACT=1.3;
+const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:24,disgraceT:8};
+const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5;
 function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
@@ -684,7 +684,7 @@ function bossAI(e,dt){
       repositionPathStarted:false,
       repositioned:false
     }
-    :{t1:4,t2:12,stun:0});
+    :{t1:3,t2:12,stun:0,decreeCount:0,approachStarted:false});
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
@@ -823,8 +823,9 @@ if(!a.arrived){
 
   if(a.pend){
 
-    // Король движется, пока отдаёт приказ или объявляет опалу.
-    e.hold=false;
+    // Король остаётся на исходной позиции, пока не выполнит пять указов.
+    // После пятого указа завершаем текущую анимацию и только затем идём к башне.
+    e.hold=!a.approachStarted;
 
     if(a.thr<=0){
       a.pend=null;
@@ -843,22 +844,31 @@ if(!a.arrived){
     return;
   }
 
+  // До пяти королевских призывов стражи король не начинает путь к башне.
+  // Сама многоволновая траектория сохраняется и запускается после последнего указа.
+  if(!a.approachStarted&&(a.decreeCount||0)>=KING_MIN_DECREES){
+    a.approachStarted=true;
+    e.path=makeBossPath('king',e.x,e.y);
+    say('Король собрал стражу и направляется к башне!',4);
+    tag(e,'К башне!');
+  }
 
   a.t1-=dt;
+  a.t2-=dt;
   if(a.t1<=0){
     a.t1=BOSSCFG.decreeEvery*f;
     a.pend='decree';
     a.did=false;
     a.thr=a.thrT=KING_ACT;
   }
-
-  a.t2-=dt;
-  if(a.t2<=0){
+  else if(a.t2<=0){
     a.t2=BOSSCFG.disgraceEvery*f;
     a.pend='disgrace';
     a.did=false;
     a.thr=a.thrT=KING_ACT;
   }
+
+  e.hold=!a.approachStarted;
 }
 function throwPrinceRing(e){
   const sx=e.x;
@@ -977,7 +987,13 @@ e.ab.thr=e.ab.thrT=THROW_T;
 e.ab.action='rose';
 e.hold=false;
 }
-function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
+function decree(e){
+  const n=4+Math.ceil(Math.sqrt(players.length)*2);
+  for(let i=0;i<n;i++)spawn('knight');
+  const count=e.ab?(e.ab.decreeCount=(e.ab.decreeCount||0)+1):1;
+  say(count>=KING_MIN_DECREES?'Король собрал стражу и готовится к башне!':'Королевский указ: стража, на помощь!');
+  tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
+}
 function disgrace(e){
   const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return;
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
@@ -988,15 +1004,15 @@ function drawZones(){
   for(const z of zones){
     const u=Math.min(1,z.t/z.d);
 
-    ctx.globalAlpha=.12+.28*u;
+    ctx.globalAlpha=.08+.20*u;
     ctx.fillStyle='#ff2d55';
     ctx.beginPath();
     ctx.arc(z.x,z.y,z.r,0,6.283);
     ctx.fill();
 
-    ctx.globalAlpha=.55+.4*Math.sin(t*14);
+    ctx.globalAlpha=.45+.3*Math.sin(t*14);
     ctx.strokeStyle='#ff4d6d';
-    ctx.lineWidth=3;
+    ctx.lineWidth=2;
     ctx.beginPath();
     ctx.arc(z.x,z.y,z.r,0,6.283);
     ctx.stroke();
@@ -1005,7 +1021,7 @@ function drawZones(){
     ctx.globalAlpha=1;
 
     if(z.landed){
-      if(IMG.bouquet)drawSheet(IMG.bouquet,6,z.x,z.y,46,t*9+z.id);
+      if(IMG.bouquet)drawSheet(IMG.bouquet,6,z.x,z.y,38,t*9+z.id);
       else emoji('🌹',z.x,z.y,24);
     }
   }
@@ -1016,7 +1032,7 @@ function drawEnemyMarks(e){
   const ci=castInfo(e);
   if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-34;
     ctx.fillStyle='#0009';ctx.fillRect(x,y,w,16);ctx.fillStyle='#ffd24d';ctx.fillRect(x,y,w*ci[0]/100,8);ctx.fillStyle='#ff5a4d';ctx.fillRect(x,y+8,w*ci[1]/100,8);
-    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,32,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
+    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,26,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}
 function drawRoster(){
@@ -1536,15 +1552,15 @@ function drawDragon(p){
 
   drawShadow(p.x,p.y+38,42,12,0.18);
 
-  // Shield rings: smaller, circular and kept just outside the dragon sprite.
+  // Compact shield rings, close to the dragon and with a lighter outline.
   if(p.sh>0){
     ctx.save();
-    const pulse=.88+.12*Math.sin(now/150+p.id);
+    const pulse=.9+.1*Math.sin(now/170+p.id);
     for(let i=0;i<p.sh;i++){
-      ctx.strokeStyle='rgba(143,216,255,'+(0.78*pulse)+')';
-      ctx.lineWidth=2.2;
+      ctx.strokeStyle='rgba(143,216,255,'+(0.68*pulse)+')';
+      ctx.lineWidth=1.5;
       ctx.beginPath();
-      ctx.arc(p.x,p.y,47+i*6,0,6.283);
+      ctx.arc(p.x,p.y,38+i*4.5,0,6.283);
       ctx.stroke();
     }
     ctx.restore();
@@ -1552,13 +1568,13 @@ function drawDragon(p){
 
   const c=COLORS[p.ci][1];
   ctx.fillStyle=c;
-  ctx.globalAlpha=.4;
+  ctx.globalAlpha=.3;
   ctx.beginPath();
-  ctx.arc(p.x,p.y,30,0,6.283);
+  ctx.arc(p.x,p.y,25,0,6.283);
   ctx.fill();
   ctx.globalAlpha=1;
   ctx.strokeStyle=c;
-  ctx.lineWidth=3;
+  ctx.lineWidth=2;
   ctx.stroke();
   ctx.lineWidth=1;
 
@@ -1573,21 +1589,21 @@ function drawDragon(p){
   if((p.coinGlow||0)>0){
     const strength=Math.min(1,p.coinGlow/1.2);
     const pulse=.88+.12*Math.sin(now/70+p.id*1.7);
-    const radius=55+2.5*Math.sin(now/95+p.id);
+    const radius=44+1.5*Math.sin(now/110+p.id);
     ctx.save();
     ctx.globalCompositeOperation='lighter';
-    ctx.shadowColor='rgba(255,205,45,'+(0.85*strength)+')';
-    ctx.shadowBlur=18*strength;
-    ctx.strokeStyle='rgba(255,211,65,'+(0.92*strength*pulse)+')';
-    ctx.lineWidth=4;
+    ctx.shadowColor='rgba(255,205,45,'+(0.72*strength)+')';
+    ctx.shadowBlur=8*strength;
+    ctx.strokeStyle='rgba(255,211,65,'+(0.82*strength*pulse)+')';
+    ctx.lineWidth=2.5;
     ctx.beginPath();
     ctx.arc(p.x,p.y,radius,0,6.283);
     ctx.stroke();
     ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(255,239,160,'+(0.58*strength*pulse)+')';
-    ctx.lineWidth=1.5;
+    ctx.strokeStyle='rgba(255,239,160,'+(0.46*strength*pulse)+')';
+    ctx.lineWidth=1;
     ctx.beginPath();
-    ctx.arc(p.x,p.y,radius-5,0,6.283);
+    ctx.arc(p.x,p.y,radius-3,0,6.283);
     ctx.stroke();
     ctx.restore();
   }
@@ -1728,7 +1744,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   ctx.translate(ox,oy);
   ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.textAlign='center';ctx.textBaseline='middle';
-  const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(
+  const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='rgba(143,216,255,.78)';ctx.lineWidth=1.35;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+3,0,6.283);ctx.stroke();ctx.lineWidth=1}if(
   e.k === 'bard' &&
   chorusT > 0 &&
   e.id === chorusBardId
@@ -1740,13 +1756,13 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   drawCastle();
   for(const e of enemies)drawE(e);
   drawBossProjectiles();
-  for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
+  for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
-  for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.tx,n.ty,40,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r+4,0,6.283);ctx.stroke();ctx.lineWidth=1;if(bg&&IMG.coinBag)drawSheet(IMG.coinBag,6,n.x,n.y,36,(typeof performance!=='undefined'?performance.now():0)/110+n.id);else emoji(bg?'💰':'🎵',n.x,n.y,24)}
+  for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.tx,n.ty,30,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(n.x,n.y,n.r+2,0,6.283);ctx.stroke();ctx.lineWidth=1;if(bg&&IMG.coinBag)drawSheet(IMG.coinBag,6,n.x,n.y,30,(typeof performance!=='undefined'?performance.now():0)/110+n.id);else emoji(bg?'💰':'🎵',n.x,n.y,20)}
   for(const k of pickups){if(k.life<DROP.warn&&Math.floor(k.life*8)%2)continue;drawIcon(k.t,k.x,k.y,8+Math.min(k.v,10)*.6)}
   players.filter(p=>!p.gone).forEach(drawDragon);
   for(const b of balls)drawBall(b);
-  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
+  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,3,3)}ctx.globalAlpha=1;
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
   // ===== HUD: привязка непосредственно к краям видимого viewport =====
