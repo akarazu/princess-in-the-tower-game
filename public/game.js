@@ -400,13 +400,37 @@ function bossAI(e,dt){
       );
     }
 
-    // Цветочный или кольцевой бросок должен закончиться отдельно.
-    if(a.thr>0&&a.action){
-      a.thr=Math.max(0,a.thr-dt);
-      e.hold=true;
-      if(a.thr===0)a.action=null;
-      return;
+
+if(a.thr>0&&a.action){
+
+  const finishedAction=a.action;
+
+  a.thr=Math.max(0,a.thr-dt);
+
+  // Цветы не останавливают движение,
+  // кольцо останавливает до завершения броска.
+  e.hold=finishedAction!=='rose';
+
+  if(a.thr===0){
+    a.action=null;
+
+    // После завершения броска кольца
+    // запускаем новый цикл движения принца.
+    if(finishedAction==='ring'){
+
+      a.afterStun=true;
+      a.repositionPathStarted=false;
+      a.repositioned=false;
+      a.arrived=false;
+
+      a.cd=0;
+      a.t1=2.5;
     }
+  }
+
+  return;
+}
+
 
     // Предложение.
     if(a.cast>0){
