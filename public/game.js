@@ -183,33 +183,44 @@ function dragonShotFromMouth(p) {
   };
 }
 
-// Несколько шаров располагаются поперёк траектории, но летят параллельно.
-// Раньше они расходились веером по углу (±0.16 рад), из-за чего
-// вертикальный залп визуально выглядел диагональным.
-function dragonVolleyPositions(shot, count, spacing = 34) {
-  // Перпендикуляр к оси головы. Смещения поворачиваются вместе с драконом.
+// Трёхшаровый залп раскрывается веером относительно оси головы.
+// Центральный шар стартует строго изо рта и летит точно по оси;
+// боковые выходят рядом с ним и расходятся симметрично.
+function dragonVolleyPositions(shot, count, fanAngle = 0.30, sideGap = 5) {
+  if (count <= 1) {
+    return [{ x: shot.x, y: shot.y, angle: shot.angle }];
+  }
+
+  // Перпендикуляр к оси морды; при любом повороте веер вращается вместе с драконом.
   const sideX = -shot.dirY;
   const sideY = shot.dirX;
 
-  let offsets;
-
   if (count === 2) {
-    // При двух шарах один обязательно остаётся точно на оси головы.
-    offsets = [0, spacing];
-  } else {
-    // При одном или трёх шарах расположение симметрично относительно оси.
-    offsets = Array.from(
-      { length: count },
-      (_, i) => (i - (count - 1) / 2) * spacing
-    );
+    // При двух снарядах сохраняем центральный и один боковой.
+    return [
+      { x: shot.x, y: shot.y, angle: shot.angle },
+      {
+        x: shot.x + sideX * sideGap,
+        y: shot.y + sideY * sideGap,
+        angle: shot.angle + fanAngle
+      }
+    ];
   }
 
-  return offsets.map(offset => ({
-    x: shot.x + sideX * offset,
-    y: shot.y + sideY * offset,
-    // Все шары летят параллельно; центральный совпадает с осью головы.
-    angle: shot.angle
-  }));
+  // Центральный шар остаётся на оси головы; боковые расходятся веером.
+  return [
+    { x: shot.x, y: shot.y, angle: shot.angle },
+    {
+      x: shot.x + sideX * sideGap,
+      y: shot.y + sideY * sideGap,
+      angle: shot.angle + fanAngle
+    },
+    {
+      x: shot.x - sideX * sideGap,
+      y: shot.y - sideY * sideGap,
+      angle: shot.angle - fanAngle
+    }
+  ];
 }
 
 // Локальный и удалённые драконы рисуются с тем же углом,
@@ -1553,22 +1564,41 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     drawIcon(1,hudLeft+7,hudTop+68,10);
     text(String(me.w[1]),hudLeft+28,hudTop+73,18,CUR[1].c);
 
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),hudLeft,hudTop+102,16);
-    if(me.sh>0)emoji('🛡️'.repeat(me.sh),hudLeft+98,hudTop+102,14);
+    const healthIcons='❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h);
+    const healthY=hudTop+102;
+    emoji(healthIcons,hudLeft,healthY,16);
+
+    // Щиты идут сразу после сердечек, а не на фиксированном дальнем отступе.
+    ctx.font='16px '+FONT;
+    const healthWidth=ctx.measureText(healthIcons).width;
+    let statusX=hudLeft+healthWidth+8;
+    if(me.sh>0){
+      for(let i=0;i<me.sh;i++){
+        emoji('🛡️',statusX+i*16,healthY,14);
+      }
+      statusX+=me.sh*16+7;
+    }
 
     if(me.lv[0]>=5){
       const ready=me.acd<=0;
       const progress=ready?1:1-me.acd/BLAST.cd;
-      const blastX=hudLeft+166;
-      const blastY=hudTop+99;
+      const blastX=statusX+12;
+      const blastY=healthY;
       ctx.strokeStyle=ready?'#ffd24d':'#8a7096';
       ctx.lineWidth=3;
       ctx.beginPath();
-      ctx.arc(blastX,blastY,10,-1.57,-1.57+6.283*progress);
+      ctx.arc(blastX,blastY,12,-1.57,-1.57+6.283*progress);
       ctx.stroke();
       ctx.lineWidth=1;
-      ctx.textAlign='center';
-      text('ПКМ',blastX,blastY+4,9,ready?'#ffd24d':'#b9a3cc');
+
+      // Вместо надписи «ПКМ» показываем иконку огня внутри индикатора.
+      if(IMG.fire){
+        const now=typeof performance!=='undefined'?performance.now():0;
+        drawSheet(IMG.fire,FFR,blastX,blastY,17,now/85);
+      }else{
+        ctx.textAlign='center';
+        emoji('🔥',blastX,blastY,15);
+      }
     }
   }
 
