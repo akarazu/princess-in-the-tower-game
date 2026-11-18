@@ -244,7 +244,7 @@ function bossPathPoint(path, u) {
   };
 }
 
-function makeBossPath(k, x, y) {
+function makeBossPath(k, x, y, targetRadius) {
   // Безопасные границы с учётом размера персонажа
   const margin = Math.max(T[k].r + 16, 54);
 
@@ -257,9 +257,9 @@ function makeBossPath(k, x, y) {
     Math.hypot(dxToCenter, dyToCenter) || 1;
 
   // Принц останавливается перед башней
-  const stopRadius = k === 'prince'
-    ? TOWER_R + T[k].r + 12
-    : 0;
+const stopRadius = targetRadius === undefined
+  ? (k === 'prince' ? TOWER_R + T[k].r + 12 : 0)
+  : targetRadius;
 
   const tx = CX - dxToCenter / centerDistance * stopRadius;
   const ty = CY - dyToCenter / centerDistance * stopRadius;
@@ -384,6 +384,7 @@ function castInfo(e){
   return[e.cast||0,e.ip||0,e.thr||0]}
 
 
+
 function bossAI(e,dt){
   const a=e.ab||(e.ab=e.k==='prince'
     ?{
@@ -396,13 +397,17 @@ function bossAI(e,dt){
       thr:0,
       thrT:THROW_T,
       action:null,
-      arrived:false
+      arrived:false,
+      afterStun:false,
+      repositionPathStarted:false,
+      repositioned:false
     }
     :{t1:4,t2:12,stun:0});
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
 
+  // Оглушение
   if(a.stun>0){
     a.stun=Math.max(0,a.stun-dt);
     e.hold=true;
@@ -411,39 +416,46 @@ function bossAI(e,dt){
 
   if(e.k==='prince'){
 
-    // Достиг максимального приближения к башне.
-    const reached=!!(e.path&&(e.path.arrived||e.path.u>=1));
+    // После оглушения начинаем повторное сближение
+    if(a.afterStun&&!a.repositionPathStarted){
+      a.arrived=false;
+      a.repositionPathStarted=true;
+      a.repositioned=false;
 
-    if(reached&&!a.arrived){
-      a.arrived=true;
-      a.cd=0;
-      a.t1=Infinity;
-
-      say('Принц приблизился к башне и делает предложение!',4);
-      tag(e,'Предложение!');
+      // Сначала принц немного отходит от башни
+      e.path=makeBossPath(
+        'prince',
+        e.x,
+        e.y,
+        TOWER_R+e.t.r+72
+      );
     }
 
-    // Во время броска предметов другие действия запрещены.
-    if(a.thr>0){
+    // Завершение анимации броска цветов или кольца
+    if(a.thr>0&&a.action){
       a.thr=Math.max(0,a.thr-dt);
       e.hold=true;
 
       if(a.thr===0)a.action=null;
-
       return;
     }
 
-    // Фаза предложения.
+    // Предложение
     if(a.cast>0){
-      a.cast=Math.max(0,a.cast-dt);
       e.hold=true;
+      a.cast=Math.max(0,a.cast-dt);
 
-      // Игроки могут сорвать предложение уроном.
+      // Предложение сорвано
       if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){
         a.cast=0;
         a.stun=BOSSCFG.stun;
-        a.cd=BOSSCFG.castCd;
+        a.cd=0;
         a.action=null;
+
+        // Разрешаем повторное движение
+        a.afterStun=true;
+        a.repositionPathStarted=false;
+        a.repositioned=false;
 
         say('Предложение сорвано! Принц оглушён!');
         tag(e,'Оглушён!');
@@ -452,7 +464,7 @@ function bossAI(e,dt){
         return;
       }
 
-      // Кольцо бросается только после завершения предложения.
+      // Кольцо только после завершения предложения
       if(a.cast===0){
         a.cd=BOSSCFG.castCd;
         throwPrinceRing(e);
@@ -461,19 +473,24 @@ function bossAI(e,dt){
       return;
     }
 
-    // Пока принц приближается, он использует цветы.
+    // Пока принц приближается к башне
     if(!a.arrived){
-      a.t1-=dt;
 
-      if(a.t1<=0){
-        a.t1=BOSSCFG.roseEvery*f;
-        roseRain(e);
+      // Цветы разрешены только при первом приближении
+      if(!a.afterStun){
+        a.t1-=dt;
+
+        if(a.t1<=0){
+          a.t1=BOSSCFG.roseEvery*f;
+          roseRain(e);
+          return;
+        }
       }
 
       return;
     }
 
-    // После приближения остаются только предложение и кольцо.
+    // Принц достиг башни: только предложение
     a.cd-=dt;
 
     if(a.cd<=0){
@@ -490,7 +507,7 @@ function bossAI(e,dt){
     return;
   }
 
-  // Поведение короля не изменяется.
+  // Поведение короля не меняем
   if(a.thr>0){
     a.thr=Math.max(0,a.thr-dt);
     e.hold=true;
@@ -531,6 +548,7 @@ function bossAI(e,dt){
     a.thr=a.thrT=KING_ACT;
   }
 }
+
 
 
 
@@ -789,8 +807,8 @@ function update(dt){
     }
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
-if (e.path) {
 
+if (e.path) {
   if (!e.path.arrived) {
 
     e.path.u = Math.min(
@@ -803,15 +821,49 @@ if (e.path) {
     e.x = q.x;
     e.y = q.y;
 
-    // Фиксируем достижение конечной точки
     if (e.path.u >= 1) {
-
       e.path.arrived = true;
 
       if (e.k === 'prince' && e.ab) {
-        e.ab.arrived = true;
-        e.ab.cd = 0;
-        e.ab.t1 = Infinity;
+
+        if (
+          e.ab.afterStun &&
+          e.ab.repositionPathStarted
+        ) {
+
+          if (!e.ab.repositioned) {
+
+            // Отход завершён.
+            // Теперь принц снова приближается к башне.
+            e.ab.repositioned = true;
+
+            e.path = makeBossPath(
+              'prince',
+              e.x,
+              e.y,
+              TOWER_R + e.t.r + 12
+            );
+
+          } else {
+
+            // Повторное приближение завершено.
+            e.ab.afterStun = false;
+            e.ab.repositionPathStarted = false;
+            e.ab.repositioned = false;
+
+            e.ab.arrived = true;
+            e.ab.cd = 0;
+            e.ab.t1 = Infinity;
+          }
+
+        } else {
+
+          // Первое приближение к башне.
+          e.ab.arrived = true;
+          e.ab.cd = 0;
+          e.ab.t1 = Infinity;
+
+        }
       }
     }
   }
@@ -822,6 +874,7 @@ if (e.path) {
   e.y += dy / d * sm * dt;
 
 }
+
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
     if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
