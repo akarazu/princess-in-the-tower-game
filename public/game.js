@@ -250,11 +250,60 @@ function makeBossPath(k, x, y, targetRadius) {
   const centerDistance = Math.hypot(dxToCenter, dyToCenter) || 1;
 
   // Можно задать отдельный радиус цели для отхода и повторного сближения принца.
-  const stopRadius = targetRadius === undefined
-    ? (k === 'prince' ? TOWER_R + T[k].r + 12 : 0)
-    : targetRadius;
-  const tx = CX - dxToCenter / centerDistance * stopRadius;
-  const ty = CY - dyToCenter / centerDistance * stopRadius;
+
+let tx, ty;
+
+if (targetRadius !== undefined) {
+
+  // Явно заданная точка отхода после оглушения.
+  tx = CX - dxToCenter / centerDistance * targetRadius;
+  ty = CY - dyToCenter / centerDistance * targetRadius;
+
+} else if (k === 'prince') {
+
+  // Реальные размеры изображения замка из drawCastle().
+  const castleW = 210;
+  const castleH = IMG.castle
+    ? castleW * IMG.castle.height / IMG.castle.width
+    : 220;
+
+  const left = CX - castleW / 2;
+  const right = CX + castleW / 2;
+  const top = CY + 28 - castleH * .94;
+  const bottom = CY + 28 + castleH * .06;
+
+  // Направление от замка к принцу.
+  const dirX = (x - CX) / centerDistance;
+  const dirY = (y - CY) / centerDistance;
+
+  const exits = [];
+
+  if (dirX > 0.000001)
+    exits.push((right - CX) / dirX);
+  else if (dirX < -0.000001)
+    exits.push((left - CX) / dirX);
+
+  if (dirY > 0.000001)
+    exits.push((bottom - CY) / dirY);
+  else if (dirY < -0.000001)
+    exits.push((top - CY) / dirY);
+
+  const edgeDistance = Math.min(
+    ...exits.filter(v => v >= 0)
+  );
+
+  // Принц останавливается за границей изображения замка.
+  const safeDistance = edgeDistance + T[k].r + 20;
+
+  tx = CX + dirX * safeDistance;
+  ty = CY + dirY * safeDistance;
+
+} else {
+
+  tx = CX;
+  ty = CY;
+
+}
 
   const dx = tx - x;
   const dy = ty - y;
@@ -799,12 +848,11 @@ if (!e.ab.repositioned) {
   // Следующий бросок цветов не придётся долго ждать.
   e.ab.t1 = 0.5;
 
-  e.path = makeBossPath(
-    'prince',
-    e.x,
-    e.y,
-    TOWER_R + e.t.r + 12
-  );
+e.path = makeBossPath(
+  'prince',
+  e.x,
+  e.y
+);
 } else {
             // Повторно приблизился к башне — можно делать предложение.
             e.ab.afterStun = false;
