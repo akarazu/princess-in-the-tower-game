@@ -424,7 +424,7 @@ if(a.thr>0&&a.action){
       a.arrived=false;
 
       a.cd=0;
-      a.t1=2.5;
+      a.t1=1.5;
     }
   }
 
@@ -461,19 +461,26 @@ if(a.thr>0&&a.action){
       return;
     }
 
-    // Пока принц не достиг башни, он продолжает путь.
-    // Цветы разрешены только до первого достижения точки остановки.
-    if(!a.arrived){
-      if(!a.afterStun){
-        a.t1-=dt;
-        if(a.t1<=0){
-          a.t1=BOSSCFG.roseEvery*f;
-          roseRain(e);
-          return;
-        }
-      }
-      return;
-    }
+
+if(!a.arrived){
+
+  // Цветы доступны и при первом, и при повторном приближении.
+  a.t1-=dt;
+
+  if(a.t1<=0){
+
+    // При повторном приближении броски чаще.
+    a.t1=a.afterStun
+      ? 3.5
+      : BOSSCFG.roseEvery*f;
+
+    roseRain(e);
+    return;
+  }
+
+  return;
+}
+
 
     // Вблизи башни — только предложение и последующий бросок кольца.
     a.cd-=dt;
@@ -635,8 +642,9 @@ function roseRain(e){
   tag(e,'Розы!');
 
   // Анимация поднятия рук
-  e.ab.thr=e.ab.thrT=THROW_T;
-  e.ab.action='rose';
+e.ab.thr=e.ab.thrT=THROW_T;
+e.ab.action='rose';
+e.hold=false;
 }
 function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
 function disgrace(e){
