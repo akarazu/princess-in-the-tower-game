@@ -456,6 +456,7 @@ function bossAI(e,dt){
         a.afterStun=true;
         a.repositionPathStarted=false;
         a.repositioned=false;
+        a.t1=2.5;
 
         say('Предложение сорвано! Принц оглушён!');
         tag(e,'Оглушён!');
@@ -473,22 +474,34 @@ function bossAI(e,dt){
       return;
     }
 
-    // Пока принц приближается к башне
-    if(!a.arrived){
 
-      // Цветы разрешены только при первом приближении
-      if(!a.afterStun){
-        a.t1-=dt;
+// Пока принц приближается к башне,
+// он продолжает бросать цветы.
+if(!a.arrived){
 
-        if(a.t1<=0){
-          a.t1=BOSSCFG.roseEvery*f;
-          roseRain(e);
-          return;
-        }
-      }
+  // Во время отхода от башни цветы не бросаем.
+  // На обратном пути снова включаем атаки.
+  const canThrowRoses = !a.afterStun || a.repositioned;
 
+  if(canThrowRoses){
+
+    a.t1-=dt;
+
+    if(a.t1<=0){
+
+      // При повторном приближении броски чаще.
+      a.t1=a.afterStun
+        ? 4
+        : BOSSCFG.roseEvery*f;
+
+      roseRain(e);
       return;
     }
+  }
+
+  return;
+}
+
 
     // Принц достиг башни: только предложение
     a.cd-=dt;
@@ -676,7 +689,7 @@ function roseRain(e){
   tag(e,'Розы!');
 
   // Анимация поднятия рук
-  e.ab.thr=e.ab.thrT=THROW_T;
+e.ab.thr=e.ab.thrT=THROW_T;
 e.ab.action='rose';
 e.hold=true;
 }
