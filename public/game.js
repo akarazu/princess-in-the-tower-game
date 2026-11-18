@@ -90,25 +90,35 @@ function drawEnemy(e){
   if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
   else if(e.k==='mage'&&near&&!e.rush&&IMG.mageCast)key='mageCast';
 
-  else if(e.k==='prince'){
-    const ci=castInfo(e);
-    const action=e.bossAction||(e.ab&&e.ab.action);
+else if(e.k==='prince'){
+  const ci=castInfo(e);
+  const action=e.bossAction||(e.ab&&e.ab.action);
 
-    // Цветы: поднятие рук
-    if(action==='rose'&&ci[2]>0&&IMG.princeCast){
-      key='princeCast';
-      fo=Math.floor(ci[2]/100*SPR.princeCast.fr);
-    }
-    // Кольцо: бросок вперёд
-    else if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
-      key='princeThrow';
-      fo=Math.floor(ci[2]/100*SPR.princeThrow.fr);
-    }
-    else if(ci[0]>0&&IMG.princeCast){
-      key='princeCast';
-      fo=Math.floor(ci[0]/100*SPR.princeCast.fr);
-    }
+  // Бросок кольца имеет приоритет
+  if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
+    key='princeThrow';
+    fo=Math.min(
+      SPR.princeThrow.fr-1,
+      Math.floor(ci[2]/100*SPR.princeThrow.fr)
+    );
   }
+  // Бросок цветов
+  else if(action==='rose'&&ci[2]>0&&IMG.princeCast){
+    key='princeCast';
+    fo=Math.min(
+      SPR.princeCast.fr-1,
+      Math.floor(ci[2]/100*SPR.princeCast.fr)
+    );
+  }
+  // Предложение
+  else if(ci[0]>0&&IMG.princeCast){
+    key='princeCast';
+    fo=Math.min(
+      SPR.princeCast.fr-1,
+      Math.floor(ci[0]/100*SPR.princeCast.fr)
+    );
+  }
+}
 
   if(e.k==='merchant'){
     const th=castInfo(e)[2];
@@ -298,40 +308,53 @@ function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
   return[e.cast||0,e.ip||0,e.thr||0]}
+
 function bossAI(e,dt){
   const a=e.ab||(e.ab=e.k==='prince'
-    ?{t1:5,cast:0,castT:BOSSCFG.castT,castHp:0,cd:6,stun:0}
+    ?{
+      t1:5,
+      cast:0,
+      castT:BOSSCFG.castT,
+      castHp:0,
+      cd:6,
+      stun:0,
+      thr:0,
+      thrT:THROW_T,
+      action:null
+    }
     :{t1:4,t2:12,stun:0});
 
   const f=e.hp<e.max*.5?.6:1;
-
   e.hold=false;
 
-  if(a.thr>0){
-    a.thr=Math.max(0,a.thr-dt);
-    if(a.thr===0)a.action=null;
-  }
-
+  // Оглушение
   if(a.stun>0){
-    a.stun-=dt;
+    a.stun=Math.max(0,a.stun-dt);
     e.hold=true;
     return;
   }
 
   if(e.k==='prince'){
 
-    if(a.thr>0&&a.action)e.hold=true;
+    // Фаза активного броска цветов или кольца
+    // Другие действия в это время запрещены
+    if(a.thr>0){
+      a.thr=Math.max(0,a.thr-dt);
+      e.hold=true;
 
-    a.t1-=dt;
-    if(a.t1<=0){
-      a.t1=BOSSCFG.roseEvery*f;
-      roseRain(e);
+      if(a.thr===0){
+        a.action=null;
+      }
+
+      return;
     }
 
+    // Фаза предложения
     if(a.cast>0){
       e.hold=true;
-      a.cast-=dt;
+      a.cast=Math.max(0,a.cast-dt);
 
+      // Предложение можно сорвать уроном
       if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){
         a.cast=0;
         a.stun=BOSSCFG.stun;
@@ -341,81 +364,121 @@ function bossAI(e,dt){
         say('Предложение сорвано! Принц оглушён!');
         tag(e,'Оглушён!');
         boom(e.x,e.y,'#ffd24d',16);
+
+        return;
       }
-      else if(a.cast<=0){
+
+      // Кольцо бросается только после окончания предложения
+      if(a.cast===0){
         a.cd=BOSSCFG.castCd;
         throwPrinceRing(e);
-        e.hold=true;
       }
-    }
-    else{
-      a.cd-=dt;
 
-      if(a.cd<=0&&Math.hypot(CX-e.x,CY-e.y)<=230){
-        a.cast=a.castT;
-        a.castHp=e.hp;
-        e.hold=true;
-
-        say('Принц делает предложение! Собьём его, пока не поздно!',4);
-        tag(e,'Предложение!');
-      }
-    }
-  }
-  else{
-    if(a.pend){
-      e.hold=true;
-
-      if(a.thr<=0)a.pend=null;
-      else if(a.thr<=KING_ACT-.5&&!a.did){
-        a.did=true;
-        if(a.pend==='decree')decree(e);
-        else disgrace(e);
-      }
       return;
     }
 
+    // Проверяем время следующего броска цветов
     a.t1-=dt;
+
     if(a.t1<=0){
-      a.t1=BOSSCFG.decreeEvery*f;
-      a.pend='decree';
-      a.did=false;
-      a.thr=a.thrT=KING_ACT;
+      a.t1=BOSSCFG.roseEvery*f;
+      roseRain(e);
+      return;
     }
 
-    a.t2-=dt;
-    if(a.t2<=0){
-      a.t2=BOSSCFG.disgraceEvery*f;
-      a.pend='disgrace';
-      a.did=false;
-      a.thr=a.thrT=KING_ACT;
+    // Проверяем возможность начать предложение
+    a.cd-=dt;
+
+    if(
+      a.cd<=0&&
+      Math.hypot(CX-e.x,CY-e.y)<=230
+    ){
+      a.cast=a.castT;
+      a.castHp=e.hp;
+      a.action='proposal';
+
+      e.hold=true;
+
+      say('Принц делает предложение! Собьём его, пока не поздно!',4);
+      tag(e,'Предложение!');
     }
+
+    return;
+  }
+
+  // Поведение короля
+  if(a.pend){
+    e.hold=true;
+
+    if(a.thr<=0){
+      a.pend=null;
+    }
+    else if(a.thr<=KING_ACT-.5&&!a.did){
+      a.did=true;
+
+      if(a.pend==='decree')decree(e);
+      else disgrace(e);
+    }
+
+    return;
+  }
+
+  a.t1-=dt;
+
+  if(a.t1<=0){
+    a.t1=BOSSCFG.decreeEvery*f;
+    a.pend='decree';
+    a.did=false;
+    a.thr=a.thrT=KING_ACT;
+  }
+
+  a.t2-=dt;
+
+  if(a.t2<=0){
+    a.t2=BOSSCFG.disgraceEvery*f;
+    a.pend='disgrace';
+    a.did=false;
+    a.thr=a.thrT=KING_ACT;
   }
 }
+
+
 function throwPrinceRing(e){
+
+  // Полностью завершаем предложение
+  e.ab.cast=0;
+  e.ab.action='ring';
+  e.hold=true;
+
   const sx=e.x;
   const sy=e.y-28;
+
   const tx=CX;
   const ty=CY-20;
+
   const dist=Math.hypot(tx-sx,ty-sy);
   const flight=Math.max(.65,dist/320);
 
   bossProjectiles.push({
     id:++uid,
     kind:'ring',
-    sx,sy,tx,ty,
+    sx,sy,
+    tx,ty,
     t:0,
     d:flight,
     arc:34,
     zoneId:0
   });
 
-  // Анимация броска вперёд
-  e.ab.thr=e.ab.thrT=flight;
+  // Запускаем только анимацию броска кольца
+  e.ab.thr=flight;
+  e.ab.thrT=flight;
   e.ab.action='ring';
 
   say('Принц бросает кольцо!');
   tag(e,'Кольцо!');
 }
+
 
 function updateBossProjectiles(dt){
   const remain=[];
