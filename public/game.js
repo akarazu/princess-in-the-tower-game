@@ -243,14 +243,23 @@ function bossPathPoint(path, u) {
       + path.py * path.amplitude * bend
   };
 }
+
 function makeBossPath(k, x, y) {
+  // Безопасные границы с учётом размера персонажа
+  const margin = Math.max(T[k].r + 16, 54);
+
+  x = Math.max(margin, Math.min(W - margin, x));
+  y = Math.max(margin, Math.min(H - margin, y));
+
   const dxToCenter = CX - x;
   const dyToCenter = CY - y;
-  const centerDistance = Math.hypot(dxToCenter, dyToCenter) || 1;
+  const centerDistance =
+    Math.hypot(dxToCenter, dyToCenter) || 1;
 
-  // Принц останавливается перед башней.
-  // Король сохраняет прежнюю конечную точку.
-  const stopRadius = k === 'prince' ? TOWER_R + 48 : 0;
+  // Принц останавливается перед башней
+  const stopRadius = k === 'prince'
+    ? TOWER_R + T[k].r + 12
+    : 0;
 
   const tx = CX - dxToCenter / centerDistance * stopRadius;
   const ty = CY - dyToCenter / centerDistance * stopRadius;
@@ -267,18 +276,69 @@ function makeBossPath(k, x, y) {
     sy: y,
     tx,
     ty,
+
     px: -dy / distance * side,
     py: dx / distance * side,
+
     amplitude: k === 'prince' ? 230 : 285,
+
     u: 0,
     len: 0,
     arrived: false
   };
 
+  // Рассчитываем максимально допустимую амплитуду
+  let allowedAmplitude = path.amplitude;
+  const wantedAmplitude = path.amplitude;
+
+  for (let i = 1; i < 256; i++) {
+    const u = i / 256;
+    const envelope = Math.sin(Math.PI * u);
+
+    const bend = k === 'prince'
+      ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
+      : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
+
+    const baseX = x + dx * u;
+    const baseY = y + dy * u;
+
+    const ox = path.px * bend;
+    const oy = path.py * bend;
+
+    if (ox > 1e-8)
+      allowedAmplitude = Math.min(
+        allowedAmplitude,
+        (W - margin - baseX) / ox
+      );
+    else if (ox < -1e-8)
+      allowedAmplitude = Math.min(
+        allowedAmplitude,
+        (margin - baseX) / ox
+      );
+
+    if (oy > 1e-8)
+      allowedAmplitude = Math.min(
+        allowedAmplitude,
+        (H - margin - baseY) / oy
+      );
+    else if (oy < -1e-8)
+      allowedAmplitude = Math.min(
+        allowedAmplitude,
+        (margin - baseY) / oy
+      );
+  }
+
+  // Небольшой запас от границ
+  path.amplitude = Math.max(
+    0,
+    Math.min(wantedAmplitude, allowedAmplitude) * 0.98
+  );
+
+  // Рассчитываем длину траектории
   let prev = bossPathPoint(path, 0);
 
-  for (let i = 1; i <= 96; i++) {
-    const next = bossPathPoint(path, i / 96);
+  for (let i = 1; i <= 256; i++) {
+    const next = bossPathPoint(path, i / 256);
 
     path.len += Math.hypot(
       next.x - prev.x,
@@ -730,7 +790,9 @@ function update(dt){
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
 if (e.path) {
-  if (e.path.u < 1) {
+
+  if (!e.path.arrived) {
+
     e.path.u = Math.min(
       1,
       e.path.u + sm * dt / e.path.len
@@ -741,7 +803,9 @@ if (e.path) {
     e.x = q.x;
     e.y = q.y;
 
+    // Фиксируем достижение конечной точки
     if (e.path.u >= 1) {
+
       e.path.arrived = true;
 
       if (e.k === 'prince' && e.ab) {
@@ -751,9 +815,12 @@ if (e.path) {
       }
     }
   }
+
 } else {
+
   e.x += dx / d * sm * dt;
   e.y += dy / d * sm * dt;
+
 }
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
