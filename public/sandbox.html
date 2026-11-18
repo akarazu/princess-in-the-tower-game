@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Башня принцессы — тестовый режим</title>
+<style>
+:root{color-scheme:dark;--bg:#1b1030;--ink:#fbe8d3;--dim:#c9b6d4;--rose:#ff9bb3;--card:#2a1740}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#140b22;color:var(--ink);font:14px/1.4 Georgia,serif}
+canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
+#test-panel{position:fixed;z-index:20;left:10px;top:10px;width:258px;max-height:calc(100dvh - 20px);overflow:auto;padding:10px 12px;background:rgba(27,16,48,.96);border:1px solid #b98abd;border-radius:12px;box-shadow:0 6px 24px #0008}
+#test-panel summary{color:var(--rose);font-size:16px;font-style:italic;font-weight:bold;cursor:pointer;padding:2px 0 8px}
+#test-panel .row{display:flex;align-items:center;gap:6px;margin:7px 0}
+#test-panel select{min-width:0;flex:1;background:#140b22;color:var(--ink);border:1px solid #76548d;border-radius:7px;padding:7px}
+#test-panel button{font:12px Georgia,serif;padding:7px 8px;border:0;border-radius:7px;background:var(--rose);color:#28132f;cursor:pointer}
+#test-panel button.secondary{background:#49305e;color:var(--ink)}
+#test-panel button:active{transform:translateY(1px)}
+#test-panel .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
+#test-panel label{display:flex;align-items:center;gap:6px;margin:8px 0;color:#e8d8ed;font-size:12px}
+#test-panel input[type=checkbox]{accent-color:var(--rose);margin:0}
+#test-panel small,#test-panel p{color:var(--dim);font-size:11px;margin:6px 0}
+#test-info{color:#ffd98a;background:#ffffff10;padding:7px 8px;border-radius:7px;margin:8px 0;font-size:12px}
+@media(max-width:600px){#test-panel{width:218px;left:6px;top:6px;padding:8px;max-height:58dvh}}
+</style>
+</head>
+<body>
+<canvas id="c" width="1138" height="640"></canvas>
+<aside id="test-panel">
+  <details open>
+    <summary>Тестовый режим</summary>
+    <div class="row">
+      <label for="test-wave" style="margin:0">Волна</label>
+      <select id="test-wave">
+        <option value="1">1 · Рыцари</option><option value="2">2 · Рыцари</option>
+        <option value="3">3 · Барды</option><option value="4">4 · Барды</option>
+        <option value="5">5 · Принц</option><option value="6">6 · Маги</option>
+        <option value="7">7 · Маги</option><option value="8">8 · Купцы</option>
+        <option value="9">9 · Купцы</option><option value="10">10 · Король</option>
+      </select>
+      <button id="run-wave">Старт</button>
+    </div>
+    <small>Появление отдельного противника</small>
+    <div class="grid">
+      <button class="secondary" data-spawn="knight">Рыцарь</button>
+      <button class="secondary" data-spawn="bard">Бард</button>
+      <button class="secondary" data-spawn="mage">Маг</button>
+      <button class="secondary" data-spawn="merchant">Купец</button>
+      <button class="secondary" data-spawn="prince">Принц</button>
+      <button class="secondary" data-spawn="king">Король</button>
+    </div>
+    <div class="row">
+      <button id="clear-field" class="secondary">Очистить поле</button>
+      <button id="repair" class="secondary">Восстановить</button>
+    </div>
+    <label><input type="checkbox" id="invulnerable" checked> Неуязвимость и защита башни</label>
+    <label><input type="checkbox" id="max-upgrades" checked> Максимальные улучшения</label>
+    <div id="test-info">Подготовка теста…</div>
+    <p>Движение: WASD / стрелки. Мышь — прицел и стрельба. Правая кнопка — особая атака.</p>
+    <div class="row"><button id="exit" class="secondary">Выйти из теста</button></div>
+  </details>
+</aside>
+<script src="shared.js"></script>
+<script src="game.js"></script>
+<script>
+Game.startTest();
+
+const $=s=>document.querySelector(s);
+$('#run-wave').addEventListener('click',()=>Game.testStartWave($('#test-wave').value));
+document.querySelectorAll('[data-spawn]').forEach(button=>{
+  button.addEventListener('click',()=>Game.testSpawn(button.dataset.spawn));
+});
+$('#clear-field').addEventListener('click',()=>Game.testClear());
+$('#repair').addEventListener('click',()=>Game.testRepair());
+$('#invulnerable').addEventListener('change',e=>Game.testSetInvulnerable(e.target.checked));
+$('#max-upgrades').addEventListener('change',e=>Game.testSetUpgrades(e.target.checked));
+$('#exit').addEventListener('click',()=>{location.href='/'});
+
+function refreshTestInfo(){
+  const info=Game.testInfo();
+  $('#test-info').textContent='Волна: '+info.wave+' · На поле: '+info.enemies+' · В очереди: '+info.queue;
+  setTimeout(refreshTestInfo,300);
+}
+refreshTestInfo();
+</script>
+</body>
+</html>
