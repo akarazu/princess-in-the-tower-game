@@ -86,7 +86,7 @@ const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60
 function drawEnemy(e){
   let key=e.k,fo=-1;const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;
   if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
-  else if(e.k==='mage'&&near&&IMG.mageCast)key='mageCast';
+  else if(e.k==='mage'&&near&&!e.rush&&IMG.mageCast)key='mageCast';
   else if(e.k==='prince'){const ci=castInfo(e);
     if(ci[0]>0&&IMG.princeCast){key='princeCast';fo=Math.floor(ci[0]/100*SPR.princeCast.fr)}
     else if(ci[2]>0&&IMG.princeThrow){key='princeThrow';fo=Math.floor(ci[2]/100*SPR.princeThrow.fr)}}
