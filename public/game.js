@@ -690,7 +690,7 @@ function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLA
   boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
   for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
-const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:5.2,disgraceT:8};
+const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:12,disgraceEvery:9.5,disgraceT:8};
 const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5,KING_MIN_DISGRACES=5;
 function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
@@ -713,7 +713,7 @@ function bossAI(e,dt){
       repositionPathStarted:false,
       repositioned:false
     }
-    :{t1:3,t2:8,stun:0,decreeCount:0,disgraceCount:0,approachStarted:false});
+    :{t1:9,t2:11,stun:0,decreeCount:0,disgraceCount:0,approachStarted:false});
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
@@ -900,7 +900,7 @@ if(!a.arrived){
     a.approachStarted=true;
     a.pend=null;
     a.thr=0;
-    e.path=makeBossPath('king',e.x,e.y);
+    e.path=makeBossPath('king',e.x,e.y,undefined,undefined,0); // После патруля — строго прямая к башне.
 
     if(!knightsRemain){
       say('На поле больше нет рыцарей. Король отменяет опалу и направляется к башне!',4);
@@ -911,19 +911,20 @@ if(!a.arrived){
   }
 
   // Таймеры независимы: максимум пять указов и максимум пять обвинений.
+  // Интервалы одинаковы в одиночной игре и мультиплеере.
   // Обвинения не запускаются, когда живых рыцарей на поле больше нет.
   if(!a.approachStarted){
     if(!decreesDone)a.t1-=dt;
     if(accusationsCanContinue)a.t2-=dt;
 
     if(!decreesDone&&a.t1<=0){
-      a.t1=BOSSCFG.decreeEvery*f;
+      a.t1=BOSSCFG.decreeEvery;
       a.pend='decree';
       a.did=false;
       a.thr=a.thrT=KING_ACT;
     }
     else if(accusationsCanContinue&&a.t2<=0){
-      a.t2=BOSSCFG.disgraceEvery*f;
+      a.t2=BOSSCFG.disgraceEvery;
       a.pend='disgrace';
       a.did=false;
       a.thr=a.thrT=KING_ACT;
