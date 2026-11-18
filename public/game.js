@@ -44,7 +44,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,SDFR=4,dragonCache={},stunnedDragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');loadImg('kingOrderIcon', 'assets/king_order_crown_icon.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -1429,7 +1429,36 @@ function drawDragon(p){
   text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
   ctx.lineWidth=4;ctx.beginPath();
     ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
-  if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}
+ 
+if(p.mark){
+  const t=typeof performance!=='undefined'
+    ?performance.now()/1000:0;
+
+  // Красная окружность вокруг отмеченного дракона
+  ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';
+  ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.arc(p.x,p.y,48,0,6.283);
+  ctx.stroke();
+  ctx.lineWidth=1;
+
+  // Иконка королевского приказа
+  if(IMG.kingOrderIcon){
+    const w=40;
+    const h=w*804/1158;
+
+    ctx.drawImage(
+      IMG.kingOrderIcon,
+      p.x-w/2,
+      p.y-64-h/2,
+      w,
+      h
+    );
+  }else{
+    emoji('👑',p.x,p.y-64,26);
+  }
+}
+
   if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
   if(p.sh>0){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=3;for(let i=0;i<p.sh;i++){ctx.beginPath();ctx.arc(p.x,p.y,36+i*5,0,6.283);ctx.stroke()}ctx.lineWidth=1}
   text(p.name,p.x,p.y+50,14,c)}
