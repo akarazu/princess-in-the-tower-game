@@ -102,6 +102,30 @@ function dragonFor(ci){
   x.putImageData(imageData,0,0);
   return stunnedDragonCache[ci]=c;
 }
+
+function dragonMouthPosition(p) {
+  // Используем именно тот угол, с которым
+  // спрайт фактически отображается на экране.
+  const angle = Number.isFinite(p.dtilt)
+    ? p.dtilt
+    : (p.tilt || 0);
+
+  const face = p.face || 1;
+
+  const cs = Math.cos(angle);
+  const sn = Math.sin(angle);
+
+  return {
+    x: p.x + face * (
+      MOUTH_X * cs - MOUTH_Y * sn
+    ),
+
+    y: p.y + (
+      MOUTH_X * sn + MOUTH_Y * cs
+    )
+  };
+}
+
 function drawDragonSprite(p){
   const stunned=p.asleep&&!p.dead;
   const sh=stunned
@@ -900,13 +924,39 @@ function updatePlayer(p,dt){
   if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
   p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y));
   if(Math.abs(ax-p.x)>28)p.face=ax>p.x?1:-1;if(!p.face)p.face=1;
-  p.tilt+=(Math.max(-1.05,Math.min(1.05,Math.atan2(ay-p.y,Math.max(Math.abs(ax-p.x),1))))-p.tilt)*Math.min(1,dt*60);
-  if(fire&&p.cd<=0&&p.frz<=0){const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(ay-sy,ax-sx);
+  const targetTilt = Math.atan2(
+  ay - p.y,
+  Math.max(Math.abs(ax - p.x), 1)
+);
+
+p.tilt += (
+  Math.max(-1.45, Math.min(1.45, targetTilt))
+  - p.tilt
+) * Math.min(1, dt * 60);
+  if(fire&&p.cd<=0&&p.frz<=0){
+
+const mouth = dragonMouthPosition(me);
+
+const sx = mouth.x;
+const sy = mouth.y;
+
+  const a = Math.atan2(
+    ay - sy,
+    ax - sx
+  );
     const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
     p.cd=.5*Math.pow(.85,p.lv[1])}
   p.acd-=dt;
   if(p.in.alt&&p.lv[0]>=5&&p.acd<=0&&p.frz<=0){
-    const cs=Math.cos(p.tilt),sn=Math.sin(p.tilt),sx=p.x+p.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=p.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(p.in.ay-sy,p.in.ax-sx);
+    const mouth = dragonMouthPosition(p);
+
+const sx = mouth.x;
+const sy = mouth.y;
+
+const a = Math.atan2(
+  p.in.ay - sy,
+  p.in.ax - sx
+);
     balls.push({id:++uid,x:sx,y:sy,ang:a,vx:Math.cos(a)*470,vy:Math.sin(a)*470,life:1.1,col:COLORS[p.ci][1],dmg:dmgOf(p),r:16,owner:p.id,blast:true});p.acd=BLAST.cd}}
 
 function update(dt){
