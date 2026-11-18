@@ -154,6 +154,7 @@ function drawCastle(){
 
 // ===== Состояние мира =====
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
+let TEST_MODE=false,testInvulnerable=false;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
 
 // ===== Игроки =====
@@ -179,7 +180,7 @@ cv.addEventListener('pointerdown',e=>{pos(e);
   mouse.down=true;lastIn=0});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('pointerup',e=>{if(e.button===2)mouse.alt=false;else mouse.down=false;lastIn=0});
-addEventListener('keydown',e=>{if(!active)return;if(e.code==='KeyF'&&document.documentElement&&document.documentElement.requestFullscreen){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}keys[e.code]=true;lastIn=0;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
+addEventListener('keydown',e=>{if(!active)return;if(e.target&&/^(INPUT|SELECT|BUTTON)$/.test(e.target.tagName))return;if(e.code==='KeyF'&&document.documentElement&&document.documentElement.requestFullscreen){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}keys[e.code]=true;lastIn=0;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
   if(state==='shop'&&shopT>.4){if(e.code==='Space'||e.code==='Enter')goReq();if(/^Digit[1-4]$/.test(e.code))buyReq(+e.code[5]-1)}});
 addEventListener('keyup',e=>{keys[e.code]=false;lastIn=0});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;mouse.alt=false});
@@ -428,7 +429,7 @@ function updateBossProjectiles(dt){
         if(z)z.landed=true;
       }
       else{
-        tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);
+        if(!(TEST_MODE&&testInvulnerable))tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);
         shake=14;
         boom(CX,CY,'#ff9bb3',24);
         say('Принц успел бросить кольцо! Принцесса в смятении!');
@@ -580,7 +581,7 @@ function cast(e,dx,dy,d,force){
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)say('Дракона разбудили!');else{p.w[0]=Math.floor(p.w[0]*.75);say('Дракон проснулся. Часть золота потерялась по дороге.')}}
-function hitDragon(p,e){if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else{e.hp-=1;if(e.hp<=0){p.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,p)}}
+function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else{e.hp-=1;if(e.hp<=0){p.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,p)}}
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;say('Дракон упал! Его надо поднять за 15 секунд.')}}
 
 function updatePlayer(p,dt){
@@ -633,30 +634,30 @@ function update(dt){
     }
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
-if (e.path) {
-  e.path.u = Math.min(
-    1,
-    e.path.u + sm * dt / e.path.len
-  );
+      if (e.path) {
+        e.path.u = Math.min(
+          1,
+          e.path.u + sm * dt / e.path.len
+        );
 
-  const q = bossPathPoint(e.path, e.path.u);
+        const q = bossPathPoint(e.path, e.path.u);
 
-  e.x = q.x;
-  e.y = q.y;
-} else {
-  e.x += dx / d * sm * dt;
-  e.y += dy / d * sm * dt;
-}
+        e.x = q.x;
+        e.y = q.y;
+      } else {
+        e.x += dx / d * sm * dt;
+        e.y += dy / d * sm * dt;
+      }
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
-    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
+    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
   for(const n of notes){
     if(n.k==='bag'){n.t+=dt;const u=Math.min(1,n.t/n.d);n.x=n.sx+(n.tx-n.sx)*u;n.y=n.sy+(n.ty-n.sy)*u-Math.sin(Math.PI*u)*60;
       if(u>=1){n.hp=0;boom(n.tx,n.ty,'#ffd24d',14);for(const p of players)if(!p.asleep&&Math.hypot(p.x-n.tx,p.y-n.ty)<40){p.frz=1.5;say(pick(Q.bag))}}}
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
-    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){tower-=n.dmg;n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4)say(pick(Q.note))}
+    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg;n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4)say(pick(Q.note))}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
@@ -677,12 +678,13 @@ if (e.path) {
   tags=tags.filter(t=>t.life>0);
   shake=Math.max(0,shake-40*dt);quipT-=dt;
   if(phase==='break'){phaseT-=dt;if(phaseT<=0)phase='spawn'}
-  else if(phase==='clear'){phaseT-=dt;if(phaseT<=0)toShop()}
+  else if(phase==='clear'){phaseT-=dt;if(phaseT<=0){if(TEST_MODE){phase='break';phaseT=1e9}else toShop()}}
   else{spawnT-=dt;if(queue[0]==='bard'&&queue.length>1&&enemies.filter(x=>x.k==='bard').length>=2+Math.ceil(Math.sqrt(players.length)))queue.push(queue.shift());
     if(queue[0]==='mage'&&queue.length>1&&(enemies.filter(x=>x.k==='mage').length>=2||spawned<4||!enemies.some(x=>x.t.kind!=='heal')))queue.push(queue.shift());
-    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(players.length-1)){spawn(queue.shift());spawnT=Math.max(.3,(1.5-wave*.08)/(1+.5*Math.sqrt(players.length-1)))}
+    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(players.length-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,(TEST_MODE?0.14:1.5-wave*0.08)/(1+0.5*Math.sqrt(players.length-1)))}
     if(!queue.length&&!enemies.length&&!notes.length){
-      if(wave>=TOTAL)state='win';
+      if(TEST_MODE){phase='clear';phaseT=.35;say('Волна очищена. Выберите следующую в панели тестирования.',3)}
+      else if(wave>=TOTAL)state='win';
       else{phase='clear';phaseT=3;say('Волна отбита! Успейте собрать монеты.',3);
         }}}
   if(tower<=0){tower=0;state='lose'}
@@ -903,7 +905,59 @@ function loop(t){
   requestAnimationFrame(loop);
 }
 
+function testClearActors(){
+  enemies=[];queue=[];notes=[];beams=[];balls=[];pickups=[];parts=[];zones=[];tags=[];
+  bossProjectiles=[];myBalls=[];evs=[];
+  state='play';phase='break';phaseT=1e9;spawnT=0;markId=-1;markT=0;
+}
+function testRepair(){
+  if(!TEST_MODE||!me)return;
+  tower=towerMax;
+  me.h=maxH(me);me.asleep=false;me.dead=false;me.gone=false;
+  me.inv=0;me.frz=0;me.wt=0;me.rv=0;me.sh=shMax(me);me.shT=0;
+  state='play';
+}
+function testSetUpgrades(enabled){
+  if(!TEST_MODE||!me)return;
+  me.lv=enabled?[5,5,3,3]:[0,0,0,0];
+  me.sh=shMax(me);me.shT=0;
+}
+function testStartWave(n){
+  if(!TEST_MODE)return;
+  const target=Math.max(1,Math.min(TOTAL,Number(n)||1));
+  resetWorld();
+  wave=target-1;
+  testClearActors();
+  testRepair();
+  nextWave();
+  phase='spawn';phaseT=0;spawnT=0;state='play';
+}
+function testSpawn(kind){
+  if(!TEST_MODE||!T[kind])return;
+  state='play';queue=[];phase='spawn';phaseT=0;spawnT=0;
+  spawn(kind);
+}
+function testSetInvulnerable(enabled){
+  if(TEST_MODE)testInvulnerable=!!enabled;
+}
+function testInfo(){
+  return {wave,state,enemies:enemies.length,queue:queue.length,invulnerable:testInvulnerable};
+}
+function startTest(){
+  resizeCanvas();addEventListener('resize',resizeCanvas);
+  TEST_MODE=true;testInvulnerable=true;ws=null;isHost=true;active=true;
+  players=[makePlayer(0,0)];
+  me=players[0];me.name='Тестовый дракон';me.nid='test';
+  me.x=CX;me.y=CY+145;me.in.ax=CX;me.in.ay=CY-100;
+  towerMax=100;
+  testSetUpgrades(true);
+  testStartWave(1);
+  last=typeof performance!=='undefined'?performance.now():0;
+  requestAnimationFrame(loop);
+}
+
 function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
+  TEST_MODE=false;testInvulnerable=false;
   ws=o.ws;
   players=o.players.map((q,i)=>{const p=makePlayer(i,q.color);p.name=q.name;p.nid=q.id;const a=i/o.players.length*6.283;p.x=CX+Math.cos(a)*110;p.y=CY+Math.sin(a)*110;return p});
   me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*(1+.6*Math.sqrt(players.length-1)));
@@ -927,6 +981,6 @@ function onMsg(m){
     for(const v of d.V)spark(v[0],v[1],v[2],Math.min(v[3],8));
   }
 }
-window.Game={start:startGame,onMsg,get active(){return active}};
+window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testInfo,get active(){return active}};
 
 })();
