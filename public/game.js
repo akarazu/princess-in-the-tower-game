@@ -970,8 +970,42 @@ if(chorusT <= 0){
 
   chorusT=Math.max(0,chorusT-dt);
   const insp=inspV=chorusT>0?1.6:1;
-  if(markId>=0){markT-=dt;const mp=players[markId];if(markT<=0||!mp||mp.asleep||mp.gone){markId=-1;say('Опала закончилась.')}}
-  players.forEach(p=>{p.mark=p.id===markId});
+
+if(markId>=0){
+
+  markT-=dt;
+
+  const mp=players[markId];
+
+  // Проверяем, остались ли живые рыцари на карте.
+  const knightsRemain=enemies.some(
+    e=>e.k==='knight'&&e.hp>0
+  );
+
+  // Снимаем опалу, если рыцарей больше нет,
+  // истёк таймер или выбранный игрок выбыл.
+  if(
+    !knightsRemain||
+    markT<=0||
+    !mp||
+    mp.asleep||
+    mp.gone
+  ){
+    markId=-1;
+    markT=0;
+
+    say(
+      !knightsRemain
+        ? 'Опала закончилась: рыцарей больше нет!'
+        : 'Опала закончилась.'
+    );
+  }
+}
+
+players.forEach(p=>{
+  p.mark=p.id===markId;
+});
+
   for(const e of enemies){if(e.hp<=0)continue;
     let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;if(e.actL>0){e.actL-=dt;e.thr=e.actL>0?Math.max(1,Math.round((1-e.actL/e.actT)*100)):0}
     if(e.t.boss)bossAI(e,dt);
