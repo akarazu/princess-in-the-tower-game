@@ -998,16 +998,82 @@ function drawEnemyMarks(e){
     if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,32,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}
+function drawHudPanel(x,y,w,h,fill='rgba(25,12,42,.72)'){
+  ctx.save();
+  ctx.fillStyle=fill;
+  ctx.strokeStyle='rgba(238,205,230,.30)';
+  ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,12);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawRoster(){
-  const ps=players.filter(p=>!p.gone),act=ps.filter(p=>!p.asleep).length,t=typeof performance!=='undefined'?performance.now()/1000:0;
-  ctx.textAlign='right';text('Драконы в строю: '+act+' из '+ps.length,W-20,52,15,'#fbe8d3');
-  ps.forEach((p,i)=>{const x=W-34-(i%8)*27,y=78+Math.floor(i/8)*28;
-    ctx.globalAlpha=p.dead?.35:p.asleep?.7:1;ctx.fillStyle=COLORS[p.ci][1];ctx.beginPath();ctx.arc(x,y,10,0,6.283);ctx.fill();ctx.globalAlpha=1;
-    if(p===me){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,13,0,6.283);ctx.stroke();ctx.lineWidth=1}
+  ctx.save();
+  const ps=players.filter(p=>!p.gone);
+  const active=ps.filter(p=>!p.asleep&&!p.dead).length;
+  const cols=6;
+  const rowCount=Math.max(1,Math.ceil(ps.length/cols));
+  const panelW=210;
+  const panelX=W-panelW-14;
+  const panelY=12;
+  const panelH=60+rowCount*26;
+  const t=typeof performance!=='undefined'?performance.now()/1000:0;
+
+  drawHudPanel(panelX,panelY,panelW,panelH);
+
+  ctx.textBaseline='middle';
+  ctx.textAlign='left';
+  text('ОТШИТО',panelX+12,panelY+20,10,'#c9b6d4','italic');
+  ctx.textAlign='right';
+  text(String(score),panelX+panelW-13,panelY+20,18,'#ffd24d');
+
+  ctx.textAlign='left';
+  text('Драконы в строю',panelX+12,panelY+43,12,'#fbe8d3');
+  ctx.textAlign='right';
+  text(active+' / '+ps.length,panelX+panelW-13,panelY+43,12,'#fbe8d3');
+
+  ps.forEach((p,i)=>{
+    const col=i%cols;
+    const row=Math.floor(i/cols);
+    const x=panelX+22+col*32;
+    const y=panelY+62+row*26;
+
+    ctx.globalAlpha=p.dead?.38:p.asleep?.72:1;
+    ctx.fillStyle=COLORS[p.ci][1];
+    ctx.beginPath();
+    ctx.arc(x,y,9,0,6.283);
+    ctx.fill();
+    ctx.globalAlpha=1;
+
+    if(p===me){
+      ctx.strokeStyle='#fff';
+      ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.arc(x,y,12,0,6.283);
+      ctx.stroke();
+      ctx.lineWidth=1;
+    }
+
     ctx.textAlign='center';
-    if(p.dead)emoji('💀',x,y,14);
-    else if(p.asleep){ctx.strokeStyle='rgba(255,70,70,'+(.6+.4*Math.sin(t*8))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,12,0,6.283);ctx.stroke();ctx.lineWidth=1;text(String(Math.max(0,Math.ceil(p.wt))),x,y+4,11,'#fff')}
-    else text(p.name.slice(0,1).toUpperCase(),x,y+4,12,'#1b1030')})}
+    if(p.dead){
+      emoji('💀',x,y,13);
+    }else if(p.asleep){
+      ctx.strokeStyle='rgba(255,70,70,'+(.6+.4*Math.sin(t*8))+')';
+      ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.arc(x,y,11,0,6.283);
+      ctx.stroke();
+      ctx.lineWidth=1;
+      text(String(Math.max(0,Math.ceil(p.wt))),x,y+1,9,'#fff');
+    }else{
+      text(p.name.slice(0,1).toUpperCase(),x,y+1,11,'#1b1030');
+    }
+  });
+  ctx.restore();
+}
 function lonely(e){return e.t.kind==='heal'&&casterOnly()}
 function shieldAllies(e){
   // Боссы получают приоритетный щит перед обычными противниками.
@@ -1481,35 +1547,193 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
-  if(me){ctx.textAlign='left';text('Волна '+wave+' из '+TOTAL,20,28,20,'#fbe8d3');drawIcon(0,32,54,11);text(String(me.w[0]),50,56,22,CUR[0].c);drawIcon(1,32,82,11);text(String(me.w[1]),50,84,22,CUR[1].c);
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h)+(me.sh?'  '+'🛡️'.repeat(me.sh):''),20,118,20);
-    if(me.lv[0]>=5){const rdy=me.acd<=0,f=rdy?1:1-me.acd/BLAST.cd;ctx.strokeStyle=rdy?'#ffd24d':'#8a7096';ctx.lineWidth=3;ctx.beginPath();ctx.arc(34,150,14,-1.57,-1.57+6.283*f);ctx.stroke();ctx.lineWidth=1;ctx.textAlign='center';text('ПКМ',34,154,10,rdy?'#ffd24d':'#b9a3cc')}}
-  ctx.textAlign='right';text('Отшито поклонников: '+score,W-20,28,20,'#fbe8d3');text('F — во весь экран',W-14,H-14,13,'#fbe8d399');drawRoster();
-  ctx.textAlign='center';text('Нервы принцессы',CX,24,16,'#fbe8d3','italic');
-  ctx.fillStyle='#0006';ctx.fillRect(CX-150,36,300,14);ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';ctx.fillRect(CX-150,36,300*tower/towerMax,14);
-  {const bn=enemies.filter(o=>o.hp>0&&o.k==='bard').length;if(state==='play'&&chorusT>0)text('Припев! Враги быстрее на 60%',CX,70,15,'#ff9bb3','italic');else if(state==='play'&&bn)text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,70,15,'#d9c3e8','italic')}
+  // ===== Компактная информация по краям игрового поля =====
+  if(me){
+    // Левый блок: волна, ресурсы, здоровье и особая атака.
+    drawHudPanel(14,12,194,142);
+    ctx.textAlign='left';
+    text('ВОЛНА  '+wave+' / '+TOTAL,28,35,17,'#fbe8d3','italic');
+
+    drawIcon(0,34,66,11);
+    text(String(me.w[0]),55,71,19,CUR[0].c);
+    drawIcon(1,34,96,11);
+    text(String(me.w[1]),55,101,19,CUR[1].c);
+
+    ctx.textAlign='left';
+    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),27,132,17);
+    if(me.sh>0)emoji('🛡️'.repeat(me.sh),111,132,15);
+
+    if(me.lv[0]>=5){
+      const ready=me.acd<=0;
+      const progress=ready?1:1-me.acd/BLAST.cd;
+      ctx.strokeStyle=ready?'#ffd24d':'#8a7096';
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.arc(179,128,11,-1.57,-1.57+6.283*progress);
+      ctx.stroke();
+      ctx.lineWidth=1;
+      ctx.textAlign='center';
+      text('ПКМ',179,132,9,ready?'#ffd24d':'#b9a3cc');
+    }
+  }
+
+  // Центральный блок: состояние башни.
+  drawHudPanel(CX-180,12,360,78,'rgba(25,12,42,.62)');
+  ctx.textAlign='center';
+  text('Нервы принцессы',CX,30,15,'#fbe8d3','italic');
+  ctx.fillStyle='rgba(0,0,0,.42)';
+  ctx.beginPath();
+  ctx.roundRect(CX-150,39,300,13,6);
+  ctx.fill();
+  ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';
+  ctx.beginPath();
+  ctx.roundRect(CX-150,39,300*Math.max(0,tower/towerMax),13,6);
+  ctx.fill();
+
+  const activeBardCount=enemies.filter(o=>o.hp>0&&o.k==='bard').length;
+  if(state==='play'&&chorusT>0){
+    text('Припев! Враги быстрее на 60%',CX,76,12,'#ff9bb3','italic');
+  }else if(state==='play'&&activeBardCount){
+    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,76,12,'#d9c3e8','italic');
+  }
+
+  drawRoster();
+
+  // Управление и полноэкранный режим — у нижних краёв.
+  if(state==='play'){
+    drawHudPanel(14,H-43,430,29,'rgba(25,12,42,.62)');
+    ctx.textAlign='left';
+    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',26,H-24,11,'#e9d9ed');
+
+    drawHudPanel(W-137,H-43,123,29,'rgba(25,12,42,.62)');
+    ctx.textAlign='center';
+    text('F — весь экран',W-75,H-24,11,'#e9d9ed');
+  }
+
   if(quipT>0&&state==='play'){ctx.font='italic 18px Georgia,serif';const w=ctx.measureText(quip).width+32;
     ctx.fillStyle='#fff3e6';ctx.beginPath();ctx.roundRect(CX-w/2,CY-215,w,36,12);ctx.fill();text(quip,CX,CY-197,18,'#3b1c3f','italic')}
   if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,CX,H-70,34,'#fbe8d3','italic');
   if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',CX,H-70,34,'#ffdd88','italic');
   if(state==='shop')drawShop();
   else if(state!=='play'){
-    ctx.fillStyle='rgba(20,8,35,.88)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
-    text(state==='win'?'Принцесса в безопасности!':(tower<=0?'Нервы сдали…':'Все драконы пали…'),CX,64,44,'#ff9bb3','italic');
-    text(state==='win'?'Отшито поклонников всего: '+score:'Дошли до волны '+wave+' из '+TOTAL+' · отшито поклонников: '+score,CX,100,18,'#fbe8d3');
-    const rows=players.filter(p=>!p.gone).slice().sort((a,b)=>b.kills-a.kills),top=134,rh=Math.min(34,(H-top-60)/Math.max(1,rows.length));
-    ctx.textAlign='left';text('№',CX-300,top,13,'#b9a3cc','italic');text('Дракон',CX-250,top,13,'#b9a3cc','italic');text('Игрок',CX-110,top,13,'#b9a3cc','italic');
-    ctx.textAlign='right';text('Отшито',CX+300,top,13,'#b9a3cc','italic');
-    rows.forEach((p,i)=>{const y=top+22+i*rh,fs=Math.min(20,rh*.62);
-      if(p===me){ctx.fillStyle='rgba(255,155,179,.18)';ctx.fillRect(CX-315,y-rh*.6,630,rh*.9)}
-      ctx.textAlign='left';if(i<3)emoji(['🥇','🥈','🥉'][i],CX-292,y,fs+2);else text(String(i+1),CX-300,y,fs,'#fbe8d3');
-      ctx.fillStyle=COLORS[p.ci][1];ctx.beginPath();ctx.arc(CX-241,y-1,8,0,6.283);ctx.fill();
-      text(COLORS[p.ci][0],CX-224,y,fs,'#fbe8d3');text(p.name,CX-110,y,fs,p===me?'#ffdd88':'#fbe8d3');
-      ctx.textAlign='right';text(String(p.kills),CX+300,y,fs+2,'#ffd24d')});
-    ctx.textAlign='center';text('Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',CX,H-22,15,'#ffdd88','italic')}
+    drawEndScreen();
+  }
 }
 
-// ===== Сеть =====
+function drawEndScreen(){
+  ctx.save();
+  ctx.fillStyle='rgba(17,7,31,.86)';
+  ctx.fillRect(-ox,-oy,cvW,cvH);
+
+  const rows=players
+    .filter(p=>!p.gone)
+    .slice()
+    .sort((a,b)=>b.kills-a.kills);
+
+  const panelW=Math.min(820,W-36);
+  const panelX=(W-panelW)/2;
+  const fixedHeight=170;
+  const maxPanelHeight=H-28;
+  const rowH=rows.length
+    ?Math.min(34,Math.max(13,(maxPanelHeight-fixedHeight)/rows.length))
+    :34;
+  const panelH=fixedHeight+rows.length*rowH;
+  const panelY=(H-panelH)/2;
+
+  drawHudPanel(panelX,panelY,panelW,panelH,'rgba(31,16,52,.97)');
+
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  text(
+    state==='win'?'Принцесса в безопасности!':(tower<=0?'Нервы сдали…':'Все драконы пали…'),
+    CX,panelY+36,Math.min(38,panelW*.052),'#ff9bb3','italic'
+  );
+
+  const summary=state==='win'
+    ?'Отшито поклонников: '+score
+    :'Дошли до волны '+wave+' из '+TOTAL+'  ·  Отшито поклонников: '+score;
+  text(summary,CX,panelY+68,15,'#fbe8d3');
+
+  ctx.strokeStyle='rgba(238,205,230,.25)';
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(panelX+22,panelY+88);
+  ctx.lineTo(panelX+panelW-22,panelY+88);
+  ctx.stroke();
+
+  const rankX=panelX+45;
+  const colorX=panelX+112;
+  const playerX=panelX+330;
+  const killsX=panelX+panelW-42;
+  const headerY=panelY+111;
+  const rowsTop=panelY+128;
+  const fontSize=Math.min(17,Math.max(10,rowH*.58));
+
+  ctx.textAlign='center';
+  text('МЕСТО',rankX,headerY,11,'#b9a3cc','italic');
+  ctx.textAlign='left';
+  text('ДРАКОН',colorX,headerY,11,'#b9a3cc','italic');
+  text('ИГРОК',playerX,headerY,11,'#b9a3cc','italic');
+  ctx.textAlign='right';
+  text('ОТШИТО',killsX,headerY,11,'#b9a3cc','italic');
+
+  rows.forEach((p,i)=>{
+    const rowTop=rowsTop+i*rowH;
+    const y=rowTop+rowH/2;
+
+    if(p===me){
+      ctx.fillStyle='rgba(255,155,179,.16)';
+      ctx.beginPath();
+      ctx.roundRect(panelX+14,rowTop+1,panelW-28,Math.max(1,rowH-2),6);
+      ctx.fill();
+    }else if(i%2===1){
+      ctx.fillStyle='rgba(255,255,255,.025)';
+      ctx.fillRect(panelX+14,rowTop+1,panelW-28,Math.max(1,rowH-2));
+    }
+
+    ctx.textAlign='center';
+    if(i<3)emoji(['🥇','🥈','🥉'][i],rankX,y,fontSize+3);
+    else text(String(i+1),rankX,y,fontSize,'#fbe8d3');
+
+    ctx.fillStyle=COLORS[p.ci][1];
+    ctx.beginPath();
+    ctx.arc(colorX,y,Math.max(4,Math.min(7,rowH*.22)),0,6.283);
+    ctx.fill();
+
+    ctx.textAlign='left';
+    ctx.font=fontSize+'px Georgia,serif';
+    ctx.fillStyle='#fbe8d3';
+    ctx.fillText(COLORS[p.ci][0],colorX+15,y,150);
+
+    ctx.fillStyle=p===me?'#ffdd88':'#fbe8d3';
+    ctx.fillText(p.name||'Игрок',playerX,y,Math.max(80,killsX-playerX-50));
+
+    ctx.textAlign='right';
+    ctx.font='bold '+fontSize+'px Georgia,serif';
+    ctx.fillStyle='#ffd24d';
+    ctx.fillText(String(p.kills),killsX,y,52);
+
+    if(i<rows.length-1){
+      ctx.strokeStyle='rgba(238,205,230,.10)';
+      ctx.beginPath();
+      ctx.moveTo(panelX+24,rowTop+rowH);
+      ctx.lineTo(panelX+panelW-24,rowTop+rowH);
+      ctx.stroke();
+    }
+  });
+
+  ctx.textAlign='center';
+  ctx.font='italic 12px Georgia,serif';
+  ctx.fillStyle='#ffdd88';
+  ctx.fillText(
+    'Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',
+    CX,panelY+panelH-17,panelW-40
+  );
+
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
 const SHOP_TIME=30,KINDS=Object.keys(T),SNAP_MS=80;
 let lastSnap=0,snaps=[],shopLeft=SHOP_TIME,lastIn=0,myBalls=[];
 const net=o=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'msg',to:isHost?'all':'host',data:o}))};
