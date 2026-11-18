@@ -1006,15 +1006,70 @@ function drawRoster(){
     else if(p.asleep){ctx.strokeStyle='rgba(255,70,70,'+(.6+.4*Math.sin(t*8))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,12,0,6.283);ctx.stroke();ctx.lineWidth=1;text(String(Math.max(0,Math.ceil(p.wt))),x,y+4,11,'#fff')}
     else text(p.name.slice(0,1).toUpperCase(),x,y+4,12,'#1b1030')})}
 function lonely(e){return e.t.kind==='heal'&&casterOnly()}
-function shieldAllies(e){const c=enemies.filter(o=>o!==e&&o.hp>0&&!o.sh&&!isBoss(o)).sort(()=>Math.random()-.5).slice(0,Math.max(0,Math.min(2,6-enemies.filter(o=>o.sh).length)));
-  for(const o of c){o.sh=2;boom(o.x,o.y,'#8fd8ff',6)}if(c.length)tag(e,'Щит!')}
+function shieldAllies(e){
+  // Боссы получают приоритетный щит перед обычными противниками.
+  const unshieldedBosses=enemies.filter(
+    o=>o!==e&&o.hp>0&&!o.sh&&isBoss(o)
+  );
+  const unshieldedOthers=enemies.filter(
+    o=>o!==e&&o.hp>0&&!o.sh&&!isBoss(o)
+  );
+
+  // Сохраняем общий лимит защищённых союзников. Если он уже достигнут,
+  // освобождаем место для босса, снимая щит с обычного врага.
+  let shieldedCount=enemies.filter(o=>o.hp>0&&o.sh).length;
+  const bossSlots=Math.min(2,unshieldedBosses.length);
+  const freeSlots=Math.max(0,6-shieldedCount);
+  const needFree=Math.max(0,bossSlots-freeSlots);
+
+  if(needFree>0){
+    const replace= enemies.filter(
+      o=>o.hp>0&&o.sh&&!isBoss(o)
+    ).slice(-needFree);
+    for(const o of replace){
+      o.sh=0;
+      shieldedCount--;
+    }
+  }
+
+  const slots=Math.max(0,Math.min(2,6-shieldedCount));
+  const targets=[...unshieldedBosses,...unshieldedOthers].slice(0,slots);
+
+  for(const o of targets){
+    o.sh=2;
+    boom(o.x,o.y,'#8fd8ff',6);
+  }
+
+  if(targets.length)tag(e,'Щит!');
+}
 function woundedNear(e){for(const o of enemies){if(o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=260)return true}return false}
 function cast(e,dx,dy,d,force){
   let k=force||e.t.kind;
-  if(k==='heal'){let best=null,bm=0;
-    for(const o of enemies){if(o===e||o.hp<=0||o.hp>=o.max||Math.hypot(o.x-e.x,o.y-e.y)>260)continue;if(o.max-o.hp>bm){bm=o.max-o.hp;best=o}}
-    if(best){best.hp=Math.min(best.max,best.hp+(isBoss(best)?1:Math.max(1,best.max*.3)));beams.push({x1:e.x,y1:e.y,x2:best.x,y2:best.y,life:.4});boom(best.x,best.y,'#7dff9a',6);tag(e,'Лечу!')}else e.cdn=.5;
-    return}
+  if(k==='heal'){
+    const wounded=enemies.filter(o=>
+      o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=260
+    );
+
+    // Раненый босс всегда приоритетнее обычных врагов.
+    // Если босс полностью здоров или вне радиуса, лечим наиболее раненого союзника.
+    const bossTarget=wounded.find(isBoss)||null;
+    const best=bossTarget||wounded.reduce((target,o)=>
+      !target||(o.max-o.hp)>(target.max-target.hp)?o:target,
+      null
+    );
+
+    if(best){
+      // Сохраняем прежний объём лечения, но выбираем босса первым.
+      const healAmount=isBoss(best)?1:Math.max(1,best.max*.3);
+      best.hp=Math.min(best.max,best.hp+healAmount);
+      beams.push({x1:e.x,y1:e.y,x2:best.x,y2:best.y,life:.4});
+      boom(best.x,best.y,'#7dff9a',6);
+      tag(e,isBoss(best)?'Защищаю босса!':'Лечу!');
+    }else{
+      e.cdn=.5;
+    }
+    return;
+  }
   let tx=CX,ty=CY;
   if(k==='bag'){let bd=1e9;for(const p of players){if(p.asleep)continue;const q=Math.hypot(p.x-e.x,p.y-e.y);if(q<bd){bd=q;tx=p.x;ty=p.y}}}
   const a=Math.atan2(ty-e.y,tx-e.x),v=k==='bag'?130:110;
@@ -1246,7 +1301,12 @@ players.forEach(p=>{
     if(e.t.boss)bossAI(e,dt);
     if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}
     const lone=lonely(e);if(lone&&!e.rush){e.rush=true;say('Маги остались без прикрытия и бегут к башне!')}
-    if(e.t.rng&&d<=e.t.rng&&e.x>24&&e.x<W-24&&e.y>64&&e.y<H-24&&!lone){e.cdn=(e.cdn??1+Math.random())-dt;
+    // Маг может начать поддержку, когда босс входит в радиус лечения,
+    // даже если сам маг ещё не подошёл близко к замку.
+    const bossInHealRange=e.t.kind==='heal'&&enemies.some(o=>
+      o!==e&&o.hp>0&&isBoss(o)&&Math.hypot(o.x-e.x,o.y-e.y)<=260
+    );
+    if(e.t.rng&&(d<=e.t.rng||bossInHealRange)&&e.x>24&&e.x<W-24&&e.y>64&&e.y<H-24&&!lone){e.cdn=(e.cdn??1+Math.random())-dt;
       if(e.cdn<=0){e.cdn=e.t.rate;cast(e,dx,dy,d)}
       if(e.t.kind==='heal'){e.scd=(e.scd??1.5+Math.random()*2)-dt;if(e.scd<=0){e.scd=2.5;shieldAllies(e)}}
     }
