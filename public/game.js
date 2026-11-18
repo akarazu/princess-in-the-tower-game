@@ -517,7 +517,7 @@ function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
     P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
-    E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0,e.chase?1:0,...castInfo(e)]),
+    E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0,e.chase?1:0,...castInfo(e),e.rush?1:0]),
     Z:zones.map(z=>[z.id,r1(z.x),r1(z.y),z.r,Math.round(z.t*100)/100,z.d]),
     B:balls.map(b=>[b.id,r1(b.x),r1(b.y),b.owner,r10(b.r),Math.round(b.ang*100)]),
     N:notes.map(n=>[n.id,n.k==='bag'?1:0,r1(n.x),r1(n.y),r1(n.tx),r1(n.ty),Math.round(n.t*100)/100]),
@@ -566,7 +566,7 @@ function guestFrame(dt,now){
   const gain=(me.asleep||me.frz>0)?.3:err>150?.15:(mx||my)?0:.12,g=1-Math.pow(1-gain,dt*60);
   me.x+=(au[0]-me.x)*g;me.y+=(au[1]-me.y)*g;
   const mp=arr=>new Map((arr||[]).map(e=>[e[0],e])),ea=mp(a.E),ba=mp(a.B),ka=mp(a.K);
-  enemies=nx.E.map(e=>{const o=ea.get(e[0]),kk=KINDS[e[1]];return{id:e[0],k:kk,t:T[kk],x:o?lp(o[2],e[2]):e[2],y:o?lp(o[3],e[3]):e[3],hp:e[4],max:e[5],sh:e[6],chase:e[7],cast:e[8],ip:e[9],thr:e[10]}});
+  enemies=nx.E.map(e=>{const o=ea.get(e[0]),kk=KINDS[e[1]];return{id:e[0],k:kk,t:T[kk],x:o?lp(o[2],e[2]):e[2],y:o?lp(o[3],e[3]):e[3],hp:e[4],max:e[5],sh:e[6],chase:e[7],cast:e[8],ip:e[9],thr:e[10],rush:!!e[11]}});
   zones=(b.Z||[]).map(e=>({id:e[0],x:e[1],y:e[2],r:e[3],t:e[4],d:e[5]}));
   balls=nx.B.filter(e=>e[3]!==me.id).map(e=>{const o=ba.get(e[0]);return{id:e[0],x:o?lp(o[1],e[1]):e[1],y:o?lp(o[2],e[2]):e[2],r:e[4],ang:e[5]/100,col:COLORS[players[e[3]].ci][1]}}).concat(myBalls);
   notes=nx.N.map(e=>({id:e[0],k:e[1]?'bag':'note',x:e[2],y:e[3],tx:e[4],ty:e[5],t:e[6],r:12}));
