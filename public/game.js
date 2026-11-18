@@ -103,84 +103,84 @@ function dragonFor(ci){
   return stunnedDragonCache[ci]=c;
 }
 
-function dragonMouthPosition(p) {
-  // Используем именно тот угол, с которым
-  // спрайт фактически отображается на экране.
-  const angle = Number.isFinite(p.dtilt)
-    ? p.dtilt
-    : (p.tilt || 0);
-
-  const face = p.face || 1;
-
-  const cs = Math.cos(angle);
-  const sn = Math.sin(angle);
-
-  return {
-    x: p.x + face * (
-      MOUTH_X * cs - MOUTH_Y * sn
-    ),
-
-    y: p.y + (
-      MOUTH_X * sn + MOUTH_Y * cs
-    )
-  };
-}
-
-function dragonMouthPosition(p, angleOverride) {
+// Единая матрица трансформации дракона.
+// Порядок полностью совпадает с отрисовкой: translate → scale(face) → rotate(angle).
+// Так координаты рта и видимый спрайт используют одну и ту же геометрию.
+function dragonTransform(p, angleOverride) {
   const angle = Number.isFinite(angleOverride)
     ? angleOverride
-    : (Number.isFinite(p.dtilt) ? p.dtilt : p.tilt || 0);
+    : (Number.isFinite(p.dtilt) ? p.dtilt : (p.tilt || 0));
 
   const face = p.face < 0 ? -1 : 1;
   const cs = Math.cos(angle);
   const sn = Math.sin(angle);
 
   return {
-    x: p.x + face * (MOUTH_X * cs - MOUTH_Y * sn),
-    y: p.y + MOUTH_X * sn + MOUTH_Y * cs
+    a: face * cs,
+    b: sn,
+    c: -face * sn,
+    d: cs,
+    angle,
+    face
   };
 }
 
-// Подбираем угол поворота головы с учётом положения рта.
-function dragonAimTilt(p, ax, ay) {
-  let angle = p.tilt || 0;
+// Положение рта в мировых координатах, рассчитанное той же матрицей,
+// которой ниже поворачивается и зеркалится сам спрайт.
+function dragonMouthPosition(p, angleOverride) {
+  const m = dragonTransform(p, angleOverride);
 
-  // Несколько итераций уточняют положение рта и угол прицеливания.
-  for (let i = 0; i < 5; i++) {
+  return {
+    x: p.x + m.a * MOUTH_X + m.c * MOUTH_Y,
+    y: p.y + m.b * MOUTH_X + m.d * MOUTH_Y
+  };
+}
+
+// Рассчитываем наклон относительно направления морды.
+// При взгляде влево горизонтальная компонента меняет знак вместе с face.
+function dragonAimTilt(p, ax, ay) {
+  let angle = Number.isFinite(p.tilt) ? p.tilt : 0;
+  const face = p.face < 0 ? -1 : 1;
+
+  for (let i = 0; i < 8; i++) {
     const mouth = dragonMouthPosition(p, angle);
-    angle = Math.atan2(
-      ay - mouth.y,
-      Math.max(Math.abs(ax - mouth.x), 0.001)
-    );
+    const forwardDx = (ax - mouth.x) * face;
+    const dy = ay - mouth.y;
+
+    angle = Math.atan2(dy, Math.max(forwardDx, 0.001));
   }
 
   return Math.max(-1.55, Math.min(1.55, angle));
 }
 
-// Общий расчёт точки появления и направления пламени.
+// Единая точка старта и мировое направление для обычного и особого выстрела.
 function dragonShotFromMouth(p, ax, ay) {
   const mouth = dragonMouthPosition(p);
+  const dx = ax - mouth.x;
+  const dy = ay - mouth.y;
+  const length = Math.hypot(dx, dy) || 1;
+
+  const dirX = dx / length;
+  const dirY = dy / length;
+  const muzzleClearance = 6;
 
   return {
-    x: mouth.x,
-    y: mouth.y,
-    angle: Math.atan2(ay - mouth.y, ax - mouth.x)
+    x: mouth.x + dirX * muzzleClearance,
+    y: mouth.y + dirY * muzzleClearance,
+    angle: Math.atan2(dirY, dirX)
   };
 }
 
-// Синхронизируем угол спрайта с углом прицеливания.
+// Локальный и удалённые драконы рисуются с тем же углом,
+// который используется при расчёте точки выхода огня.
 function updateDragonDrawAngle(p, dt) {
-  const target = p.tilt || 0;
+  const target = Number.isFinite(p.tilt) ? p.tilt : 0;
 
   if (p === me) {
     p.dtilt = target;
   } else {
-    const current = Number.isFinite(p.dtilt)
-      ? p.dtilt
-      : target;
-
-    p.dtilt = current +
-      (target - current) * Math.min(1, dt * 18);
+    const current = Number.isFinite(p.dtilt) ? p.dtilt : target;
+    p.dtilt = current + (target - current) * Math.min(1, dt * 18);
   }
 }
 
@@ -208,10 +208,18 @@ function drawDragonSprite(p){
   const h=w*fh/fw;
   const f=Math.floor(p.ph)%frameCount;
 
+  const transform = dragonTransform(p, drawAngle);
+
   ctx.save();
   ctx.translate(p.x,p.y);
-  ctx.scale(p.face,1);
-  ctx.rotate(drawAngle);
+  ctx.transform(
+    transform.a,
+    transform.b,
+    transform.c,
+    transform.d,
+    0,
+    0
+  );
   ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);
   ctx.restore();
 }
@@ -973,48 +981,117 @@ function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;r
 
 function updatePlayer(p,dt){
   if(p.gone){p.asleep=true;return}
-  p.inv=Math.max(0,p.inv-dt);p.cd-=dt;p.frz=Math.max(0,p.frz-dt);
-  if(p.lv[3]>0&&p.sh<shMax(p)){p.shT+=dt;if(p.shT>=SH_T[p.lv[3]]){p.sh++;p.shT=0}}
-  if(p.asleep){if(p.dead)return;p.slept+=dt;p.wt-=dt;
-    if(players.some(o=>o!==p&&!o.asleep&&Math.hypot(o.x-p.x,o.y-p.y)<50))p.rv+=dt;
-    if(p.rv>=2)wakeUp(p,true);
-    else if(p.wt<=0){p.dead=true;p.w[0]=Math.floor(p.w[0]*.75);say(p.name+' погиб: до магазина дракон выбывает.',4);boom(p.x,p.y,'#9a8aa8',16)}
-    return}
-  const{mx,my,ax,ay,fire}=p.in,l=Math.hypot(mx,my);
-  if(l&&p.frz<=0){const s=230*(1+.2*p.lv[2]);p.x+=mx/l*s*dt;p.y+=my/l*s*dt}
-  p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y));
-  if(Math.abs(ax-p.x)>6)
-  p.face=ax>p.x?1:-1;
 
-if(!p.face)p.face=1;
-const targetTilt = dragonAimTilt(p, ax, ay);
+  p.inv=Math.max(0,p.inv-dt);
+  p.cd-=dt;
+  p.frz=Math.max(0,p.frz-dt);
 
-p.tilt += (
-  targetTilt - p.tilt
-) * Math.min(1, dt * 18);
+  if(p.lv[3]>0&&p.sh<shMax(p)){
+    p.shT+=dt;
+    if(p.shT>=SH_T[p.lv[3]]){
+      p.sh++;
+      p.shT=0;
+    }
+  }
 
-updateDragonDrawAngle(p, dt);
-if(fire&&p.cd<=0&&p.frz<=0){
+  if(p.asleep){
+    if(p.dead)return;
 
-const shot = dragonShotFromMouth(me, mouse.x, mouse.y);
+    p.slept+=dt;
+    p.wt-=dt;
 
-const sx = shot.x;
-const sy = shot.y;
-const a = shot.angle;
-    const nf=flames(p),dm=dmgOf(p);for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;balls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,col:COLORS[p.ci][1],dmg:dm,r:6+dm*1.5,owner:p.id})}
-    p.cd=.5*Math.pow(.85,p.lv[1])}
+    if(players.some(o=>o!==p&&!o.asleep&&Math.hypot(o.x-p.x,o.y-p.y)<50)){
+      p.rv+=dt;
+    }
+
+    if(p.rv>=2){
+      wakeUp(p,true);
+    }else if(p.wt<=0){
+      p.dead=true;
+      p.w[0]=Math.floor(p.w[0]*.75);
+      say(p.name+' погиб: до магазина дракон выбывает.',4);
+      boom(p.x,p.y,'#9a8aa8',16);
+    }
+
+    return;
+  }
+
+  const {mx,my,ax,ay,fire}=p.in;
+  const moveLength=Math.hypot(mx,my);
+
+  if(moveLength&&p.frz<=0){
+    const speed=230*(1+.2*p.lv[2]);
+    p.x+=mx/moveLength*speed*dt;
+    p.y+=my/moveLength*speed*dt;
+  }
+
+  p.x=Math.max(24,Math.min(W-24,p.x));
+  p.y=Math.max(70,Math.min(H-24,p.y));
+
+  // Сначала выбираем сторону, в которую смотрит дракон.
+  // Порог небольшой, чтобы разворот влево/вправо не запаздывал.
+  if(Math.abs(ax-p.x)>6){
+    p.face=ax>p.x?1:-1;
+  }
+  if(!p.face)p.face=1;
+
+  // Наклон рассчитывается уже с учётом выбранной стороны.
+  const targetTilt=dragonAimTilt(p,ax,ay);
+  p.tilt+=(targetTilt-p.tilt)*Math.min(1,dt*18);
+
+  updateDragonDrawAngle(p,dt);
+
+  // Обычная атака: точка выхода и направление берутся из одной матрицы спрайта.
+  if(fire&&p.cd<=0&&p.frz<=0){
+    const shot=dragonShotFromMouth(p,ax,ay);
+    const nf=flames(p);
+    const dm=dmgOf(p);
+
+    for(let i=0;i<nf;i++){
+      const angle=shot.angle+(i-(nf-1)/2)*.16;
+
+      balls.push({
+        id:++uid,
+        x:shot.x,
+        y:shot.y,
+        ang:angle,
+        vx:Math.cos(angle)*540,
+        vy:Math.sin(angle)*540,
+        life:1.3,
+        col:COLORS[p.ci][1],
+        dmg:dm,
+        r:6+dm*1.5,
+        owner:p.id
+      });
+    }
+
+    p.cd=.5*Math.pow(.85,p.lv[1]);
+  }
+
+  // Особая атака использует ту же точку выхода изо рта.
   p.acd-=dt;
+
   if(p.in.alt&&p.lv[0]>=5&&p.acd<=0&&p.frz<=0){
-    const mouth = dragonMouthPosition(p);
+    const shot=dragonShotFromMouth(p,p.in.ax,p.in.ay);
 
-const sx = mouth.x;
-const sy = mouth.y;
+    balls.push({
+      id:++uid,
+      x:shot.x,
+      y:shot.y,
+      ang:shot.angle,
+      vx:Math.cos(shot.angle)*470,
+      vy:Math.sin(shot.angle)*470,
+      life:1.1,
+      col:COLORS[p.ci][1],
+      dmg:dmgOf(p),
+      r:16,
+      owner:p.id,
+      blast:true
+    });
 
-const a = Math.atan2(
-  p.in.ay - sy,
-  p.in.ax - sx
-);
-    balls.push({id:++uid,x:sx,y:sy,ang:a,vx:Math.cos(a)*470,vy:Math.sin(a)*470,life:1.1,col:COLORS[p.ci][1],dmg:dmgOf(p),r:16,owner:p.id,blast:true});p.acd=BLAST.cd}}
+    p.acd=BLAST.cd;
+  }
+}
 
 function update(dt){
   const k=keys;
@@ -1380,24 +1457,64 @@ inspV=b.iv;shopLeft=b.sl;
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
-  clampP(me);if(!me.asleep&&Math.abs(mouse.x-me.x)>28)me.face=mouse.x>me.x?1:-1;if(!me.face)me.face=1;
-  const targetTilt = dragonAimTilt(me, mouse.x, mouse.y);
+  clampP(me);
 
-me.tilt += (
-  targetTilt - me.tilt
-) * Math.min(1, dt * 18);
+  if(!me.asleep&&Math.abs(mouse.x-me.x)>6){
+    me.face=mouse.x>me.x?1:-1;
+  }
+  if(!me.face)me.face=1;
 
-// Угол отрисовки совпадает с углом прицеливания.
-players.forEach(p => updateDragonDrawAngle(p, dt));
+  const targetTilt=dragonAimTilt(me,mouse.x,mouse.y);
+  me.tilt+=(targetTilt-me.tilt)*Math.min(1,dt*18);
+
+  // Синхронизируем угол отрисовки всех драконов.
+  players.forEach(p=>updateDragonDrawAngle(p,dt));
+
   me.cd=(me.cd||0)-dt;
+
   if(mouse.down&&!me.asleep&&me.frz<=0&&me.cd<=0){
-    const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx),nf=flames(me),dm=dmgOf(me);
-    for(let i=0;i<nf;i++){const a2=a+(i-(nf-1)/2)*.16;myBalls.push({id:++uid,x:sx,y:sy,ang:a2,vx:Math.cos(a2)*540,vy:Math.sin(a2)*540,life:1.3,r:6+dm*1.5,col:COLORS[me.ci][1]})}
-    me.cd=.5*Math.pow(.85,me.lv[1])}
+    const shot=dragonShotFromMouth(me,mouse.x,mouse.y);
+    const nf=flames(me);
+    const dm=dmgOf(me);
+
+    for(let i=0;i<nf;i++){
+      const angle=shot.angle+(i-(nf-1)/2)*.16;
+
+      myBalls.push({
+        id:++uid,
+        x:shot.x,
+        y:shot.y,
+        ang:angle,
+        vx:Math.cos(angle)*540,
+        vy:Math.sin(angle)*540,
+        life:1.3,
+        r:6+dm*1.5,
+        col:COLORS[me.ci][1]
+      });
+    }
+
+    me.cd=.5*Math.pow(.85,me.lv[1]);
+  }
+
   me.acd=(me.acd||0)-dt;
+
   if(mouse.alt&&me.lv[0]>=5&&!me.asleep&&me.frz<=0&&me.acd<=0){
-    const cs=Math.cos(me.tilt),sn=Math.sin(me.tilt),sx=me.x+me.face*(MOUTH_X*cs-MOUTH_Y*sn),sy=me.y+(MOUTH_X*sn+MOUTH_Y*cs),a=Math.atan2(mouse.y-sy,mouse.x-sx);
-    myBalls.push({id:++uid,x:sx,y:sy,ang:a,vx:Math.cos(a)*470,vy:Math.sin(a)*470,life:1.1,r:16,col:COLORS[me.ci][1]});me.acd=BLAST.cd}
+    const shot=dragonShotFromMouth(me,mouse.x,mouse.y);
+
+    myBalls.push({
+      id:++uid,
+      x:shot.x,
+      y:shot.y,
+      ang:shot.angle,
+      vx:Math.cos(shot.angle)*470,
+      vy:Math.sin(shot.angle)*470,
+      life:1.1,
+      r:16,
+      col:COLORS[me.ci][1]
+    });
+
+    me.acd=BLAST.cd;
+  }
   for(const b of myBalls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
     for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;break}
     for(const n of notes)if(b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){b.life=0;break}}
