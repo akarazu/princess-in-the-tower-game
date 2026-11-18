@@ -431,14 +431,16 @@ function bossAI(e,dt){
       );
     }
 
-    // Завершение анимации броска цветов или кольца
-    if(a.thr>0&&a.action){
-      a.thr=Math.max(0,a.thr-dt);
-      e.hold=true;
+// Во время броска цветов принц продолжает движение.
+// Только бросок кольца останавливает его.
+if(a.thr>0&&a.action){
+  a.thr=Math.max(0,a.thr-dt);
 
-      if(a.thr===0)a.action=null;
-      return;
-    }
+  e.hold = a.action !== 'rose';
+
+  if(a.thr===0)a.action=null;
+  return;
+}
 
     // Предложение
     if(a.cast>0){
@@ -691,7 +693,7 @@ function roseRain(e){
   // Анимация поднятия рук
 e.ab.thr=e.ab.thrT=THROW_T;
 e.ab.action='rose';
-e.hold=true;
+e.hold=false;
 }
 function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
 function disgrace(e){
