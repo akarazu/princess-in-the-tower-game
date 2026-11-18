@@ -4,7 +4,7 @@
 
 // ===== Константы и данные =====
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=Math.round(H*.512);
-const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=5,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={
   3:'Новый поклонник: бард с серенадами!',
@@ -171,45 +171,50 @@ function dragonShotFromMouth(p) {
   const dirX = transform.a / axisLength;
   const dirY = transform.b / axisLength;
 
-  // Небольшой вынос вперёд, чтобы шар начинал движение за кончиком морды.
-  const muzzleClearance = 5;
-
+  // Центральный шар стартует непосредственно из точки рта.
+  // Спрайт самого огня уже имеет вытянутую переднюю часть.
   return {
-    x: mouth.x + dirX * muzzleClearance,
-    y: mouth.y + dirY * muzzleClearance,
+    x: mouth.x,
+    y: mouth.y,
     angle: Math.atan2(dirY, dirX),
     dirX,
     dirY
   };
 }
 
-// Несколько шаров располагаются поперёк траектории, но летят параллельно.
-// Раньше они расходились веером по углу (±0.16 рад), из-за чего
-// вертикальный залп визуально выглядел диагональным.
-function dragonVolleyPositions(shot, count, spacing = 34) {
-  // Перпендикуляр к оси головы. Смещения поворачиваются вместе с драконом.
+// Залп из трёх шаров: центральный идёт строго по оси морды,
+// два боковых расходятся веером. Их небольшое боковое смещение
+// поворачивается вместе с драконом и не сдвигает центральный шар.
+function dragonVolleyPositions(shot, count, fanAngle = 0.24, sideOffset = 6) {
   const sideX = -shot.dirY;
   const sideY = shot.dirX;
 
-  let offsets;
-
-  if (count === 2) {
-    // При двух шарах один обязательно остаётся точно на оси головы.
-    offsets = [0, spacing];
-  } else {
-    // При одном или трёх шарах расположение симметрично относительно оси.
-    offsets = Array.from(
-      { length: count },
-      (_, i) => (i - (count - 1) / 2) * spacing
-    );
-  }
-
-  return offsets.map(offset => ({
-    x: shot.x + sideX * offset,
-    y: shot.y + sideY * offset,
-    // Все шары летят параллельно; центральный совпадает с осью головы.
+  const center = {
+    x: shot.x,
+    y: shot.y,
     angle: shot.angle
-  }));
+  };
+
+  if (count <= 1) return [center];
+
+  const leftSide = {
+    x: shot.x - sideX * sideOffset,
+    y: shot.y - sideY * sideOffset,
+    angle: shot.angle - fanAngle
+  };
+
+  const rightSide = {
+    x: shot.x + sideX * sideOffset,
+    y: shot.y + sideY * sideOffset,
+    angle: shot.angle + fanAngle
+  };
+
+  // При двух шарах сохраняем центральный снаряд и один боковой.
+  if (count === 2) return [center, rightSide];
+
+  // При трёх шарах центральный остаётся ровно на оси головы,
+  // боковые симметрично расходятся влево и вправо.
+  return [leftSide, center, rightSide];
 }
 
 // Локальный и удалённые драконы рисуются с тем же углом,
