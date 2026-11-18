@@ -44,7 +44,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,SDFR=4,dragonCache={},stunnedDragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');loadImg('kingOrderIcon', 'assets/king_order_crown_icon.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -144,16 +144,16 @@ function dragonAimTilt(p, ax, ay) {
   const dy = ay - p.y;
   const face = p.face < 0 ? -1 : 1;
 
-  // Не меняем направление, если курсор почти точно в центре дракона.
-  if (Math.hypot(dx, dy) < 1) return p.tilt || 0;
+  // When the dragon faces left and aims almost vertically,
+  // snap its body/head angle to an exact vertical direction.
+  // This prevents tiny horizontal cursor offsets from tilting the flame.
+  const nearVerticalLeft = face < 0 &&
+    Math.abs(dx) <= Math.abs(dy) * 0.15;
 
-  // Одинаково фиксируем почти вертикальное направление с обеих сторон.
-  // Это не позволяет небольшой горизонтальной погрешности менять угол выстрела.
-  if (Math.abs(dx) <= Math.abs(dy) * 0.12) {
+  if (nearVerticalLeft) {
     return dy < 0 ? -Math.PI / 2 : Math.PI / 2;
   }
 
-  // Угол в локальной системе спрайта с учётом зеркального разворота.
   return Math.atan2(dy, face * dx);
 }
 
@@ -161,58 +161,55 @@ function dragonAimTilt(p, ax, ay) {
 // а направление — из курсора относительно центра дракона.
 // Это не даёт смещению рта превращать вертикальный выстрел в диагональный.
 function dragonShotFromMouth(p) {
-  // Берём фактическую матрицу, по которой в этот кадр рисуется дракон.
-  // Поэтому снаряд летит по оси головы, а не по новому положению курсора,
-  // пока спрайт ещё визуально доворачивается.
+  // Берём ту же матрицу, которой в drawDragonSprite() отображается дракон.
+  // Поэтому центральный шар всегда летит вдоль локальной оси морды,
+  // включая зеркальное отображение и любой угол поворота.
   const transform = dragonTransform(p);
   const mouth = dragonMouthPosition(p);
 
-  const length = Math.hypot(transform.a, transform.b) || 1;
-  const dirX = transform.a / length;
-  const dirY = transform.b / length;
+  const axisLength = Math.hypot(transform.a, transform.b) || 1;
+  const dirX = transform.a / axisLength;
+  const dirY = transform.b / axisLength;
 
-  const muzzleClearance = 3;
+  // Небольшой вынос вперёд, чтобы шар начинал движение за кончиком морды.
+  const muzzleClearance = 5;
 
   return {
     x: mouth.x + dirX * muzzleClearance,
     y: mouth.y + dirY * muzzleClearance,
     angle: Math.atan2(dirY, dirX),
     dirX,
-    dirY,
-    isVertical: Math.abs(dirX) <= 0.15
+    dirY
   };
 }
 
 // Несколько шаров располагаются поперёк траектории, но летят параллельно.
 // Раньше они расходились веером по углу (±0.16 рад), из-за чего
 // вертикальный залп визуально выглядел диагональным.
-function dragonVolleyPositions(shot, count, spacing = 12, spread = 0.16) {
-  // Почти вертикальный залп остаётся строго вертикальным:
-  // шары разнесены поперёк направления, но не отклоняются по углу.
-  if (shot.isVertical) {
-    const sideX = -shot.dirY;
-    const sideY = shot.dirX;
+function dragonVolleyPositions(shot, count, spacing = 34) {
+  // Перпендикуляр к оси головы. Смещения поворачиваются вместе с драконом.
+  const sideX = -shot.dirY;
+  const sideY = shot.dirX;
 
-    return Array.from({ length: count }, (_, i) => {
-      const offset = (i - (count - 1) / 2) * spacing;
-      return {
-        x: shot.x + sideX * offset,
-        y: shot.y + sideY * offset,
-        angle: shot.angle
-      };
-    });
+  let offsets;
+
+  if (count === 2) {
+    // При двух шарах один обязательно остаётся точно на оси головы.
+    offsets = [0, spacing];
+  } else {
+    // При одном или трёх шарах расположение симметрично относительно оси.
+    offsets = Array.from(
+      { length: count },
+      (_, i) => (i - (count - 1) / 2) * spacing
+    );
   }
 
-  // Для остальных направлений возвращаем исходный веерный разброс.
-  // Центральный шар совпадает с осью головы, боковые расходятся симметрично.
-  return Array.from({ length: count }, (_, i) => {
-    const offset = (i - (count - 1) / 2) * spread;
-    return {
-      x: shot.x,
-      y: shot.y,
-      angle: shot.angle + offset
-    };
-  });
+  return offsets.map(offset => ({
+    x: shot.x + sideX * offset,
+    y: shot.y + sideY * offset,
+    // Все шары летят параллельно; центральный совпадает с осью головы.
+    angle: shot.angle
+  }));
 }
 
 // Локальный и удалённые драконы рисуются с тем же углом,
@@ -1429,36 +1426,7 @@ function drawDragon(p){
   text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
   ctx.lineWidth=4;ctx.beginPath();
     ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
- 
-if(p.mark){
-  const t=typeof performance!=='undefined'
-    ?performance.now()/1000:0;
-
-  // Красная окружность вокруг отмеченного дракона
-  ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';
-  ctx.lineWidth=4;
-  ctx.beginPath();
-  ctx.arc(p.x,p.y,48,0,6.283);
-  ctx.stroke();
-  ctx.lineWidth=1;
-
-  // Иконка королевского приказа
-  if(IMG.kingOrderIcon){
-    const w=40;
-    const h=w*804/1158;
-
-    ctx.drawImage(
-      IMG.kingOrderIcon,
-      p.x-w/2,
-      p.y-64-h/2,
-      w,
-      h
-    );
-  }else{
-    emoji('👑',p.x,p.y-64,26);
-  }
-}
-
+  if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}
   if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
   if(p.sh>0){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=3;for(let i=0;i<p.sh;i++){ctx.beginPath();ctx.arc(p.x,p.y,36+i*5,0,6.283);ctx.stroke()}ctx.lineWidth=1}
   text(p.name,p.x,p.y+50,14,c)}
