@@ -144,67 +144,73 @@ function dragonAimTilt(p, ax, ay) {
   const dy = ay - p.y;
   const face = p.face < 0 ? -1 : 1;
 
-  // When the dragon faces left and aims almost vertically,
-  // snap its body/head angle to an exact vertical direction.
-  // This prevents tiny horizontal cursor offsets from tilting the flame.
-  const nearVerticalLeft = face < 0 &&
-    Math.abs(dx) <= Math.abs(dy) * 0.15;
+  // Не меняем направление, если курсор почти точно в центре дракона.
+  if (Math.hypot(dx, dy) < 1) return p.tilt || 0;
 
-  if (nearVerticalLeft) {
+  // Одинаково фиксируем почти вертикальное направление с обеих сторон.
+  // Это не позволяет небольшой горизонтальной погрешности менять угол выстрела.
+  if (Math.abs(dx) <= Math.abs(dy) * 0.12) {
     return dy < 0 ? -Math.PI / 2 : Math.PI / 2;
   }
 
+  // Угол в локальной системе спрайта с учётом зеркального разворота.
   return Math.atan2(dy, face * dx);
 }
 
 // Точка старта берётся из фактической матрицы спрайта,
 // а направление — из курсора относительно центра дракона.
 // Это не даёт смещению рта превращать вертикальный выстрел в диагональный.
-function dragonShotFromMouth(p, ax, ay) {
+function dragonShotFromMouth(p) {
+  // Берём фактическую матрицу, по которой в этот кадр рисуется дракон.
+  // Поэтому снаряд летит по оси головы, а не по новому положению курсора,
+  // пока спрайт ещё визуально доворачивается.
+  const transform = dragonTransform(p);
   const mouth = dragonMouthPosition(p);
-  const dx = ax - p.x;
-  const dy = ay - p.y;
 
-  let dirX;
-  let dirY;
-
-  // Special correction for near-vertical aiming while facing left.
-  // Keep the projectile exactly vertical instead of letting a few
-  // horizontal pixels in the cursor position create a diagonal angle.
-  const nearVerticalLeft = p.face < 0 &&
-    Math.abs(dx) <= Math.abs(dy) * 0.15;
-
-  if (nearVerticalLeft) {
-    dirX = 0;
-    dirY = dy < 0 ? -1 : 1;
-  } else {
-    const length = Math.hypot(dx, dy) || 1;
-    dirX = dx / length;
-    dirY = dy / length;
-  }
+  const length = Math.hypot(transform.a, transform.b) || 1;
+  const dirX = transform.a / length;
+  const dirY = transform.b / length;
 
   const muzzleClearance = 3;
 
   return {
     x: mouth.x + dirX * muzzleClearance,
     y: mouth.y + dirY * muzzleClearance,
-    angle: Math.atan2(dirY, dirX)
+    angle: Math.atan2(dirY, dirX),
+    dirX,
+    dirY,
+    isVertical: Math.abs(dirX) <= 0.15
   };
 }
 
 // Несколько шаров располагаются поперёк траектории, но летят параллельно.
 // Раньше они расходились веером по углу (±0.16 рад), из-за чего
 // вертикальный залп визуально выглядел диагональным.
-function dragonVolleyPositions(shot, count, spacing = 9) {
-  const sideX = -Math.sin(shot.angle);
-  const sideY = Math.cos(shot.angle);
+function dragonVolleyPositions(shot, count, spacing = 12, spread = 0.16) {
+  // Почти вертикальный залп остаётся строго вертикальным:
+  // шары разнесены поперёк направления, но не отклоняются по углу.
+  if (shot.isVertical) {
+    const sideX = -shot.dirY;
+    const sideY = shot.dirX;
 
+    return Array.from({ length: count }, (_, i) => {
+      const offset = (i - (count - 1) / 2) * spacing;
+      return {
+        x: shot.x + sideX * offset,
+        y: shot.y + sideY * offset,
+        angle: shot.angle
+      };
+    });
+  }
+
+  // Для остальных направлений возвращаем исходный веерный разброс.
+  // Центральный шар совпадает с осью головы, боковые расходятся симметрично.
   return Array.from({ length: count }, (_, i) => {
-    const offset = (i - (count - 1) / 2) * spacing;
+    const offset = (i - (count - 1) / 2) * spread;
     return {
-      x: shot.x + sideX * offset,
-      y: shot.y + sideY * offset,
-      angle: shot.angle
+      x: shot.x,
+      y: shot.y,
+      angle: shot.angle + offset
     };
   });
 }
@@ -1149,7 +1155,7 @@ function updatePlayer(p,dt){
 
   // Обычная атака: точка выхода и направление берутся из одной матрицы спрайта.
   if(fire&&p.cd<=0&&p.frz<=0){
-    const shot=dragonShotFromMouth(p,ax,ay);
+    const shot=dragonShotFromMouth(p);
     const nf=flames(p);
     const dm=dmgOf(p);
 
@@ -1178,7 +1184,7 @@ function updatePlayer(p,dt){
   p.acd-=dt;
 
   if(p.in.alt&&p.lv[0]>=5&&p.acd<=0&&p.frz<=0){
-    const shot=dragonShotFromMouth(p,p.in.ax,p.in.ay);
+    const shot=dragonShotFromMouth(p);
 
     balls.push({
       id:++uid,
@@ -1584,7 +1590,7 @@ inspV=b.iv;shopLeft=b.sl;
   me.cd=(me.cd||0)-dt;
 
   if(mouse.down&&!me.asleep&&me.frz<=0&&me.cd<=0){
-    const shot=dragonShotFromMouth(me,mouse.x,mouse.y);
+    const shot=dragonShotFromMouth(me);
     const nf=flames(me);
     const dm=dmgOf(me);
 
@@ -1610,7 +1616,7 @@ inspV=b.iv;shopLeft=b.sl;
   me.acd=(me.acd||0)-dt;
 
   if(mouse.alt&&me.lv[0]>=5&&!me.asleep&&me.frz<=0&&me.acd<=0){
-    const shot=dragonShotFromMouth(me,mouse.x,mouse.y);
+    const shot=dragonShotFromMouth(me);
 
     myBalls.push({
       id:++uid,
