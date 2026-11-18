@@ -1433,8 +1433,23 @@ e.path = makeBossPath(
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
   for(const n of notes){
-    if(n.k==='bag'){n.t+=dt;const u=Math.min(1,n.t/n.d);n.x=n.sx+(n.tx-n.sx)*u;n.y=n.sy+(n.ty-n.sy)*u-Math.sin(Math.PI*u)*60;
-      if(u>=1){n.hp=0;boom(n.tx,n.ty,'#ffd24d',14);for(const p of players)if(!p.asleep&&Math.hypot(p.x-n.tx,p.y-n.ty)<40){p.frz=1.5;say(pick(Q.bag))}}}
+    if(n.k==='bag'){
+      n.t+=dt;
+      const u=Math.min(1,n.t/n.d);
+      n.x=n.sx+(n.tx-n.sx)*u;
+      n.y=n.sy+(n.ty-n.sy)*u-Math.sin(Math.PI*u)*60;
+      if(u>=1){
+        n.hp=0;
+        boom(n.tx,n.ty,'#ffd24d',14);
+        for(const p of players){
+          if(!p.asleep&&!p.gone&&!p.dead&&Math.hypot(p.x-n.tx,p.y-n.ty)<42){
+            // The gold-bag impact freezes the dragon for the full duration.
+            p.frz=Math.max(p.frz||0,1.5);
+            say(pick(Q.bag));
+          }
+        }
+      }
+    }
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
     if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg;n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4)say(pick(Q.note))}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
@@ -1475,24 +1490,24 @@ function text(s,x,y,sz,col,style=''){ctx.font=style+' '+sz+'px Georgia,serif';ct
 function drawDragon(p){
   const now=typeof performance!=='undefined'?performance.now():0;
 
-  // Soft golden aura briefly appears after collecting a gold coin.
+  // A round, softly pulsing golden ring appears briefly after collecting a coin.
   if((p.coinGlow||0)>0){
     const strength=Math.min(1,p.coinGlow/.9);
     const pulse=.84+.16*Math.sin(now/75+p.id);
+    const radius=58+2*pulse;
     ctx.save();
-    const radius=76;
-    const glow=ctx.createRadialGradient(p.x,p.y,18,p.x,p.y,radius);
+    const glow=ctx.createRadialGradient(p.x,p.y,18,p.x,p.y,72);
     glow.addColorStop(0,'rgba(255,205,55,'+(0.25*strength*pulse)+')');
     glow.addColorStop(.58,'rgba(255,190,35,'+(0.18*strength*pulse)+')');
     glow.addColorStop(1,'rgba(255,190,35,0)');
     ctx.fillStyle=glow;
     ctx.beginPath();
-    ctx.ellipse(p.x,p.y+2,76,59,0,0,6.283);
+    ctx.arc(p.x,p.y,radius+10,0,6.283);
     ctx.fill();
-    ctx.strokeStyle='rgba(255,213,75,'+(0.72*strength*pulse)+')';
-    ctx.lineWidth=2;
+    ctx.strokeStyle='rgba(255,213,75,'+(0.78*strength*pulse)+')';
+    ctx.lineWidth=2.5;
     ctx.beginPath();
-    ctx.ellipse(p.x,p.y+2,58,43,0,0,6.283);
+    ctx.arc(p.x,p.y,radius,0,6.283);
     ctx.stroke();
     ctx.restore();
   }
@@ -1508,7 +1523,7 @@ function drawDragon(p){
       ctx.strokeStyle='rgba(143,216,255,'+(0.72*pulse)+')';
       ctx.lineWidth=2.5;
       ctx.beginPath();
-      ctx.ellipse(p.x,p.y+2,66+i*8,49+i*7,0,0,6.283);
+      ctx.arc(p.x,p.y,56+i*9,0,6.283);
       ctx.stroke();
     }
     ctx.restore();
@@ -1715,15 +1730,17 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     const healthY=hudTop+102;
     emoji(healthIcons,hudLeft,healthY,16);
 
-    // Щиты идут сразу после сердечек, а не на фиксированном дальнем отступе.
+    // Lay out hearts, shields and the special-attack icon on one shared baseline.
     ctx.font='16px '+FONT;
     const healthWidth=ctx.measureText(healthIcons).width;
     let statusX=hudLeft+healthWidth+8;
+    ctx.font='14px '+FONT;
+    const shieldGlyphWidth=Math.max(15,ctx.measureText('🛡️').width);
     if(me.sh>0){
       for(let i=0;i<me.sh;i++){
-        emoji('🛡️',statusX+i*16,healthY,14);
+        emoji('🛡️',statusX+i*(shieldGlyphWidth+1),healthY,14);
       }
-      statusX+=me.sh*16+7;
+      statusX+=me.sh*(shieldGlyphWidth+1)+7;
     }
 
     if(me.lv[0]>=5){
@@ -1738,10 +1755,13 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
       ctx.stroke();
       ctx.lineWidth=1;
 
-      // Вместо надписи «ПКМ» показываем иконку огня внутри индикатора.
+      // Show a static fire icon (the first cell of the existing fire sprite sheet).
       if(IMG.fire){
-        const now=typeof performance!=='undefined'?performance.now():0;
-        drawSheet(IMG.fire,FFR,blastX,blastY,17,now/85);
+        const frameW=IMG.fire.width/FFR;
+        const frameH=IMG.fire.height;
+        const iconH=17;
+        const iconW=iconH*frameW/frameH;
+        ctx.drawImage(IMG.fire,0,0,frameW,frameH,blastX-iconW/2,blastY-iconH/2,iconW,iconH);
       }else{
         ctx.textAlign='center';
         emoji('🔥',blastX,blastY,15);
@@ -1779,8 +1799,14 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   if(quipT>0&&state==='play'){
     drawPrincessSpeech(quip,(viewLeft+viewRight)/2,viewLeft,viewRight,viewTop,viewBottom,CY-215);
   }
-  if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,(viewLeft+viewRight)/2,viewBottom-70,34,'#fbe8d3','italic');
-  if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',(viewLeft+viewRight)/2,viewBottom-70,34,'#ffdd88','italic');
+  if(state==='play'&&(phase==='break'||phase==='clear')){
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    const waveLabel=phase==='break'?(BN[wave]||'Волна '+wave):('Волна '+wave+' отбита!');
+    text(waveLabel,(viewLeft+viewRight)/2,viewBottom-70,34,phase==='break'?'#fbe8d3':'#ffdd88','italic');
+    ctx.restore();
+  }
   if(state==='shop')drawShop();
   else if(state!=='play'){
     drawEndScreen();
@@ -1797,9 +1823,9 @@ function drawEndScreen(){
     .slice()
     .sort((a,b)=>b.kills-a.kills);
 
-  // Таблица занимает почти всю ширину поля, без внешней рамки.
-  const tableX=34;
-  const tableW=W-68;
+  // A narrower centered results table leaves comfortable margins on both sides.
+  const tableW=Math.min(820,W-120);
+  const tableX=(W-tableW)/2;
   const headerHeight=130;
   const footerHeight=28;
   const maxRowsHeight=H-headerHeight-footerHeight-28;
@@ -2010,8 +2036,16 @@ inspV=b.iv;shopLeft=b.sl;
     for(const n of notes)if(b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){b.life=0;break}}
   myBalls=myBalls.filter(b=>b.life>0);
   const au=b.P[me.id],err=Math.hypot(au[0]-me.x,au[1]-me.y);
-  const gain=(me.asleep||me.frz>0)?.3:err>150?.15:(mx||my)?0:.12,g=1-Math.pow(1-gain,dt*60);
-  me.x+=(au[0]-me.x)*g;me.y+=(au[1]-me.y)*g;
+  if(me.frz>0){
+    // When hit by the gold bag, mirror the host's frozen position exactly.
+    me.x=au[0];
+    me.y=au[1];
+  }else{
+    const gain=me.asleep?.3:err>150?.15:(mx||my)?0:.12;
+    const g=1-Math.pow(1-gain,dt*60);
+    me.x+=(au[0]-me.x)*g;
+    me.y+=(au[1]-me.y)*g;
+  }
   const mp=arr=>new Map((arr||[]).map(e=>[e[0],e])),ea=mp(a.E),ba=mp(a.B),ka=mp(a.K);
   enemies=nx.E.map(e=>{
   const o=ea.get(e[0]),kk=KINDS[e[1]];
