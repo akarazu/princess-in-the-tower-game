@@ -643,23 +643,39 @@ if(!a.arrived){
     return;
   }
 
-  // Поведение короля остаётся прежним.
+
+  // Король продолжает движение во время выполнения способностей.
   if(a.thr>0){
     a.thr=Math.max(0,a.thr-dt);
-    e.hold=true;
+
+    // Не останавливаем короля во время анимации.
+    e.hold=false;
+
     if(a.thr===0)a.action=null;
   }
 
   if(a.pend){
-    e.hold=true;
-    if(a.thr<=0)a.pend=null;
+
+    // Король движется, пока отдаёт приказ или объявляет опалу.
+    e.hold=false;
+
+    if(a.thr<=0){
+      a.pend=null;
+    }
     else if(a.thr<=KING_ACT-.5&&!a.did){
       a.did=true;
-      if(a.pend==='decree')decree(e);
-      else disgrace(e);
+
+      if(a.pend==='decree'){
+        decree(e);
+      }
+      else{
+        disgrace(e);
+      }
     }
+
     return;
   }
+
 
   a.t1-=dt;
   if(a.t1<=0){
