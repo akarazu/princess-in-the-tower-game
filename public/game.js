@@ -44,7 +44,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,dragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
+loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.gif');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -82,7 +82,7 @@ function drawBall(b){
   ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang||0);
   ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.32,0,h*.4,0,6.283);ctx.fill();ctx.globalAlpha=1;
   ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);ctx.restore()}
-const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130},merchant:{fr:8,h:64,ms:120},merchantIdle:{fr:4,h:64,ms:450},merchantThrow:{fr:6,h:64,ms:100},king:{fr:8,h:112,ms:130},kingIdle:{fr:8,h:112,ms:140},kingSwing:{fr:8,h:112,ms:120}};
+const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},princeStunned:{fr:1,h:108,ms:250},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130},merchant:{fr:8,h:64,ms:120},merchantIdle:{fr:4,h:64,ms:450},merchantThrow:{fr:6,h:64,ms:100},king:{fr:8,h:112,ms:130},kingIdle:{fr:8,h:112,ms:140},kingSwing:{fr:8,h:112,ms:120}};
 function drawEnemy(e){
   let key=e.k,fo=-1;
   const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;
@@ -90,35 +90,32 @@ function drawEnemy(e){
   if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
   else if(e.k==='mage'&&near&&!e.rush&&IMG.mageCast)key='mageCast';
 
-else if(e.k==='prince'){
-  const ci=castInfo(e);
-  const action=e.bossAction||(e.ab&&e.ab.action);
+  else if(e.k==='prince'){
+    const ci=castInfo(e);
+    const action=e.bossAction||(e.ab&&e.ab.action);
+    const stunned=!!((e.ab&&e.ab.stun>0)||e.stunned);
 
-  // Бросок кольца имеет приоритет
-  if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
-    key='princeThrow';
-    fo=Math.min(
-      SPR.princeThrow.fr-1,
-      Math.floor(ci[2]/100*SPR.princeThrow.fr)
-    );
+    // Оглушение имеет приоритет над всеми остальными анимациями принца.
+    // GIF уже содержит собственную анимацию, поэтому кадры не нарезаем.
+    if(stunned&&IMG.princeStunned){
+      key='princeStunned';
+      fo=-1;
+    }
+    // Цветы: поднятие рук
+    else if(action==='rose'&&ci[2]>0&&IMG.princeCast){
+      key='princeCast';
+      fo=Math.floor(ci[2]/100*SPR.princeCast.fr);
+    }
+    // Кольцо: бросок вперёд
+    else if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
+      key='princeThrow';
+      fo=Math.floor(ci[2]/100*SPR.princeThrow.fr);
+    }
+    else if(ci[0]>0&&IMG.princeCast){
+      key='princeCast';
+      fo=Math.floor(ci[0]/100*SPR.princeCast.fr);
+    }
   }
-  // Бросок цветов
-  else if(action==='rose'&&ci[2]>0&&IMG.princeCast){
-    key='princeCast';
-    fo=Math.min(
-      SPR.princeCast.fr-1,
-      Math.floor(ci[2]/100*SPR.princeCast.fr)
-    );
-  }
-  // Предложение
-  else if(ci[0]>0&&IMG.princeCast){
-    key='princeCast';
-    fo=Math.min(
-      SPR.princeCast.fr-1,
-      Math.floor(ci[0]/100*SPR.princeCast.fr)
-    );
-  }
-}
 
   if(e.k==='merchant'){
     const th=castInfo(e)[2];
@@ -230,7 +227,6 @@ function pickType(){const ks=Object.keys(ENEMY_INTRO).filter(k=>ENEMY_INTRO[k]<=
 // ===== Индивидуальные траектории боссов =====
 function bossPathPoint(path, u) {
   const envelope = Math.sin(Math.PI * u);
-
   const bend = path.kind === 'prince'
     ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
     : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
@@ -238,36 +234,31 @@ function bossPathPoint(path, u) {
   return {
     x: path.sx + (path.tx - path.sx) * u
       + path.px * path.amplitude * bend,
-
     y: path.sy + (path.ty - path.sy) * u
       + path.py * path.amplitude * bend
   };
 }
 
 function makeBossPath(k, x, y, targetRadius) {
-  // Безопасные границы с учётом размера персонажа
+  // Учитываем размер спрайта, чтобы персонаж не выходил за видимую область.
   const margin = Math.max(T[k].r + 16, 54);
-
   x = Math.max(margin, Math.min(W - margin, x));
   y = Math.max(margin, Math.min(H - margin, y));
 
   const dxToCenter = CX - x;
   const dyToCenter = CY - y;
-  const centerDistance =
-    Math.hypot(dxToCenter, dyToCenter) || 1;
+  const centerDistance = Math.hypot(dxToCenter, dyToCenter) || 1;
 
-  // Принц останавливается перед башней
-const stopRadius = targetRadius === undefined
-  ? (k === 'prince' ? TOWER_R + T[k].r + 12 : 0)
-  : targetRadius;
-
+  // Можно задать отдельный радиус цели для отхода и повторного сближения принца.
+  const stopRadius = targetRadius === undefined
+    ? (k === 'prince' ? TOWER_R + T[k].r + 12 : 0)
+    : targetRadius;
   const tx = CX - dxToCenter / centerDistance * stopRadius;
   const ty = CY - dyToCenter / centerDistance * stopRadius;
 
   const dx = tx - x;
   const dy = ty - y;
   const distance = Math.hypot(dx, dy) || 1;
-
   const side = Math.random() < 0.5 ? -1 : 1;
 
   const path = {
@@ -276,85 +267,68 @@ const stopRadius = targetRadius === undefined
     sy: y,
     tx,
     ty,
-
     px: -dy / distance * side,
     py: dx / distance * side,
-
     amplitude: k === 'prince' ? 230 : 285,
-
     u: 0,
     len: 0,
     arrived: false
   };
 
-  // Рассчитываем максимально допустимую амплитуду
-  let allowedAmplitude = path.amplitude;
+  // Подбираем допустимую амплитуду для всей кривой, не обрезая её резкими clamp-ами.
   const wantedAmplitude = path.amplitude;
-
+  let allowedAmplitude = wantedAmplitude;
   for (let i = 1; i < 256; i++) {
     const u = i / 256;
     const envelope = Math.sin(Math.PI * u);
-
     const bend = k === 'prince'
       ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
       : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
-
     const baseX = x + dx * u;
     const baseY = y + dy * u;
-
     const ox = path.px * bend;
     const oy = path.py * bend;
 
-    if (ox > 1e-8)
-      allowedAmplitude = Math.min(
-        allowedAmplitude,
-        (W - margin - baseX) / ox
-      );
-    else if (ox < -1e-8)
-      allowedAmplitude = Math.min(
-        allowedAmplitude,
-        (margin - baseX) / ox
-      );
+    if (ox > 1e-8) allowedAmplitude = Math.min(allowedAmplitude, (W - margin - baseX) / ox);
+    else if (ox < -1e-8) allowedAmplitude = Math.min(allowedAmplitude, (margin - baseX) / ox);
 
-    if (oy > 1e-8)
-      allowedAmplitude = Math.min(
-        allowedAmplitude,
-        (H - margin - baseY) / oy
-      );
-    else if (oy < -1e-8)
-      allowedAmplitude = Math.min(
-        allowedAmplitude,
-        (margin - baseY) / oy
-      );
+    if (oy > 1e-8) allowedAmplitude = Math.min(allowedAmplitude, (H - margin - baseY) / oy);
+    else if (oy < -1e-8) allowedAmplitude = Math.min(allowedAmplitude, (margin - baseY) / oy);
   }
+  path.amplitude = Math.max(0, Math.min(wantedAmplitude, allowedAmplitude) * 0.98);
 
-  // Небольшой запас от границ
-  path.amplitude = Math.max(
-    0,
-    Math.min(wantedAmplitude, allowedAmplitude) * 0.98
-  );
-
-  // Рассчитываем длину траектории
   let prev = bossPathPoint(path, 0);
-
   for (let i = 1; i <= 256; i++) {
     const next = bossPathPoint(path, i / 256);
-
-    path.len += Math.hypot(
-      next.x - prev.x,
-      next.y - prev.y
-    );
-
+    path.len += Math.hypot(next.x - prev.x, next.y - prev.y);
     prev = next;
   }
 
   return path;
 }
+
 function spawn(k){
   spawned++;
   const a=Math.random()*6.283,t=T[k],s=k==='prince'?1+(players.length-1)*BOSSCFG.hpPrince:k==='king'?1+(players.length-1)*BOSSCFG.hpKing:1+(wave-1)*.2;
-  const e={id:++uid,k,t,x:CX+Math.cos(a)*(W/2+230),y:CY+Math.sin(a)*(H/2+150),hp:t.hp*s,max:t.hp*s};
-  if(t.boss) e.path = makeBossPath(k, e.x, e.y);
+  let x,y;
+
+  if(t.boss){
+    // Боссы появляются на внутренней границе экрана, а не за его пределами.
+    const margin=Math.max(t.r+16,54);
+    const vx=Math.cos(a),vy=Math.sin(a);
+    const tx=vx>0?(W-margin-CX)/vx:vx<0?(margin-CX)/vx:Infinity;
+    const ty=vy>0?(H-margin-CY)/vy:vy<0?(margin-CY)/vy:Infinity;
+    const distance=Math.min(tx>0?tx:Infinity,ty>0?ty:Infinity);
+    x=CX+vx*distance;
+    y=CY+vy*distance;
+  }else{
+    // Обычные враги сохраняют прежнее появление за границами экрана.
+    x=CX+Math.cos(a)*(W/2+230);
+    y=CY+Math.sin(a)*(H/2+150);
+  }
+
+  const e={id:++uid,k,t,x,y,hp:t.hp*s,max:t.hp*s};
+  if(t.boss)e.path=makeBossPath(k,e.x,e.y);
   enemies.push(e);
 }
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}
@@ -382,9 +356,6 @@ function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
   return[e.cast||0,e.ip||0,e.thr||0]}
-
-
-
 function bossAI(e,dt){
   const a=e.ab||(e.ab=e.k==='prince'
     ?{
@@ -407,7 +378,7 @@ function bossAI(e,dt){
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
 
-  // Оглушение
+  // Пока длится оглушение, босс не двигается и не атакует.
   if(a.stun>0){
     a.stun=Math.max(0,a.stun-dt);
     e.hold=true;
@@ -415,14 +386,12 @@ function bossAI(e,dt){
   }
 
   if(e.k==='prince'){
-
-    // После оглушения начинаем повторное сближение
+    // После снятия оглушения принц начинает новую фазу сближения:
+    // сначала немного отходит от башни, затем снова подходит к ней.
     if(a.afterStun&&!a.repositionPathStarted){
       a.arrived=false;
       a.repositionPathStarted=true;
       a.repositioned=false;
-
-      // Сначала принц немного отходит от башни
       e.path=makeBossPath(
         'prince',
         e.x,
@@ -431,122 +400,89 @@ function bossAI(e,dt){
       );
     }
 
-// Во время броска цветов принц продолжает движение.
-// Только бросок кольца останавливает его.
-if(a.thr>0&&a.action){
-  a.thr=Math.max(0,a.thr-dt);
+    // Цветочный или кольцевой бросок должен закончиться отдельно.
+    if(a.thr>0&&a.action){
+      a.thr=Math.max(0,a.thr-dt);
+      e.hold=true;
+      if(a.thr===0)a.action=null;
+      return;
+    }
 
-  e.hold = a.action !== 'rose';
-
-  if(a.thr===0)a.action=null;
-  return;
-}
-
-    // Предложение
+    // Предложение.
     if(a.cast>0){
       e.hold=true;
       a.cast=Math.max(0,a.cast-dt);
 
-      // Предложение сорвано
+      // Если предложение сорвано, запускаем оглушение и последующее движение.
       if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){
         a.cast=0;
         a.stun=BOSSCFG.stun;
         a.cd=0;
         a.action=null;
-
-        // Разрешаем повторное движение
         a.afterStun=true;
         a.repositionPathStarted=false;
         a.repositioned=false;
-        a.t1=2.5;
 
         say('Предложение сорвано! Принц оглушён!');
         tag(e,'Оглушён!');
         boom(e.x,e.y,'#ffd24d',16);
-
         return;
       }
 
-      // Кольцо только после завершения предложения
+      // Кольцо запускается только после полного завершения предложения.
       if(a.cast===0){
         a.cd=BOSSCFG.castCd;
         throwPrinceRing(e);
       }
-
       return;
     }
 
-
-// Пока принц приближается к башне,
-// он продолжает бросать цветы.
-if(!a.arrived){
-
-  // Во время отхода от башни цветы не бросаем.
-  // На обратном пути снова включаем атаки.
-  const canThrowRoses = !a.afterStun || a.repositioned;
-
-  if(canThrowRoses){
-
-    a.t1-=dt;
-
-    if(a.t1<=0){
-
-      // При повторном приближении броски чаще.
-      a.t1=a.afterStun
-        ? 4
-        : BOSSCFG.roseEvery*f;
-
-      roseRain(e);
+    // Пока принц не достиг башни, он продолжает путь.
+    // Цветы разрешены только до первого достижения точки остановки.
+    if(!a.arrived){
+      if(!a.afterStun){
+        a.t1-=dt;
+        if(a.t1<=0){
+          a.t1=BOSSCFG.roseEvery*f;
+          roseRain(e);
+          return;
+        }
+      }
       return;
     }
-  }
 
-  return;
-}
-
-
-    // Принц достиг башни: только предложение
+    // Вблизи башни — только предложение и последующий бросок кольца.
     a.cd-=dt;
-
     if(a.cd<=0){
       a.cast=a.castT;
       a.castHp=e.hp;
       a.action='proposal';
-
       e.hold=true;
-
       say('Принц делает предложение! Собьём его, пока не поздно!',4);
       tag(e,'Предложение!');
     }
-
     return;
   }
 
-  // Поведение короля не меняем
+  // Поведение короля остаётся прежним.
   if(a.thr>0){
     a.thr=Math.max(0,a.thr-dt);
     e.hold=true;
-
     if(a.thr===0)a.action=null;
   }
 
   if(a.pend){
     e.hold=true;
-
     if(a.thr<=0)a.pend=null;
-
     else if(a.thr<=KING_ACT-.5&&!a.did){
       a.did=true;
-
       if(a.pend==='decree')decree(e);
       else disgrace(e);
     }
-
     return;
   }
 
   a.t1-=dt;
-
   if(a.t1<=0){
     a.t1=BOSSCFG.decreeEvery*f;
     a.pend='decree';
@@ -555,7 +491,6 @@ if(!a.arrived){
   }
 
   a.t2-=dt;
-
   if(a.t2<=0){
     a.t2=BOSSCFG.disgraceEvery*f;
     a.pend='disgrace';
@@ -563,46 +498,31 @@ if(!a.arrived){
     a.thr=a.thrT=KING_ACT;
   }
 }
-
-
-
-
 function throwPrinceRing(e){
-
-  // Полностью завершаем предложение
-  e.ab.cast=0;
-  e.ab.action='ring';
-  e.hold=true;
-
   const sx=e.x;
   const sy=e.y-28;
-
   const tx=CX;
   const ty=CY-20;
-
   const dist=Math.hypot(tx-sx,ty-sy);
   const flight=Math.max(.65,dist/320);
 
   bossProjectiles.push({
     id:++uid,
     kind:'ring',
-    sx,sy,
-    tx,ty,
+    sx,sy,tx,ty,
     t:0,
     d:flight,
     arc:34,
     zoneId:0
   });
 
-  // Запускаем только анимацию броска кольца
-  e.ab.thr=flight;
-  e.ab.thrT=flight;
+  // Анимация броска вперёд
+  e.ab.thr=e.ab.thrT=flight;
   e.ab.action='ring';
 
   say('Принц бросает кольцо!');
   tag(e,'Кольцо!');
 }
-
 
 function updateBossProjectiles(dt){
   const remain=[];
@@ -691,9 +611,8 @@ function roseRain(e){
   tag(e,'Розы!');
 
   // Анимация поднятия рук
-e.ab.thr=e.ab.thrT=THROW_T;
-e.ab.action='rose';
-e.hold=false;
+  e.ab.thr=e.ab.thrT=THROW_T;
+  e.ab.action='rose';
 }
 function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
 function disgrace(e){
@@ -822,17 +741,10 @@ function update(dt){
     }
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
-
 if (e.path) {
   if (!e.path.arrived) {
-
-    e.path.u = Math.min(
-      1,
-      e.path.u + sm * dt / e.path.len
-    );
-
+    e.path.u = Math.min(1, e.path.u + sm * dt / e.path.len);
     const q = bossPathPoint(e.path, e.path.u);
-
     e.x = q.x;
     e.y = q.y;
 
@@ -840,56 +752,39 @@ if (e.path) {
       e.path.arrived = true;
 
       if (e.k === 'prince' && e.ab) {
-
-        if (
-          e.ab.afterStun &&
-          e.ab.repositionPathStarted
-        ) {
-
+        if (e.ab.afterStun && e.ab.repositionPathStarted) {
           if (!e.ab.repositioned) {
-
-            // Отход завершён.
-            // Теперь принц снова приближается к башне.
+            // Первый этап после оглушения завершён: принц теперь снова
+            // направляется к обычной точке остановки перед башней.
             e.ab.repositioned = true;
-
             e.path = makeBossPath(
               'prince',
               e.x,
               e.y,
               TOWER_R + e.t.r + 12
             );
-
           } else {
-
-            // Повторное приближение завершено.
+            // Повторно приблизился к башне — можно делать предложение.
             e.ab.afterStun = false;
             e.ab.repositionPathStarted = false;
             e.ab.repositioned = false;
-
             e.ab.arrived = true;
             e.ab.cd = 0;
             e.ab.t1 = Infinity;
           }
-
         } else {
-
-          // Первое приближение к башне.
+          // Первое достижение точки остановки.
           e.ab.arrived = true;
           e.ab.cd = 0;
           e.ab.t1 = Infinity;
-
         }
       }
     }
   }
-
 } else {
-
   e.x += dx / d * sm * dt;
   e.y += dy / d * sm * dt;
-
 }
-
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
     if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
@@ -1039,7 +934,8 @@ function sendSnap(now){
   ...castInfo(e),
   e.rush?1:0,
   e.ab&&e.ab.action==='rose'?1:
-  e.ab&&e.ab.action==='ring'?2:0
+  e.ab&&e.ab.action==='ring'?2:0,
+  e.ab&&e.ab.stun>0?1:0
 ]),
    Z:zones.map(z=>[
   z.id,r1(z.x),r1(z.y),z.r,
@@ -1113,7 +1009,8 @@ function guestFrame(dt,now){
     ip:e[9],
     thr:e[10],
     rush:!!e[11],
-    bossAction:e[12]===1?'rose':e[12]===2?'ring':null
+    bossAction:e[12]===1?'rose':e[12]===2?'ring':null,
+    stunned:!!e[13]
   };
 });
  zones=(b.Z||[]).map(e=>({
