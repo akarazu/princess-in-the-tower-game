@@ -44,7 +44,7 @@ const stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H*.55
 const IMG={},DFR=9,FFR=6,KFR=6,SDFR=4,dragonCache={},stunnedDragonCache={};
 let frameDt=.016,castleV=[],tintedNow=false,cvW=W,cvH=H,ox=0,oy=0,K=1;
 function loadImg(k,src){if(typeof Image==='undefined')return;const i=new Image();i.onload=()=>{IMG[k]=i;if(k==='castle')makeCastle()};i.src=src}
-loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
+loadImg('crown','assets/king_order_crown_icon.png');loadImg('bg','assets/bg.jpg');loadImg('castle','assets/castle.png');loadImg('dragon','assets/dragon.png');loadImg('dragonStunned','assets/dragon_stunned.png');loadImg('fire','assets/fire.png');loadImg('knight','assets/knight.png');loadImg('bard','assets/bard.png');loadImg('bardIdle','assets/bard_idle.png');loadImg('princeStunned','assets/prince_stunned.png');for(const k of ['prince','princeCast','princeThrow','mage','mageCast','merchant','merchantIdle','merchantThrow','king','kingIdle','kingSwing','coinBag','bouquet','ring','scroll'])loadImg(k,'assets/'+k+'.png');
 function shade(img,a,rgb){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba('+rgb+','+a+')';x.fillRect(0,0,c.width,c.height);return c}
 function makeCastle(){castleV=[IMG.castle,shade(IMG.castle,.22,'90,10,40'),shade(IMG.castle,.42,'60,0,25')]}
 function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
@@ -285,11 +285,20 @@ function drawBg(){const im=IMG.bg,s=Math.max(cvW/im.width,cvH/im.height),w=im.wi
   ctx.drawImage(im,Math.min(0,Math.max(cvW-w,CX+ox-.5*w)),Math.min(0,Math.max(cvH-h,CY+oy-.512*h)),w,h)}
 function drawBall(b){
   const sh=IMG.fire,t=typeof performance!=='undefined'?performance.now():0;
-  if(!sh){ctx.fillStyle=b.col;ctx.shadowColor=b.col;ctx.shadowBlur=16;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,6.283);ctx.fill();ctx.shadowBlur=0;return}
+  if(!sh){
+    ctx.fillStyle=b.col;
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.r,0,6.283);
+    ctx.fill();
+    return;
+  }
   const fw=sh.width/FFR,fh=sh.height,w=34+(b.r-7.5)*7,h=w*fh/fw,f=Math.floor(t/60+b.id)%FFR;
-  ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang||0);
-  ctx.globalAlpha=.35;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(w*.32,0,h*.4,0,6.283);ctx.fill();ctx.globalAlpha=1;
-  ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);ctx.restore()}
+  ctx.save();
+  ctx.translate(b.x,b.y);
+  ctx.rotate(b.ang||0);
+  ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);
+  ctx.restore();
+}
 const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:120},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},princeStunned:{fr:8,h:108,ms:160},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130},merchant:{fr:8,h:64,ms:120},merchantIdle:{fr:4,h:64,ms:450},merchantThrow:{fr:6,h:64,ms:100},king:{fr:8,h:112,ms:130},kingIdle:{fr:8,h:112,ms:140},kingSwing:{fr:8,h:112,ms:120}};
 function drawShadow(x, y, rx, ry, opacity = 0.22) {
   ctx.save();
@@ -387,6 +396,7 @@ else if(ci[0]>0&&IMG.princeCast){
     ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);
     ctx.restore();
   }
+  else if(e.k==='king')drawCrownIcon(e.x,e.y,48,34);
   else emoji(e.t.e,e.x,e.y,e.t.sz);
 }
 function drawCastle(){
@@ -1152,6 +1162,7 @@ function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;r
 
 function updatePlayer(p,dt){
   p.coinGlow=Math.max(0,(p.coinGlow||0)-dt);
+  if(p.in&&(p.in.fire||p.in.alt))p.coinGlow=0;
   if(p.gone){p.asleep=true;return}
 
   p.inv=Math.max(0,p.inv-dt);
@@ -1461,7 +1472,7 @@ e.path = makeBossPath(
     let best=null,bd=1e9;
     for(const p of players){if(p.asleep||(c.res>0&&c.own!==p.id))continue;const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<bd){bd=d;best=p}}
     if(best){if(bd<(c.v>=10?200:130)){const m=bd||1;c.x+=(best.x-c.x)/m*260*dt;c.y+=(best.y-c.y)/m*260*dt}
-      if(bd<28){best.w[c.t]+=c.v;if(!c.t){best.earned+=c.v;best.coinGlow=.9;}c.life=0;c.got=true;boom(c.x,c.y,CUR[c.t].c,4)}}}
+      if(bd<28){best.w[c.t]+=c.v;if(!c.t){best.earned+=c.v;best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;}c.life=0;c.got=true;boom(c.x,c.y,CUR[c.t].c,4)}}}
   for(const c of pickups)if(c.life<=0&&!c.got)boom(c.x,c.y,'#9a8aa8',5);
   pickups=pickups.filter(c=>c.life>0);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
@@ -1487,43 +1498,53 @@ e.path = makeBossPath(
 // ===== Отрисовка =====
 function emoji(ch,x,y,sz){ctx.font=sz+'px '+FONT;ctx.fillText(ch,x,y)}
 function text(s,x,y,sz,col,style=''){ctx.font=style+' '+sz+'px Georgia,serif';ctx.fillStyle=col;ctx.fillText(s,x,y)}
+function drawCrownIcon(x,y,w=34,h=24){
+  if(IMG.crown){
+    ctx.drawImage(IMG.crown,x-w/2,y-h/2,w,h);
+    return;
+  }
+  ctx.save();
+  ctx.translate(x-w/2,y-h/2);
+  ctx.lineJoin='round';
+  ctx.lineWidth=1.5;
+  ctx.fillStyle='#f4bd3e';
+  ctx.strokeStyle='#75431d';
+  ctx.beginPath();
+  ctx.moveTo(2,h*.78);
+  ctx.lineTo(1,h*.22);
+  ctx.lineTo(w*.27,h*.49);
+  ctx.lineTo(w*.40,h*.07);
+  ctx.lineTo(w*.59,h*.49);
+  ctx.lineTo(w*.81,h*.17);
+  ctx.lineTo(w-2,h*.29);
+  ctx.lineTo(w*.91,h*.80);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle='#b72f37';
+  for(const gx of [w*.27,w*.50,w*.78]){
+    ctx.beginPath();
+    ctx.arc(gx,h*.49,Math.max(1.5,w*.045),0,6.283);
+    ctx.fill();
+  }
+  ctx.fillStyle='#d98724';
+  ctx.fillRect(w*.08,h*.80,w*.84,h*.12);
+  ctx.restore();
+}
 function drawDragon(p){
   const now=typeof performance!=='undefined'?performance.now():0;
 
-  // A round, softly pulsing golden ring appears briefly after collecting a coin.
-  if((p.coinGlow||0)>0){
-    const strength=Math.min(1,p.coinGlow/.9);
-    const pulse=.84+.16*Math.sin(now/75+p.id);
-    const radius=58+2*pulse;
-    ctx.save();
-    const glow=ctx.createRadialGradient(p.x,p.y,18,p.x,p.y,72);
-    glow.addColorStop(0,'rgba(255,205,55,'+(0.25*strength*pulse)+')');
-    glow.addColorStop(.58,'rgba(255,190,35,'+(0.18*strength*pulse)+')');
-    glow.addColorStop(1,'rgba(255,190,35,0)');
-    ctx.fillStyle=glow;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,radius+10,0,6.283);
-    ctx.fill();
-    ctx.strokeStyle='rgba(255,213,75,'+(0.78*strength*pulse)+')';
-    ctx.lineWidth=2.5;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,radius,0,6.283);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   drawShadow(p.x,p.y+38,42,12,0.18);
 
-  // Shield rings are drawn behind the dragon and outside its silhouette,
-  // so they frame the character instead of crossing over its body/wings.
+  // Shield rings: smaller, circular and kept just outside the dragon sprite.
   if(p.sh>0){
     ctx.save();
     const pulse=.88+.12*Math.sin(now/150+p.id);
     for(let i=0;i<p.sh;i++){
-      ctx.strokeStyle='rgba(143,216,255,'+(0.72*pulse)+')';
-      ctx.lineWidth=2.5;
+      ctx.strokeStyle='rgba(143,216,255,'+(0.78*pulse)+')';
+      ctx.lineWidth=2.2;
       ctx.beginPath();
-      ctx.arc(p.x,p.y,56+i*9,0,6.283);
+      ctx.arc(p.x,p.y,47+i*6,0,6.283);
       ctx.stroke();
     }
     ctx.restore();
@@ -1547,6 +1568,30 @@ function drawDragon(p){
     ctx.globalAlpha=1;
   }
 
+  // A clearly visible, shield-like golden halo appears when the dragon
+  // collects a gold coin. Draw it after the sprite so it cannot be hidden.
+  if((p.coinGlow||0)>0){
+    const strength=Math.min(1,p.coinGlow/1.2);
+    const pulse=.88+.12*Math.sin(now/70+p.id*1.7);
+    const radius=55+2.5*Math.sin(now/95+p.id);
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.shadowColor='rgba(255,205,45,'+(0.85*strength)+')';
+    ctx.shadowBlur=18*strength;
+    ctx.strokeStyle='rgba(255,211,65,'+(0.92*strength*pulse)+')';
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,radius,0,6.283);
+    ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(255,239,160,'+(0.58*strength*pulse)+')';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,radius-5,0,6.283);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if(p.dead){
     emoji('💀',p.x,p.y-34,26);
   }else if(p.asleep){
@@ -1566,7 +1611,7 @@ function drawDragon(p){
     ctx.arc(p.x,p.y,48,0,6.283);
     ctx.stroke();
     ctx.lineWidth=1;
-    emoji('👑',p.x,p.y-54,26);
+    drawCrownIcon(p.x,p.y-57,34,24);
   }
 
   // Merchant's gold-bag effect uses the animated coinBag sprite already in assets.
@@ -1577,6 +1622,7 @@ function drawDragon(p){
 
   text(p.name,p.x,p.y+50,14,c);
 }
+
 function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
   ctx.strokeStyle='#e8a92a';ctx.lineWidth=Math.max(1,r*.12);ctx.beginPath();ctx.arc(x,y,r*.62,0,6.283);ctx.stroke();
   ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(x-r*.3,y-r*.3,r*.16,0,6.283);ctx.fill();ctx.lineWidth=1}
@@ -1746,8 +1792,12 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     if(me.lv[0]>=5){
       const ready=me.acd<=0;
       const progress=ready?1:1-me.acd/BLAST.cd;
-      const blastX=statusX+12;
-      const blastY=healthY;
+      // The rechargeable ability sits directly below the first heart.
+      const firstHeartWidth=ctx.measureText('❤️').width;
+      const blastX=hudLeft+firstHeartWidth/2;
+      const blastY=healthY+28;
+      ctx.save();
+      ctx.textAlign='center';
       ctx.strokeStyle=ready?'#ffd24d':'#8a7096';
       ctx.lineWidth=3;
       ctx.beginPath();
@@ -1763,9 +1813,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
         const iconW=iconH*frameW/frameH;
         ctx.drawImage(IMG.fire,0,0,frameW,frameH,blastX-iconW/2,blastY-iconH/2,iconW,iconH);
       }else{
-        ctx.textAlign='center';
         emoji('🔥',blastX,blastY,15);
       }
+      ctx.restore();
     }
   }
 
