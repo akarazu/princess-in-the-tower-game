@@ -4,7 +4,7 @@
 
 // ===== Константы и данные =====
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=Math.round(H*.512);
-const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=5,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={
   3:'Новый поклонник: бард с серенадами!',
@@ -171,50 +171,45 @@ function dragonShotFromMouth(p) {
   const dirX = transform.a / axisLength;
   const dirY = transform.b / axisLength;
 
-  // Центральный шар стартует непосредственно из точки рта.
-  // Спрайт самого огня уже имеет вытянутую переднюю часть.
+  // Небольшой вынос вперёд, чтобы шар начинал движение за кончиком морды.
+  const muzzleClearance = 5;
+
   return {
-    x: mouth.x,
-    y: mouth.y,
+    x: mouth.x + dirX * muzzleClearance,
+    y: mouth.y + dirY * muzzleClearance,
     angle: Math.atan2(dirY, dirX),
     dirX,
     dirY
   };
 }
 
-// Залп из трёх шаров: центральный идёт строго по оси морды,
-// два боковых расходятся веером. Их небольшое боковое смещение
-// поворачивается вместе с драконом и не сдвигает центральный шар.
-function dragonVolleyPositions(shot, count, fanAngle = 0.24, sideOffset = 6) {
+// Несколько шаров располагаются поперёк траектории, но летят параллельно.
+// Раньше они расходились веером по углу (±0.16 рад), из-за чего
+// вертикальный залп визуально выглядел диагональным.
+function dragonVolleyPositions(shot, count, spacing = 34) {
+  // Перпендикуляр к оси головы. Смещения поворачиваются вместе с драконом.
   const sideX = -shot.dirY;
   const sideY = shot.dirX;
 
-  const center = {
-    x: shot.x,
-    y: shot.y,
+  let offsets;
+
+  if (count === 2) {
+    // При двух шарах один обязательно остаётся точно на оси головы.
+    offsets = [0, spacing];
+  } else {
+    // При одном или трёх шарах расположение симметрично относительно оси.
+    offsets = Array.from(
+      { length: count },
+      (_, i) => (i - (count - 1) / 2) * spacing
+    );
+  }
+
+  return offsets.map(offset => ({
+    x: shot.x + sideX * offset,
+    y: shot.y + sideY * offset,
+    // Все шары летят параллельно; центральный совпадает с осью головы.
     angle: shot.angle
-  };
-
-  if (count <= 1) return [center];
-
-  const leftSide = {
-    x: shot.x - sideX * sideOffset,
-    y: shot.y - sideY * sideOffset,
-    angle: shot.angle - fanAngle
-  };
-
-  const rightSide = {
-    x: shot.x + sideX * sideOffset,
-    y: shot.y + sideY * sideOffset,
-    angle: shot.angle + fanAngle
-  };
-
-  // При двух шарах сохраняем центральный снаряд и один боковой.
-  if (count === 2) return [center, rightSide];
-
-  // При трёх шарах центральный остаётся ровно на оси головы,
-  // боковые симметрично расходятся влево и вправо.
-  return [leftSide, center, rightSide];
+  }));
 }
 
 // Локальный и удалённые драконы рисуются с тем же углом,
@@ -1003,48 +998,26 @@ function drawEnemyMarks(e){
     if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,32,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}
-function drawHudPanel(x,y,w,h,fill='rgba(25,12,42,.72)'){
-  ctx.save();
-  ctx.fillStyle=fill;
-  ctx.strokeStyle='rgba(238,205,230,.30)';
-  ctx.lineWidth=1.2;
-  ctx.beginPath();
-  ctx.roundRect(x,y,w,h,12);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
 function drawRoster(){
   ctx.save();
   const ps=players.filter(p=>!p.gone);
   const active=ps.filter(p=>!p.asleep&&!p.dead).length;
-  const cols=6;
-  const rowCount=Math.max(1,Math.ceil(ps.length/cols));
-  const panelW=210;
-  const panelX=W-panelW-14;
-  const panelY=12;
-  const panelH=60+rowCount*26;
+  const right=W-24;
+  const cols=Math.min(9,Math.max(1,ps.length));
+  const gap=28;
+  const top=83;
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
 
-  drawHudPanel(panelX,panelY,panelW,panelH);
-
   ctx.textBaseline='middle';
-  ctx.textAlign='left';
-  text('ОТШИТО',panelX+12,panelY+20,10,'#c9b6d4','italic');
   ctx.textAlign='right';
-  text(String(score),panelX+panelW-13,panelY+20,18,'#ffd24d');
-
-  ctx.textAlign='left';
-  text('Драконы в строю',panelX+12,panelY+43,12,'#fbe8d3');
-  ctx.textAlign='right';
-  text(active+' / '+ps.length,panelX+panelW-13,panelY+43,12,'#fbe8d3');
+  text('Отшито поклонников: '+score,right,25,16,'#fbe8d3');
+  text('Драконы в строю: '+active+' / '+ps.length,right,49,13,'#d9c3e8');
 
   ps.forEach((p,i)=>{
     const col=i%cols;
     const row=Math.floor(i/cols);
-    const x=panelX+22+col*32;
-    const y=panelY+62+row*26;
+    const x=right-col*gap;
+    const y=top+row*27;
 
     ctx.globalAlpha=p.dead?.38:p.asleep?.72:1;
     ctx.fillStyle=COLORS[p.ci][1];
@@ -1074,7 +1047,7 @@ function drawRoster(){
       ctx.lineWidth=1;
       text(String(Math.max(0,Math.ceil(p.wt))),x,y+1,9,'#fff');
     }else{
-      text(p.name.slice(0,1).toUpperCase(),x,y+1,11,'#1b1030');
+      text((p.name||'').slice(0,1).toUpperCase(),x,y+1,11,'#1b1030');
     }
   });
   ctx.restore();
@@ -1552,21 +1525,19 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
-  // ===== Компактная информация по краям игрового поля =====
+  // ===== HUD без карточек: элементы распределены по ширине поля =====
   if(me){
-    // Левый блок: волна, ресурсы, здоровье и особая атака.
-    drawHudPanel(14,12,194,142);
+    // Левый край: волна, ресурсы, здоровье и особая атака.
     ctx.textAlign='left';
-    text('ВОЛНА  '+wave+' / '+TOTAL,28,35,17,'#fbe8d3','italic');
+    text('ВОЛНА  '+wave+' / '+TOTAL,22,27,17,'#fbe8d3','italic');
 
-    drawIcon(0,34,66,11);
-    text(String(me.w[0]),55,71,19,CUR[0].c);
-    drawIcon(1,34,96,11);
-    text(String(me.w[1]),55,101,19,CUR[1].c);
+    drawIcon(0,27,57,10);
+    text(String(me.w[0]),48,62,18,CUR[0].c);
+    drawIcon(1,27,85,10);
+    text(String(me.w[1]),48,90,18,CUR[1].c);
 
-    ctx.textAlign='left';
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),27,132,17);
-    if(me.sh>0)emoji('🛡️'.repeat(me.sh),111,132,15);
+    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),20,119,16);
+    if(me.sh>0)emoji('🛡️'.repeat(me.sh),118,119,14);
 
     if(me.lv[0]>=5){
       const ready=me.acd<=0;
@@ -1574,45 +1545,38 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
       ctx.strokeStyle=ready?'#ffd24d':'#8a7096';
       ctx.lineWidth=3;
       ctx.beginPath();
-      ctx.arc(179,128,11,-1.57,-1.57+6.283*progress);
+      ctx.arc(187,115,10,-1.57,-1.57+6.283*progress);
       ctx.stroke();
       ctx.lineWidth=1;
       ctx.textAlign='center';
-      text('ПКМ',179,132,9,ready?'#ffd24d':'#b9a3cc');
+      text('ПКМ',187,119,9,ready?'#ffd24d':'#b9a3cc');
     }
   }
 
-  // Центральный блок: состояние башни.
-  drawHudPanel(CX-180,12,360,78,'rgba(25,12,42,.62)');
+  // Центр: прочность башни и активный эффект барда.
   ctx.textAlign='center';
-  text('Нервы принцессы',CX,30,15,'#fbe8d3','italic');
-  ctx.fillStyle='rgba(0,0,0,.42)';
-  ctx.beginPath();
-  ctx.roundRect(CX-150,39,300,13,6);
-  ctx.fill();
+  text('Нервы принцессы',CX,25,15,'#fbe8d3','italic');
+  ctx.fillStyle='rgba(0,0,0,.38)';
+  ctx.fillRect(CX-145,38,290,9);
   ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';
-  ctx.beginPath();
-  ctx.roundRect(CX-150,39,300*Math.max(0,tower/towerMax),13,6);
-  ctx.fill();
+  ctx.fillRect(CX-145,38,290*Math.max(0,tower/towerMax),9);
 
   const activeBardCount=enemies.filter(o=>o.hp>0&&o.k==='bard').length;
   if(state==='play'&&chorusT>0){
-    text('Припев! Враги быстрее на 60%',CX,76,12,'#ff9bb3','italic');
+    text('Припев! Враги быстрее на 60%',CX,66,12,'#ff9bb3','italic');
   }else if(state==='play'&&activeBardCount){
-    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,76,12,'#d9c3e8','italic');
+    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,66,12,'#d9c3e8','italic');
   }
 
+  // Правый край: счёт, состояние и индикаторы игроков.
   drawRoster();
 
-  // Управление и полноэкранный режим — у нижних краёв.
+  // Подсказки без фона у противоположных краёв нижней части экрана.
   if(state==='play'){
-    drawHudPanel(14,H-43,430,29,'rgba(25,12,42,.62)');
     ctx.textAlign='left';
-    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',26,H-24,11,'#e9d9ed');
-
-    drawHudPanel(W-137,H-43,123,29,'rgba(25,12,42,.62)');
-    ctx.textAlign='center';
-    text('F — весь экран',W-75,H-24,11,'#e9d9ed');
+    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',20,H-22,11,'#e9d9ed');
+    ctx.textAlign='right';
+    text('F — весь экран',W-20,H-22,11,'#e9d9ed');
   }
 
   if(quipT>0&&state==='play'){ctx.font='italic 18px Georgia,serif';const w=ctx.measureText(quip).width+32;
@@ -1635,44 +1599,38 @@ function drawEndScreen(){
     .slice()
     .sort((a,b)=>b.kills-a.kills);
 
-  const panelW=Math.min(820,W-36);
-  const panelX=(W-panelW)/2;
-  const fixedHeight=170;
-  const maxPanelHeight=H-28;
+  // Таблица занимает почти всю ширину поля, без внешней рамки.
+  const tableX=34;
+  const tableW=W-68;
+  const headerHeight=130;
+  const footerHeight=28;
+  const maxRowsHeight=H-headerHeight-footerHeight-28;
   const rowH=rows.length
-    ?Math.min(34,Math.max(13,(maxPanelHeight-fixedHeight)/rows.length))
+    ?Math.min(34,Math.max(17,maxRowsHeight/rows.length))
     :34;
-  const panelH=fixedHeight+rows.length*rowH;
-  const panelY=(H-panelH)/2;
-
-  drawHudPanel(panelX,panelY,panelW,panelH,'rgba(31,16,52,.97)');
+  const tableH=headerHeight+rows.length*rowH+footerHeight;
+  const tableY=(H-tableH)/2;
 
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   text(
     state==='win'?'Принцесса в безопасности!':(tower<=0?'Нервы сдали…':'Все драконы пали…'),
-    CX,panelY+36,Math.min(38,panelW*.052),'#ff9bb3','italic'
+    CX,tableY+34,Math.min(38,tableW*.045),'#ff9bb3','italic'
   );
 
   const summary=state==='win'
     ?'Отшито поклонников: '+score
     :'Дошли до волны '+wave+' из '+TOTAL+'  ·  Отшито поклонников: '+score;
-  text(summary,CX,panelY+68,15,'#fbe8d3');
+  text(summary,CX,tableY+67,15,'#fbe8d3');
 
-  ctx.strokeStyle='rgba(238,205,230,.25)';
-  ctx.lineWidth=1;
-  ctx.beginPath();
-  ctx.moveTo(panelX+22,panelY+88);
-  ctx.lineTo(panelX+panelW-22,panelY+88);
-  ctx.stroke();
-
-  const rankX=panelX+45;
-  const colorX=panelX+112;
-  const playerX=panelX+330;
-  const killsX=panelX+panelW-42;
-  const headerY=panelY+111;
-  const rowsTop=panelY+128;
-  const fontSize=Math.min(17,Math.max(10,rowH*.58));
+  // Колонки распределены от левого до правого края таблицы.
+  const rankX=tableX+tableW*.055;
+  const colorX=tableX+tableW*.17;
+  const playerX=tableX+tableW*.47;
+  const killsX=tableX+tableW*.96;
+  const headerY=tableY+107;
+  const rowsTop=tableY+130;
+  const fontSize=Math.min(18,Math.max(12,rowH*.58));
 
   ctx.textAlign='center';
   text('МЕСТО',rankX,headerY,11,'#b9a3cc','italic');
@@ -1686,14 +1644,13 @@ function drawEndScreen(){
     const rowTop=rowsTop+i*rowH;
     const y=rowTop+rowH/2;
 
+    // Лёгкое выделение текущего игрока и чередование строк — без рамок.
     if(p===me){
-      ctx.fillStyle='rgba(255,155,179,.16)';
-      ctx.beginPath();
-      ctx.roundRect(panelX+14,rowTop+1,panelW-28,Math.max(1,rowH-2),6);
-      ctx.fill();
+      ctx.fillStyle='rgba(255,155,179,.15)';
+      ctx.fillRect(tableX+4,rowTop+1,tableW-8,Math.max(1,rowH-2));
     }else if(i%2===1){
       ctx.fillStyle='rgba(255,255,255,.025)';
-      ctx.fillRect(panelX+14,rowTop+1,panelW-28,Math.max(1,rowH-2));
+      ctx.fillRect(tableX+4,rowTop+1,tableW-8,Math.max(1,rowH-2));
     }
 
     ctx.textAlign='center';
@@ -1708,23 +1665,15 @@ function drawEndScreen(){
     ctx.textAlign='left';
     ctx.font=fontSize+'px Georgia,serif';
     ctx.fillStyle='#fbe8d3';
-    ctx.fillText(COLORS[p.ci][0],colorX+15,y,150);
+    ctx.fillText(COLORS[p.ci][0],colorX+15,y,Math.max(60,playerX-colorX-35));
 
     ctx.fillStyle=p===me?'#ffdd88':'#fbe8d3';
-    ctx.fillText(p.name||'Игрок',playerX,y,Math.max(80,killsX-playerX-50));
+    ctx.fillText(p.name||'Игрок',playerX,y,Math.max(80,killsX-playerX-65));
 
     ctx.textAlign='right';
     ctx.font='bold '+fontSize+'px Georgia,serif';
     ctx.fillStyle='#ffd24d';
     ctx.fillText(String(p.kills),killsX,y,52);
-
-    if(i<rows.length-1){
-      ctx.strokeStyle='rgba(238,205,230,.10)';
-      ctx.beginPath();
-      ctx.moveTo(panelX+24,rowTop+rowH);
-      ctx.lineTo(panelX+panelW-24,rowTop+rowH);
-      ctx.stroke();
-    }
   });
 
   ctx.textAlign='center';
@@ -1732,7 +1681,7 @@ function drawEndScreen(){
   ctx.fillStyle='#ffdd88';
   ctx.fillText(
     'Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',
-    CX,panelY+panelH-17,panelW-40
+    CX,tableY+tableH-13,tableW-40
   );
 
   ctx.textBaseline='alphabetic';
