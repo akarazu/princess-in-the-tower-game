@@ -1002,16 +1002,21 @@ function drawRoster(){
   ctx.save();
   const ps=players.filter(p=>!p.gone);
   const active=ps.filter(p=>!p.asleep&&!p.dead).length;
-  const right=W-24;
+
+  // HUD coordinates are anchored to the visible viewport, not the 1138x640 world.
+  // draw() has already translated by (ox, oy), so subtract those offsets here.
+  const viewRight=cvW-ox;
+  const viewTop=-oy;
+  const right=viewRight-20;
   const cols=Math.min(9,Math.max(1,ps.length));
   const gap=28;
-  const top=83;
+  const top=viewTop+82;
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
 
   ctx.textBaseline='middle';
   ctx.textAlign='right';
-  text('Отшито поклонников: '+score,right,25,16,'#fbe8d3');
-  text('Драконы в строю: '+active+' / '+ps.length,right,49,13,'#d9c3e8');
+  text('Отшито поклонников: '+score,right,viewTop+24,16,'#fbe8d3');
+  text('Драконы в строю: '+active+' / '+ps.length,right,viewTop+48,13,'#d9c3e8');
 
   ps.forEach((p,i)=>{
     const col=i%cols;
@@ -1525,64 +1530,79 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   for(const p of parts){ctx.globalAlpha=Math.max(0,p.life*1.6);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
   ctx.restore();
   if(chorusT>0&&state==='play'){ctx.fillStyle='rgba(255,120,170,'+(.08+.06*Math.sin(chorusT*10))+')';ctx.fillRect(-ox,-oy,cvW,cvH)}
-  // ===== HUD без карточек: элементы распределены по ширине поля =====
+  // ===== HUD: привязка непосредственно к краям видимого viewport =====
+  // После ctx.translate(ox, oy) координаты HUD должны компенсировать
+  // этот сдвиг, иначе элементы остаются у края игрового мира, а не окна.
+  const viewLeft=-ox;
+  const viewRight=cvW-ox;
+  const viewTop=-oy;
+  const viewBottom=cvH-oy;
+  const edgePad=20;
+  const hudLeft=viewLeft+edgePad;
+  const hudRight=viewRight-edgePad;
+  const hudTop=viewTop+18;
+  const hudBottom=viewBottom-18;
+
   if(me){
-    // Левый край: волна, ресурсы, здоровье и особая атака.
+    // Левый край viewport: волна, ресурсы, здоровье и особая атака.
     ctx.textAlign='left';
-    text('ВОЛНА  '+wave+' / '+TOTAL,22,27,17,'#fbe8d3','italic');
+    text('ВОЛНА  '+wave+' / '+TOTAL,hudLeft,hudTop+8,17,'#fbe8d3','italic');
 
-    drawIcon(0,27,57,10);
-    text(String(me.w[0]),48,62,18,CUR[0].c);
-    drawIcon(1,27,85,10);
-    text(String(me.w[1]),48,90,18,CUR[1].c);
+    drawIcon(0,hudLeft+7,hudTop+40,10);
+    text(String(me.w[0]),hudLeft+28,hudTop+45,18,CUR[0].c);
+    drawIcon(1,hudLeft+7,hudTop+68,10);
+    text(String(me.w[1]),hudLeft+28,hudTop+73,18,CUR[1].c);
 
-    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),20,119,16);
-    if(me.sh>0)emoji('🛡️'.repeat(me.sh),118,119,14);
+    emoji('❤️'.repeat(me.h)+'🖤'.repeat(maxH(me)-me.h),hudLeft,hudTop+102,16);
+    if(me.sh>0)emoji('🛡️'.repeat(me.sh),hudLeft+98,hudTop+102,14);
 
     if(me.lv[0]>=5){
       const ready=me.acd<=0;
       const progress=ready?1:1-me.acd/BLAST.cd;
+      const blastX=hudLeft+166;
+      const blastY=hudTop+99;
       ctx.strokeStyle=ready?'#ffd24d':'#8a7096';
       ctx.lineWidth=3;
       ctx.beginPath();
-      ctx.arc(187,115,10,-1.57,-1.57+6.283*progress);
+      ctx.arc(blastX,blastY,10,-1.57,-1.57+6.283*progress);
       ctx.stroke();
       ctx.lineWidth=1;
       ctx.textAlign='center';
-      text('ПКМ',187,119,9,ready?'#ffd24d':'#b9a3cc');
+      text('ПКМ',blastX,blastY+4,9,ready?'#ffd24d':'#b9a3cc');
     }
   }
 
-  // Центр: прочность башни и активный эффект барда.
+  // Центр viewport: прочность башни и активный эффект барда.
+  const hudCenterX=(viewLeft+viewRight)/2;
   ctx.textAlign='center';
-  text('Нервы принцессы',CX,25,15,'#fbe8d3','italic');
+  text('Нервы принцессы',hudCenterX,hudTop+8,15,'#fbe8d3','italic');
   ctx.fillStyle='rgba(0,0,0,.38)';
-  ctx.fillRect(CX-145,38,290,9);
+  ctx.fillRect(hudCenterX-145,hudTop+21,290,9);
   ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';
-  ctx.fillRect(CX-145,38,290*Math.max(0,tower/towerMax),9);
+  ctx.fillRect(hudCenterX-145,hudTop+21,290*Math.max(0,tower/towerMax),9);
 
   const activeBardCount=enemies.filter(o=>o.hp>0&&o.k==='bard').length;
   if(state==='play'&&chorusT>0){
-    text('Припев! Враги быстрее на 60%',CX,66,12,'#ff9bb3','italic');
+    text('Припев! Враги быстрее на 60%',hudCenterX,hudTop+51,12,'#ff9bb3','italic');
   }else if(state==='play'&&activeBardCount){
-    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',CX,66,12,'#d9c3e8','italic');
+    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',hudCenterX,hudTop+51,12,'#d9c3e8','italic');
   }
 
-  // Правый край: счёт, состояние и индикаторы игроков.
+  // Правый край viewport: счёт, состояние и индикаторы игроков.
   drawRoster();
 
-  // Подсказки без фона у противоположных краёв нижней части экрана.
+  // Подсказки закреплены у нижних углов видимого viewport.
   if(state==='play'){
     ctx.textAlign='left';
-    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',20,H-22,11,'#e9d9ed');
+    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',hudLeft,hudBottom,11,'#e9d9ed');
     ctx.textAlign='right';
-    text('F — весь экран',W-20,H-22,11,'#e9d9ed');
+    text('F — весь экран',hudRight,hudBottom,11,'#e9d9ed');
   }
 
   if(quipT>0&&state==='play'){ctx.font='italic 18px Georgia,serif';const w=ctx.measureText(quip).width+32;
     ctx.fillStyle='#fff3e6';ctx.beginPath();ctx.roundRect(CX-w/2,CY-215,w,36,12);ctx.fill();text(quip,CX,CY-197,18,'#3b1c3f','italic')}
-  if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,CX,H-70,34,'#fbe8d3','italic');
-  if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',CX,H-70,34,'#ffdd88','italic');
+  if(state==='play'&&phase==='break')text(BN[wave]||'Волна '+wave,(viewLeft+viewRight)/2,viewBottom-70,34,'#fbe8d3','italic');
+  if(state==='play'&&phase==='clear')text('Волна '+wave+' отбита!',(viewLeft+viewRight)/2,viewBottom-70,34,'#ffdd88','italic');
   if(state==='shop')drawShop();
   else if(state!=='play'){
     drawEndScreen();
