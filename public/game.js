@@ -424,11 +424,23 @@ function pickType(){const ks=Object.keys(ENEMY_INTRO).filter(k=>ENEMY_INTRO[k]<=
   let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<ks.length;i++){r-=w[i];if(r<=0)return ks[i]}return ks[0]}
 
 // ===== Индивидуальные траектории боссов =====
-function bossPathPoint(path, u) {
+// У принца — одна широкая S-образная дуга.
+// У короля — отдельная многоволновая траектория с тремя заметными изгибами.
+function bossPathBend(path, u) {
   const envelope = Math.sin(Math.PI * u);
-  const bend = path.kind === 'prince'
-    ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
-    : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
+
+  if (path.kind === 'king') {
+    // Три последовательных боковых отклонения вместо прямого захода.
+    // Небольшая асимметрия делает манёвр короля отличимым от траектории принца.
+    return Math.sin(3 * Math.PI * u) * (0.78 + 0.22 * envelope)
+      + 0.10 * Math.sin(Math.PI * u);
+  }
+
+  return Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope);
+}
+
+function bossPathPoint(path, u) {
+  const bend = bossPathBend(path, u);
 
   return {
     x: path.sx + (path.tx - path.sx) * u
@@ -439,7 +451,7 @@ function bossPathPoint(path, u) {
 }
 
 function makeBossPath(k, x, y, targetRadius) {
-  // Учитываем размер спрайта, чтобы персонаж не выходил за видимую область.
+  // Учитываем размер спрайта, чтобы босс оставался в пределах экрана.
   const margin = Math.max(T[k].r + 16, 54);
   x = Math.max(margin, Math.min(W - margin, x));
   y = Math.max(margin, Math.min(H - margin, y));
@@ -448,66 +460,88 @@ function makeBossPath(k, x, y, targetRadius) {
   const dyToCenter = CY - y;
   const centerDistance = Math.hypot(dxToCenter, dyToCenter) || 1;
 
-  // Можно задать отдельный радиус цели для отхода и повторного сближения принца.
+  let tx, ty;
 
-let tx, ty;
+  if (targetRadius !== undefined) {
+    // Отдельная точка для отхода и повторного сближения принца.
+    tx = CX - dxToCenter / centerDistance * targetRadius;
+    ty = CY - dyToCenter / centerDistance * targetRadius;
+  } else if (k === 'prince') {
+    // Принц останавливается перед видимой границей замка.
+    const castleW = 210;
+    const castleH = IMG.castle
+      ? castleW * IMG.castle.height / IMG.castle.width
+      : 220;
 
-if (targetRadius !== undefined) {
+    const left = CX - castleW / 2;
+    const right = CX + castleW / 2;
+    const top = CY + 28 - castleH * .94;
+    const bottom = CY + 28 + castleH * .06;
 
-  // Явно заданная точка отхода после оглушения.
-  tx = CX - dxToCenter / centerDistance * targetRadius;
-  ty = CY - dyToCenter / centerDistance * targetRadius;
+    const dirX = (x - CX) / centerDistance;
+    const dirY = (y - CY) / centerDistance;
+    const exits = [];
 
-} else if (k === 'prince') {
+    if (dirX > 0.000001) exits.push((right - CX) / dirX);
+    else if (dirX < -0.000001) exits.push((left - CX) / dirX);
 
-  // Реальные размеры изображения замка из drawCastle().
-  const castleW = 210;
-  const castleH = IMG.castle
-    ? castleW * IMG.castle.height / IMG.castle.width
-    : 220;
+    if (dirY > 0.000001) exits.push((bottom - CY) / dirY);
+    else if (dirY < -0.000001) exits.push((top - CY) / dirY);
 
-  const left = CX - castleW / 2;
-  const right = CX + castleW / 2;
-  const top = CY + 28 - castleH * .94;
-  const bottom = CY + 28 + castleH * .06;
+    const edgeDistance = Math.min(...exits.filter(v => v >= 0));
+    const safeDistance = edgeDistance + T[k].r + 20;
 
-  // Направление от замка к принцу.
-  const dirX = (x - CX) / centerDistance;
-  const dirY = (y - CY) / centerDistance;
-
-  const exits = [];
-
-  if (dirX > 0.000001)
-    exits.push((right - CX) / dirX);
-  else if (dirX < -0.000001)
-    exits.push((left - CX) / dirX);
-
-  if (dirY > 0.000001)
-    exits.push((bottom - CY) / dirY);
-  else if (dirY < -0.000001)
-    exits.push((top - CY) / dirY);
-
-  const edgeDistance = Math.min(
-    ...exits.filter(v => v >= 0)
-  );
-
-  // Принц останавливается за границей изображения замка.
-  const safeDistance = edgeDistance + T[k].r + 20;
-
-  tx = CX + dirX * safeDistance;
-  ty = CY + dirY * safeDistance;
-
-} else {
-
-  tx = CX;
-  ty = CY;
-
-}
+    tx = CX + dirX * safeDistance;
+    ty = CY + dirY * safeDistance;
+  } else {
+    // Король направляется к замку по собственной многоволновой кривой.
+    tx = CX;
+    ty = CY;
+  }
 
   const dx = tx - x;
   const dy = ty - y;
   const distance = Math.hypot(dx, dy) || 1;
-  const side = Math.random() < 0.5 ? -1 : 1;
+  const normalX = -dy / distance;
+  const normalY = dx / distance;
+  const wantedAmplitude = k === 'king' ? 320 : 230;
+
+  // Проверяем оба направления изгиба. Выбираем то, у которого больше
+  // свободного места внутри экрана, чтобы сохранить выраженную кривую
+  // и не допустить выхода босса за границы поля.
+  const pathShape = { kind: k };
+
+  function allowedAmplitudeForSide(side) {
+    let allowed = wantedAmplitude;
+
+    for (let i = 1; i < 257; i++) {
+      const u = i / 256;
+      const bend = bossPathBend(pathShape, u);
+      const baseX = x + dx * u;
+      const baseY = y + dy * u;
+      const ox = normalX * side * bend;
+      const oy = normalY * side * bend;
+
+      if (ox > 1e-8) allowed = Math.min(allowed, (W - margin - baseX) / ox);
+      else if (ox < -1e-8) allowed = Math.min(allowed, (margin - baseX) / ox);
+
+      if (oy > 1e-8) allowed = Math.min(allowed, (H - margin - baseY) / oy);
+      else if (oy < -1e-8) allowed = Math.min(allowed, (margin - baseY) / oy);
+    }
+
+    const safetyFactor = k === 'king' ? 0.95 : 0.98;
+    return Math.max(0, Math.min(wantedAmplitude, allowed) * safetyFactor);
+  }
+
+  const ampPositive = allowedAmplitudeForSide(1);
+  const ampNegative = allowedAmplitudeForSide(-1);
+  let side;
+
+  if (Math.abs(ampPositive - ampNegative) < 8) {
+    side = Math.random() < 0.5 ? 1 : -1;
+  } else {
+    side = ampPositive > ampNegative ? 1 : -1;
+  }
 
   const path = {
     kind: k,
@@ -515,36 +549,15 @@ if (targetRadius !== undefined) {
     sy: y,
     tx,
     ty,
-    px: -dy / distance * side,
-    py: dx / distance * side,
-    amplitude: k === 'prince' ? 230 : 285,
+    px: normalX * side,
+    py: normalY * side,
+    amplitude: side === 1 ? ampPositive : ampNegative,
     u: 0,
     len: 0,
     arrived: false
   };
 
-  // Подбираем допустимую амплитуду для всей кривой, не обрезая её резкими clamp-ами.
-  const wantedAmplitude = path.amplitude;
-  let allowedAmplitude = wantedAmplitude;
-  for (let i = 1; i < 256; i++) {
-    const u = i / 256;
-    const envelope = Math.sin(Math.PI * u);
-    const bend = k === 'prince'
-      ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
-      : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
-    const baseX = x + dx * u;
-    const baseY = y + dy * u;
-    const ox = path.px * bend;
-    const oy = path.py * bend;
-
-    if (ox > 1e-8) allowedAmplitude = Math.min(allowedAmplitude, (W - margin - baseX) / ox);
-    else if (ox < -1e-8) allowedAmplitude = Math.min(allowedAmplitude, (margin - baseX) / ox);
-
-    if (oy > 1e-8) allowedAmplitude = Math.min(allowedAmplitude, (H - margin - baseY) / oy);
-    else if (oy < -1e-8) allowedAmplitude = Math.min(allowedAmplitude, (margin - baseY) / oy);
-  }
-  path.amplitude = Math.max(0, Math.min(wantedAmplitude, allowedAmplitude) * 0.98);
-
+  // Длина индивидуальной кривой нужна для равномерной скорости движения.
   let prev = bossPathPoint(path, 0);
   for (let i = 1; i <= 256; i++) {
     const next = bossPathPoint(path, i / 256);
