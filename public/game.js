@@ -84,23 +84,65 @@ function drawBall(b){
   ctx.drawImage(sh,f*fw,0,fw,fh,-w*.12,-h/2,w,h);ctx.restore()}
 const SPR={knight:{fr:6,h:58,ms:110},bard:{fr:8,h:60,ms:120},bardIdle:{fr:8,h:60,ms:180},prince:{fr:8,h:98,ms:130},princeCast:{fr:8,h:98,ms:130},princeThrow:{fr:8,h:98,ms:100},mage:{fr:8,h:62,ms:130},mageCast:{fr:8,h:62,ms:130},merchant:{fr:8,h:64,ms:120},merchantIdle:{fr:4,h:64,ms:450},merchantThrow:{fr:6,h:64,ms:100},king:{fr:8,h:112,ms:130},kingIdle:{fr:8,h:112,ms:140},kingSwing:{fr:8,h:112,ms:120}};
 function drawEnemy(e){
-  let key=e.k,fo=-1;const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;
+  let key=e.k,fo=-1;
+  const near=e.t.rng&&Math.hypot(e.x-CX,e.y-CY)<=e.t.rng+3;
+
   if(e.k==='bard'&&near&&IMG.bardIdle)key='bardIdle';
   else if(e.k==='mage'&&near&&!e.rush&&IMG.mageCast)key='mageCast';
-  else if(e.k==='prince'){const ci=castInfo(e);
-    if(ci[0]>0&&IMG.princeCast){key='princeCast';fo=Math.floor(ci[0]/100*SPR.princeCast.fr)}
-    else if(ci[2]>0&&IMG.princeThrow){key='princeThrow';fo=Math.floor(ci[2]/100*SPR.princeThrow.fr)}}
-  if(e.k==='merchant'){const th=castInfo(e)[2];
-    if(th>0&&IMG.merchantThrow){key='merchantThrow';fo=Math.floor(th/100*SPR.merchantThrow.fr)}
-    else if(near&&IMG.merchantIdle)key='merchantIdle'}
-  else if(e.k==='king'){const pr=castInfo(e)[2];
+
+  else if(e.k==='prince'){
+    const ci=castInfo(e);
+    const action=e.bossAction||(e.ab&&e.ab.action);
+
+    // Цветы: поднятие рук
+    if(action==='rose'&&ci[2]>0&&IMG.princeCast){
+      key='princeCast';
+      fo=Math.floor(ci[2]/100*SPR.princeCast.fr);
+    }
+    // Кольцо: бросок вперёд
+    else if(action==='ring'&&ci[2]>0&&IMG.princeThrow){
+      key='princeThrow';
+      fo=Math.floor(ci[2]/100*SPR.princeThrow.fr);
+    }
+    else if(ci[0]>0&&IMG.princeCast){
+      key='princeCast';
+      fo=Math.floor(ci[0]/100*SPR.princeCast.fr);
+    }
+  }
+
+  if(e.k==='merchant'){
+    const th=castInfo(e)[2];
+    if(th>0&&IMG.merchantThrow){
+      key='merchantThrow';
+      fo=Math.floor(th/100*SPR.merchantThrow.fr);
+    }
+    else if(near&&IMG.merchantIdle)key='merchantIdle';
+  }
+  else if(e.k==='king'){
+    const pr=castInfo(e)[2];
     if(pr>0&&pr<38&&IMG.kingIdle)key='kingIdle';
-    else if(pr>=38&&IMG.kingSwing){key='kingSwing';fo=Math.floor((pr-38)/62*SPR.kingSwing.fr)}}
+    else if(pr>=38&&IMG.kingSwing){
+      key='kingSwing';
+      fo=Math.floor((pr-38)/62*SPR.kingSwing.fr);
+    }
+  }
+
   const sp=SPR[key],sh=sp&&IMG[key];
+
   if(sh){
-    const fw=sh.width/sp.fr,fh=sh.height,h=sp.h,w=h*fw/fh,t=typeof performance!=='undefined'?performance.now():0,f=fo>=0?Math.min(sp.fr-1,fo):Math.floor(t/sp.ms+e.id)%sp.fr;
-    ctx.save();ctx.translate(e.x,e.y);if(e.x>CX)ctx.scale(-1,1);ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);ctx.restore()}
-  else emoji(e.t.e,e.x,e.y,e.t.sz)}
+    const fw=sh.width/sp.fr,fh=sh.height;
+    const h=sp.h,w=h*fw/fh;
+    const t=typeof performance!=='undefined'?performance.now():0;
+    const f=fo>=0?Math.min(sp.fr-1,fo):Math.floor(t/sp.ms+e.id)%sp.fr;
+
+    ctx.save();
+    ctx.translate(e.x,e.y);
+    if(e.x>CX)ctx.scale(-1,1);
+    ctx.drawImage(sh,f*fw,0,fw,fh,-w/2,-h/2,w,h);
+    ctx.restore();
+  }
+  else emoji(e.t.e,e.x,e.y,e.t.sz);
+}
 function drawCastle(){
   if(!castleV.length){emoji('🏰',CX,CY-40,100);return}
   const fr=tower/towerMax,st=fr>.66?0:fr>.33?1:2,im=castleV[st],w=210,h=w*im.height/im.width;
@@ -112,7 +154,7 @@ function drawCastle(){
 
 // ===== Состояние мира =====
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
-let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false,zones=[],markId=-1,markT=0;
+let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
@@ -160,7 +202,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];markId=-1}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1}
 function nextWave(){
   wave++;queue=[];spawned=0;
   const n=Math.round((4+wave*2.2)*(1+.85*Math.sqrt(players.length-1))*(BOSS[wave]?.85:1));
@@ -235,48 +277,247 @@ function castInfo(e){
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
   return[e.cast||0,e.ip||0,e.thr||0]}
 function bossAI(e,dt){
-  const a=e.ab||(e.ab=e.k==='prince'?{t1:5,cast:0,castT:BOSSCFG.castT,castHp:0,cd:6,stun:0}:{t1:4,t2:12,stun:0}),f=e.hp<e.max*.5?.6:1;
+  const a=e.ab||(e.ab=e.k==='prince'
+    ?{t1:5,cast:0,castT:BOSSCFG.castT,castHp:0,cd:6,stun:0}
+    :{t1:4,t2:12,stun:0});
+
+  const f=e.hp<e.max*.5?.6:1;
+
   e.hold=false;
-  if(a.thr>0)a.thr-=dt;
-  if(a.stun>0){a.stun-=dt;e.hold=true;return}
+
+  if(a.thr>0){
+    a.thr=Math.max(0,a.thr-dt);
+    if(a.thr===0)a.action=null;
+  }
+
+  if(a.stun>0){
+    a.stun-=dt;
+    e.hold=true;
+    return;
+  }
+
   if(e.k==='prince'){
-    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.roseEvery*f;roseRain(e)}
-    if(a.cast>0){
-      e.hold=true;a.cast-=dt;
-      if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){a.cast=0;a.stun=BOSSCFG.stun;a.cd=BOSSCFG.castCd;say('Предложение сорвано! Принц оглушён!');tag(e,'Оглушён!');boom(e.x,e.y,'#ffd24d',16)}
-      else if(a.cast<=0){tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);a.cd=BOSSCFG.castCd;e.hold=false;shake=14;boom(CX,CY,'#ff9bb3',24);say('Принц успел сделать предложение! Принцесса в смятении!')}
-    }else{
-      a.cd-=dt;
-      if(a.cd<=0&&Math.hypot(CX-e.x,CY-e.y)<=230){a.cast=a.castT;a.castHp=e.hp;e.hold=true;say('Принц делает предложение! Собьём его, пока не поздно!',4);tag(e,'Предложение!')}
+
+    if(a.thr>0&&a.action)e.hold=true;
+
+    a.t1-=dt;
+    if(a.t1<=0){
+      a.t1=BOSSCFG.roseEvery*f;
+      roseRain(e);
     }
-  }else{
+
+    if(a.cast>0){
+      e.hold=true;
+      a.cast-=dt;
+
+      if(a.castHp-e.hp>=e.max*BOSSCFG.castBreak){
+        a.cast=0;
+        a.stun=BOSSCFG.stun;
+        a.cd=BOSSCFG.castCd;
+        a.action=null;
+
+        say('Предложение сорвано! Принц оглушён!');
+        tag(e,'Оглушён!');
+        boom(e.x,e.y,'#ffd24d',16);
+      }
+      else if(a.cast<=0){
+        a.cd=BOSSCFG.castCd;
+        throwPrinceRing(e);
+        e.hold=true;
+      }
+    }
+    else{
+      a.cd-=dt;
+
+      if(a.cd<=0&&Math.hypot(CX-e.x,CY-e.y)<=230){
+        a.cast=a.castT;
+        a.castHp=e.hp;
+        e.hold=true;
+
+        say('Принц делает предложение! Собьём его, пока не поздно!',4);
+        tag(e,'Предложение!');
+      }
+    }
+  }
+  else{
     if(a.pend){
       e.hold=true;
+
       if(a.thr<=0)a.pend=null;
-      else if(a.thr<=KING_ACT-.5&&!a.did){a.did=true;if(a.pend==='decree')decree(e);else disgrace(e)}
-      return}
-    a.t1-=dt;if(a.t1<=0){a.t1=BOSSCFG.decreeEvery*f;a.pend='decree';a.did=false;a.thr=a.thrT=KING_ACT}
-    a.t2-=dt;if(a.t2<=0){a.t2=BOSSCFG.disgraceEvery*f;a.pend='disgrace';a.did=false;a.thr=a.thrT=KING_ACT}
+      else if(a.thr<=KING_ACT-.5&&!a.did){
+        a.did=true;
+        if(a.pend==='decree')decree(e);
+        else disgrace(e);
+      }
+      return;
+    }
+
+    a.t1-=dt;
+    if(a.t1<=0){
+      a.t1=BOSSCFG.decreeEvery*f;
+      a.pend='decree';
+      a.did=false;
+      a.thr=a.thrT=KING_ACT;
+    }
+
+    a.t2-=dt;
+    if(a.t2<=0){
+      a.t2=BOSSCFG.disgraceEvery*f;
+      a.pend='disgrace';
+      a.did=false;
+      a.thr=a.thrT=KING_ACT;
+    }
+  }
+}
+function throwPrinceRing(e){
+  const sx=e.x;
+  const sy=e.y-28;
+  const tx=CX;
+  const ty=CY-20;
+  const dist=Math.hypot(tx-sx,ty-sy);
+  const flight=Math.max(.65,dist/320);
+
+  bossProjectiles.push({
+    id:++uid,
+    kind:'ring',
+    sx,sy,tx,ty,
+    t:0,
+    d:flight,
+    arc:34,
+    zoneId:0
+  });
+
+  // Анимация броска вперёд
+  e.ab.thr=e.ab.thrT=flight;
+  e.ab.action='ring';
+
+  say('Принц бросает кольцо!');
+  tag(e,'Кольцо!');
+}
+
+function updateBossProjectiles(dt){
+  const remain=[];
+
+  for(const p of bossProjectiles){
+    p.t=Math.min(p.d,p.t+dt);
+
+    if(p.t>=p.d){
+      if(p.kind==='bouquet'){
+        const z=zones.find(z=>z.id===p.zoneId);
+        if(z)z.landed=true;
+      }
+      else{
+        tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);
+        shake=14;
+        boom(CX,CY,'#ff9bb3',24);
+        say('Принц успел бросить кольцо! Принцесса в смятении!');
+      }
+    }
+    else remain.push(p);
+  }
+
+  bossProjectiles=remain;
+}
+
+function drawBossProjectiles(){
+  const now=typeof performance!=='undefined'?performance.now():0;
+
+  for(const p of bossProjectiles){
+    const u=Math.max(0,Math.min(1,p.t/p.d));
+    const x=p.sx+(p.tx-p.sx)*u;
+    const y=p.sy+(p.ty-p.sy)*u-Math.sin(Math.PI*u)*p.arc;
+
+    const sheet=p.kind==='bouquet'?IMG.bouquet:IMG.ring;
+    const size=p.kind==='bouquet'?42:38;
+
+    if(sheet)drawSheet(sheet,6,x,y,size,now/95+p.id);
+    else emoji(p.kind==='bouquet'?'💐':'💍',x,y,size);
   }
 }
 function roseRain(e){
-  const n=Math.min(12,3+Math.ceil(players.length*.6)),alive=players.filter(p=>!p.asleep&&!p.gone);
+  const n=Math.min(12,3+Math.ceil(players.length*.6));
+  const alive=players.filter(p=>!p.asleep&&!p.gone);
+
   for(let i=0;i<n;i++){
     let x,y;
-    if(alive.length&&Math.random()<.6){const p=alive[Math.random()*alive.length|0];x=p.x+(Math.random()-.5)*90;y=p.y+(Math.random()-.5)*90}
-    else{x=80+Math.random()*(W-160);y=130+Math.random()*(H-200)}
-    zones.push({id:++uid,x:Math.max(40,Math.min(W-40,x)),y:Math.max(90,Math.min(H-40,y)),r:BOSSCFG.roseR,t:0,d:BOSSCFG.roseDelay})}
-  say('Принц осыпает всех розами! Уходите с красных кругов!');tag(e,'Розы!');e.ab.thr=THROW_T}
+
+    if(alive.length&&Math.random()<.6){
+      const p=alive[Math.random()*alive.length|0];
+      x=p.x+(Math.random()-.5)*90;
+      y=p.y+(Math.random()-.5)*90;
+    }
+    else{
+      x=80+Math.random()*(W-160);
+      y=130+Math.random()*(H-200);
+    }
+
+    const zone={
+      id:++uid,
+      x:Math.max(40,Math.min(W-40,x)),
+      y:Math.max(90,Math.min(H-40,y)),
+      r:BOSSCFG.roseR,
+      t:0,
+      d:BOSSCFG.roseDelay,
+      landed:false
+    };
+
+    zones.push(zone);
+
+    // Букет летит от принца к целевой точке
+    bossProjectiles.push({
+      id:++uid,
+      kind:'bouquet',
+      sx:e.x,
+      sy:e.y-30,
+      tx:zone.x,
+      ty:zone.y,
+      t:-.12,
+      d:.66,
+      arc:72,
+      zoneId:zone.id
+    });
+  }
+
+  say('Принц осыпает всех розами! Уходите с красных кругов!');
+  tag(e,'Розы!');
+
+  // Анимация поднятия рук
+  e.ab.thr=e.ab.thrT=THROW_T;
+  e.ab.action='rose';
+}
 function decree(e){const n=4+Math.ceil(Math.sqrt(players.length)*2);for(let i=0;i<n;i++)spawn('knight');say('Королевский указ: стража, на помощь!');tag(e,'Указ!')}
 function disgrace(e){
   const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return;
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
   say('Король объявил '+p.name+' похитителем принцессы! Беги, остальные прикрывайте!',4);tag(e,'Взять дракона!')}
-function drawZones(){const t=typeof performance!=='undefined'?performance.now()/1000:0;
-  for(const z of zones){const u=Math.min(1,z.t/z.d);
-    ctx.globalAlpha=.12+.28*u;ctx.fillStyle='#ff2d55';ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.fill();
-    ctx.globalAlpha=.55+.4*Math.sin(t*14);ctx.strokeStyle='#ff4d6d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,z.r,0,6.283);ctx.stroke();ctx.lineWidth=1;ctx.globalAlpha=1;
-    if(IMG.bouquet)drawSheet(IMG.bouquet,6,z.x,z.y,46,t*9+z.id);else emoji('🌹',z.x,z.y,24)}}
+function drawZones(){
+  const t=typeof performance!=='undefined'?performance.now()/1000:0;
+
+  for(const z of zones){
+    const u=Math.min(1,z.t/z.d);
+
+    ctx.globalAlpha=.12+.28*u;
+    ctx.fillStyle='#ff2d55';
+    ctx.beginPath();
+    ctx.arc(z.x,z.y,z.r,0,6.283);
+    ctx.fill();
+
+    ctx.globalAlpha=.55+.4*Math.sin(t*14);
+    ctx.strokeStyle='#ff4d6d';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.arc(z.x,z.y,z.r,0,6.283);
+    ctx.stroke();
+
+    ctx.lineWidth=1;
+    ctx.globalAlpha=1;
+
+    if(z.landed){
+      if(IMG.bouquet)drawSheet(IMG.bouquet,6,z.x,z.y,46,t*9+z.id);
+      else emoji('🌹',z.x,z.y,24);
+    }
+  }
+}
 function drawEnemyMarks(e){
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
   if(e.chase){ctx.strokeStyle='rgba(255,60,60,'+(.65+.3*Math.sin(t*10))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+9,0,6.283);ctx.stroke();ctx.lineWidth=1}
@@ -392,6 +633,7 @@ function update(dt){
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
   zones=zones.filter(z=>z.t<z.d);
+  updateBossProjectiles(dt);
   for(const c of pickups){if(!players[c.own].asleep)c.life-=dt;c.res-=dt;
     let best=null,bd=1e9;
     for(const p of players){if(p.asleep||(c.res>0&&c.own!==p.id))continue;const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<bd){bd=d;best=p}}
@@ -468,6 +710,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   drawZones();
   drawCastle();
   for(const e of enemies)drawE(e);
+  drawBossProjectiles();
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
   for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(n.tx,n.ty,40,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r+4,0,6.283);ctx.stroke();ctx.lineWidth=1;if(bg&&IMG.coinBag)drawSheet(IMG.coinBag,6,n.x,n.y,36,(typeof performance!=='undefined'?performance.now():0)/110+n.id);else emoji(bg?'💰':'🎵',n.x,n.y,24)}
@@ -517,13 +760,29 @@ function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
     P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
-    E:enemies.map(e=>[e.id,KINDS.indexOf(e.k),r1(e.x),r1(e.y),r10(e.hp),r1(e.max),e.sh?1:0,e.chase?1:0,...castInfo(e),e.rush?1:0]),
-    Z:zones.map(z=>[z.id,r1(z.x),r1(z.y),z.r,Math.round(z.t*100)/100,z.d]),
+   E:enemies.map(e=>[
+  e.id,KINDS.indexOf(e.k),
+  r1(e.x),r1(e.y),r10(e.hp),r1(e.max),
+  e.sh?1:0,e.chase?1:0,
+  ...castInfo(e),
+  e.rush?1:0,
+  e.ab&&e.ab.action==='rose'?1:
+  e.ab&&e.ab.action==='ring'?2:0
+]),
+   Z:zones.map(z=>[
+  z.id,r1(z.x),r1(z.y),z.r,
+  Math.round(z.t*100)/100,z.d,z.landed?1:0
+]),
     B:balls.map(b=>[b.id,r1(b.x),r1(b.y),b.owner,r10(b.r),Math.round(b.ang*100)]),
     N:notes.map(n=>[n.id,n.k==='bag'?1:0,r1(n.x),r1(n.y),r1(n.tx),r1(n.ty),Math.round(n.t*100)/100]),
     K:pickups.map(c=>[c.id,r1(c.x),r1(c.y),c.v,c.t,r10(c.life)]),
     M:beams.map(b=>[r1(b.x1),r1(b.y1),r1(b.x2),r1(b.y2),Math.round(b.life*100)/100]),
     G:tags.map(t=>[r1(t.x),r1(t.y),t.txt,r10(t.life)]),
+       R:bossProjectiles.map(p=>[
+  p.id,p.kind==='ring'?1:0,
+  r1(p.sx),r1(p.sy),r1(p.tx),r1(p.ty),
+  r10(p.t),r10(p.d),r1(p.arc),p.zoneId||0
+]),
     V:evs});
   evs=[];
 }
@@ -566,13 +825,42 @@ function guestFrame(dt,now){
   const gain=(me.asleep||me.frz>0)?.3:err>150?.15:(mx||my)?0:.12,g=1-Math.pow(1-gain,dt*60);
   me.x+=(au[0]-me.x)*g;me.y+=(au[1]-me.y)*g;
   const mp=arr=>new Map((arr||[]).map(e=>[e[0],e])),ea=mp(a.E),ba=mp(a.B),ka=mp(a.K);
-  enemies=nx.E.map(e=>{const o=ea.get(e[0]),kk=KINDS[e[1]];return{id:e[0],k:kk,t:T[kk],x:o?lp(o[2],e[2]):e[2],y:o?lp(o[3],e[3]):e[3],hp:e[4],max:e[5],sh:e[6],chase:e[7],cast:e[8],ip:e[9],thr:e[10],rush:!!e[11]}});
-  zones=(b.Z||[]).map(e=>({id:e[0],x:e[1],y:e[2],r:e[3],t:e[4],d:e[5]}));
+  enemies=nx.E.map(e=>{
+  const o=ea.get(e[0]),kk=KINDS[e[1]];
+  return{
+    id:e[0],
+    k:kk,
+    t:T[kk],
+    x:o?lp(o[2],e[2]):e[2],
+    y:o?lp(o[3],e[3]):e[3],
+    hp:e[4],
+    max:e[5],
+    sh:e[6],
+    chase:e[7],
+    cast:e[8],
+    ip:e[9],
+    thr:e[10],
+    rush:!!e[11],
+    bossAction:e[12]===1?'rose':e[12]===2?'ring':null
+  };
+});
+ zones=(b.Z||[]).map(e=>({
+  id:e[0],x:e[1],y:e[2],r:e[3],
+  t:e[4],d:e[5],landed:!!e[6]
+}));
   balls=nx.B.filter(e=>e[3]!==me.id).map(e=>{const o=ba.get(e[0]);return{id:e[0],x:o?lp(o[1],e[1]):e[1],y:o?lp(o[2],e[2]):e[2],r:e[4],ang:e[5]/100,col:COLORS[players[e[3]].ci][1]}}).concat(myBalls);
   notes=nx.N.map(e=>({id:e[0],k:e[1]?'bag':'note',x:e[2],y:e[3],tx:e[4],ty:e[5],t:e[6],r:12}));
   pickups=nx.K.map(e=>{const o=ka.get(e[0]);return{id:e[0],x:o?lp(o[1],e[1]):e[1],y:o?lp(o[2],e[2]):e[2],v:e[3],t:e[4],life:e[5]}});
   beams=b.M.map(e=>({x1:e[0],y1:e[1],x2:e[2],y2:e[3],life:e[4]}));
   tags=b.G.map(e=>({x:e[0],y:e[1],txt:e[2],life:e[3]}));
+  bossProjectiles=(b.R||[]).map(e=>({
+  id:e[0],
+  kind:e[1]?'ring':'bouquet',
+  sx:e[2],sy:e[3],
+  tx:e[4],ty:e[5],
+  t:e[6],d:e[7],
+  arc:e[8],zoneId:e[9]
+}));
 }
 
 function loop(t){
