@@ -217,38 +217,59 @@ function pickType(){const ks=Object.keys(ENEMY_INTRO).filter(k=>ENEMY_INTRO[k]<=
   let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<ks.length;i++){r-=w[i];if(r<=0)return ks[i]}return ks[0]}
 
 // ===== Индивидуальные траектории боссов =====
-function bossPathPoint(path,u){
-  const bend=path.kind==='prince'?Math.sin(Math.PI*u):Math.sin(2*Math.PI*u);
-  return{
-    x:path.sx+(CX-path.sx)*u+path.px*path.amplitude*bend,
-    y:path.sy+(CY-path.sy)*u+path.py*path.amplitude*bend
+function bossPathPoint(path, u) {
+  const envelope = Math.sin(Math.PI * u);
+
+  const bend = path.kind === 'prince'
+    ? Math.sin(2 * Math.PI * u) * (0.78 + 0.22 * envelope)
+    : Math.sin(3 * Math.PI * u) * (0.70 + 0.30 * envelope);
+
+  return {
+    x: path.sx + (CX - path.sx) * u
+      + path.px * path.amplitude * bend,
+
+    y: path.sy + (CY - path.sy) * u
+      + path.py * path.amplitude * bend
   };
 }
-function makeBossPath(k,x,y){
-  const dx=CX-x,dy=CY-y,d=Math.hypot(dx,dy)||1,side=Math.random()<.5?-1:1;
-  const path={
-    kind:k,
-    sx:x,
-    sy:y,
-    px:-dy/d*side,
-    py:dx/d*side,
-    amplitude:k==='prince'?125:185,
-    u:0,
-    len:0
+function makeBossPath(k, x, y) {
+  const dx = CX - x;
+  const dy = CY - y;
+  const d = Math.hypot(dx, dy) || 1;
+
+  const side = Math.random() < 0.5 ? -1 : 1;
+
+  const path = {
+    kind: k,
+    sx: x,
+    sy: y,
+    px: -dy / d * side,
+    py: dx / d * side,
+    amplitude: k === 'prince' ? 230 : 285,
+    u: 0,
+    len: 0
   };
-  let prev=bossPathPoint(path,0);
-  for(let i=1;i<=48;i++){
-    const next=bossPathPoint(path,i/48);
-    path.len+=Math.hypot(next.x-prev.x,next.y-prev.y);
-    prev=next;
+
+  let prev = bossPathPoint(path, 0);
+
+  for (let i = 1; i <= 96; i++) {
+    const next = bossPathPoint(path, i / 96);
+
+    path.len += Math.hypot(
+      next.x - prev.x,
+      next.y - prev.y
+    );
+
+    prev = next;
   }
+
   return path;
 }
 function spawn(k){
   spawned++;
   const a=Math.random()*6.283,t=T[k],s=k==='prince'?1+(players.length-1)*BOSSCFG.hpPrince:k==='king'?1+(players.length-1)*BOSSCFG.hpKing:1+(wave-1)*.2;
   const e={id:++uid,k,t,x:CX+Math.cos(a)*(W/2+230),y:CY+Math.sin(a)*(H/2+150),hp:t.hp*s,max:t.hp*s};
-  if(t.boss)e.path=makeBossPath(k,e.x,e.y);
+  if(t.boss) e.path = makeBossPath(k, e.x, e.y);
   enemies.push(e);
 }
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}
@@ -612,13 +633,20 @@ function update(dt){
     }
     else if(!e.hold){
       const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
-      if(e.path){
-        e.path.u=Math.min(1,e.path.u+sm*dt/e.path.len);
-        const q=bossPathPoint(e.path,e.path.u);
-        e.x=q.x;e.y=q.y;
-      }else{
-        e.x+=dx/d*sm*dt;e.y+=dy/d*sm*dt;
-      }
+if (e.path) {
+  e.path.u = Math.min(
+    1,
+    e.path.u + sm * dt / e.path.len
+  );
+
+  const q = bossPathPoint(e.path, e.path.u);
+
+  e.x = q.x;
+  e.y = q.y;
+} else {
+  e.x += dx / d * sm * dt;
+  e.y += dy / d * sm * dt;
+}
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
     if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
