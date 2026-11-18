@@ -690,8 +690,8 @@ function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLA
   boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
   for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
-const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:24,disgraceT:8};
-const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5;
+const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:7,disgraceEvery:10,disgraceT:8};
+const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5,KING_MIN_DISGRACES=5;
 function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
@@ -713,7 +713,7 @@ function bossAI(e,dt){
       repositionPathStarted:false,
       repositioned:false
     }
-    :{t1:3,t2:12,stun:0,decreeCount:0,approachStarted:false});
+    :{t1:3,t2:8,stun:0,decreeCount:0,disgraceCount:0,approachStarted:false});
 
   const f=e.hp<e.max*.5?.6:1;
   e.hold=false;
@@ -878,28 +878,35 @@ if(!a.arrived){
     return;
   }
 
-  // До пяти королевских призывов стражи король не начинает путь к башне.
-  // Сама многоволновая траектория сохраняется и запускается после последнего указа.
-  if(!a.approachStarted&&(a.decreeCount||0)>=KING_MIN_DECREES){
+  // Король отправляется к башне только после пяти указов с призывом
+  // стражи И пяти отдельных обвинений драконов в похищении принцессы.
+  const decreesDone=(a.decreeCount||0)>=KING_MIN_DECREES;
+  const accusationsDone=(a.disgraceCount||0)>=KING_MIN_DISGRACES;
+  if(!a.approachStarted&&decreesDone&&accusationsDone){
     a.approachStarted=true;
     e.path=makeBossPath('king',e.x,e.y);
-    say('Король собрал стражу и направляется к башне!',4);
+    say('Король отдал пять указов и пять раз объявил драконов похитителями. Теперь он направляется к башне!',4);
     tag(e,'К башне!');
   }
 
-  a.t1-=dt;
-  a.t2-=dt;
-  if(a.t1<=0){
-    a.t1=BOSSCFG.decreeEvery*f;
-    a.pend='decree';
-    a.did=false;
-    a.thr=a.thrT=KING_ACT;
-  }
-  else if(a.t2<=0){
-    a.t2=BOSSCFG.disgraceEvery*f;
-    a.pend='disgrace';
-    a.did=false;
-    a.thr=a.thrT=KING_ACT;
+  // После выполнения своей части король больше не повторяет действие.
+  // Таймеры двух типов действий идут параллельно, пока король патрулирует.
+  if(!a.approachStarted){
+    if(!decreesDone)a.t1-=dt;
+    if(!accusationsDone)a.t2-=dt;
+
+    if(!decreesDone&&a.t1<=0){
+      a.t1=BOSSCFG.decreeEvery*f;
+      a.pend='decree';
+      a.did=false;
+      a.thr=a.thrT=KING_ACT;
+    }
+    else if(!accusationsDone&&a.t2<=0){
+      a.t2=BOSSCFG.disgraceEvery*f;
+      a.pend='disgrace';
+      a.did=false;
+      a.thr=a.thrT=KING_ACT;
+    }
   }
 
   e.hold=false;
@@ -1025,13 +1032,16 @@ function decree(e){
   const n=4+Math.ceil(Math.sqrt(players.length)*2);
   for(let i=0;i<n;i++)spawn('knight');
   const count=e.ab?(e.ab.decreeCount=(e.ab.decreeCount||0)+1):1;
-  say(count>=KING_MIN_DECREES?'Король собрал стражу и готовится к башне!':'Королевский указ: стража, на помощь!');
+  say(count>=KING_MIN_DECREES?'Пятый королевский указ! Стража собрана.':'Королевский указ '+count+'/'+KING_MIN_DECREES+': стража, на помощь!');
   tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
 }
 function disgrace(e){
   const alive=players.filter(p=>!p.asleep&&!p.gone);if(!alive.length)return;
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
-  say('Король объявил '+p.name+' похитителем принцессы! Беги, остальные прикрывайте!',4);tag(e,'Взять дракона!')}
+  const count=e.ab?(e.ab.disgraceCount=(e.ab.disgraceCount||0)+1):1;
+  say('Король в '+count+'-й раз объявил '+p.name+' похитителем принцессы! Драконы, защищайтесь! ('+count+'/'+KING_MIN_DISGRACES+')',4);
+  tag(e,'Похититель '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
+}
 function drawZones(){
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
 
@@ -1604,17 +1614,8 @@ function drawDragon(p){
     ctx.restore();
   }
 
-  const c=COLORS[p.ci][1];
-  ctx.fillStyle=c;
-  ctx.globalAlpha=.3;
-  ctx.beginPath();
-  ctx.arc(p.x,p.y,25,0,6.283);
-  ctx.fill();
-  ctx.globalAlpha=1;
-  ctx.strokeStyle=c;
-  ctx.lineWidth=2;
-  ctx.stroke();
-  ctx.lineWidth=1;
+  // Не рисуем цветной круг вокруг дракона: при некоторых палитрах
+  // он выглядит как постороннее жёлтое свечение во время выстрела.
 
   if(!(p.inv>0&&Math.floor(p.inv*10)%2)){
     ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;
@@ -1624,7 +1625,9 @@ function drawDragon(p){
 
   // A clearly visible, shield-like golden halo appears when the dragon
   // collects a gold coin. Draw it after the sprite so it cannot be hidden.
-  if((p.coinGlow||0)>0){
+  const isFiring = !!(p.in && (p.in.fire || p.in.alt)) ||
+    (p===me && !!(mouse && (mouse.down || mouse.alt)));
+  if((p.coinGlow||0)>0 && !isFiring){
     const strength=Math.min(1,p.coinGlow/1.2);
     const pulse=.88+.12*Math.sin(now/70+p.id*1.7);
     const radius=44+1.5*Math.sin(now/110+p.id);
@@ -2026,7 +2029,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0)|((p.in&&(p.in.fire||p.in.alt))?64:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
    E:enemies.map(e=>[
   e.id,KINDS.indexOf(e.k),
   r1(e.x),r1(e.y),r10(e.hp),r1(e.max),
@@ -2073,7 +2076,7 @@ chorusBardId=b.cb??null;
 inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];p.coinGlow=q[17]||0;
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);p.in=p.in||{};p.in.fire=!!(q[4]&64);p.in.alt=false;if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];p.coinGlow=p.in.fire?0:(q[17]||0);
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
