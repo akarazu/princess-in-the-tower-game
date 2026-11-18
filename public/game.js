@@ -257,7 +257,7 @@ function drawCastle(){
 // ===== Состояние мира =====
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
 let TEST_MODE=false,testInvulnerable=false;
-let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
+let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
@@ -904,8 +904,54 @@ function update(dt){
   for(const b of balls)for(const n of notes){if(n.hp>0&&b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){n.hp=0;b.life=0;boom(n.x,n.y,'#7fd6ff',8)}}
   for(const b of balls)if(b.blast&&b.life<=0)explode(b);
   balls=balls.filter(b=>b.life>0);
-  const bn=enemies.filter(o=>o.hp>0&&o.k==='bard').length;
-  if(bn){chorusCd-=dt;if(chorusCd<=0){chorusCd=8;chorusT=3;say('Бард запел припев! Враги ускорились!')}}else{chorusCd=Math.max(chorusCd,5);chorusT=0}
+
+const activeBards = enemies.filter(
+  e => e.hp > 0 && e.k === 'bard'
+);
+
+if(activeBards.length){
+
+  chorusCd -= dt;
+
+  if(chorusCd <= 0){
+
+    chorusCd = 8;
+    chorusT = 3;
+
+    // Выбираем одного барда, который запускает ускорение.
+    // Это ближайший к замку живой бард.
+    const caster = activeBards.reduce((best, current) => {
+      const currentDist = Math.hypot(
+        current.x - CX,
+        current.y - CY
+      );
+
+      const bestDist = best
+        ? Math.hypot(best.x - CX, best.y - CY)
+        : Infinity;
+
+      return currentDist < bestDist ? current : best;
+    }, null);
+
+    chorusBardId = caster ? caster.id : null;
+
+    say('Бард запел припев! Враги ускорились!');
+  }
+
+}else{
+
+  chorusCd = Math.max(chorusCd, 5);
+  chorusT = 0;
+  chorusBardId = null;
+}
+
+chorusT = Math.max(0, chorusT - dt);
+
+// После окончания ускорения убираем музыкальный эффект.
+if(chorusT <= 0){
+  chorusBardId = null;
+}
+
   chorusT=Math.max(0,chorusT-dt);
   const insp=inspV=chorusT>0?1.6:1;
   if(markId>=0){markT-=dt;const mp=players[markId];if(markT<=0||!mp||mp.asleep||mp.gone){markId=-1;say('Опала закончилась.')}}
@@ -1028,7 +1074,9 @@ function drawDragon(p){
   ctx.strokeStyle=c;ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;
   if(!(p.inv>0&&Math.floor(p.inv*10)%2)){ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;drawDragonSprite(p);ctx.globalAlpha=1}
   if(p.dead)emoji('💀',p.x,p.y-34,26);
-  else if(p.asleep){text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');emoji('💤',p.x+24,p.y-28,22);ctx.lineWidth=4;ctx.beginPath();
+  else if(p.asleep){
+  text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
+  ctx.lineWidth=4;ctx.beginPath();
     ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));ctx.stroke();ctx.lineWidth=1}
   if(p.mark){const t=typeof performance!=='undefined'?performance.now()/1000:0;ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,48,0,6.283);ctx.stroke();ctx.lineWidth=1;emoji('👑',p.x,p.y-54,26)}
   if(p.frz>0)emoji('💰',p.x-24,p.y-28,22);
@@ -1064,7 +1112,13 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   ctx.translate(ox,oy);
   ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.textAlign='center';ctx.textBaseline='middle';
-  const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(e.k==='bard')emoji('🎵',e.x+16,e.y-22,16);else if(inspV>1&&!e.t.rng)emoji('🎶',e.x+14,e.y-22,14);
+  const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='#8fd8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+6,0,6.283);ctx.stroke();ctx.lineWidth=1}if(
+  e.k === 'bard' &&
+  chorusT > 0 &&
+  e.id === chorusBardId
+){
+  emoji('🎵',e.x+16,e.y-22,18);
+}
     if(e.hp<e.max){ctx.fillStyle='#0008';ctx.fillRect(e.x-18,e.y-e.t.r-10,36,4);ctx.fillStyle='#ff6b81';ctx.fillRect(e.x-18,e.y-e.t.r-10,36*e.hp/e.max,4)}};
   drawZones();
   drawCastle();
@@ -1117,7 +1171,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
-  net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
+  net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
     P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100)]),
    E:enemies.map(e=>[
   e.id,KINDS.indexOf(e.k),
@@ -1159,7 +1213,10 @@ function guestFrame(dt,now){
   for(let i=0;i<L;i++){if(snaps[i].recv<=rt)a=snaps[i]}
   for(let i=0;i<L;i++){if(snaps[i].recv>rt){nx=snaps[i];break}}
   const al=a===nx?1:Math.min(1,Math.max(0,(rt-a.recv)/(nx.recv-a.recv))),lp=(u,v)=>u+(v-u)*al;
-  state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;chorusCd=b.cC;inspV=b.iv;shopLeft=b.sl;
+  state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;
+chorusCd=b.cC;
+chorusBardId=b.cb??null;
+inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
     p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];
