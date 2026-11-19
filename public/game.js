@@ -7,54 +7,64 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_REWARDS={prince:[10,4],king:[20,8]},BN={
-  3:'«Тише! У меня тут серенада!»',
-  5:'«Принц снова с кольцом?!»',
-  6:'«Маг, не лечи им всех!»',
-  8:'«Купец! Что в мешке?»',
-  10:'«Папа?! Где вся гвардия?!»'
+  3:'Новый поклонник: бард с серенадами!',
+  5:'Босс: Прекрасный принц со свитой',
+  6:'Новый поклонник: маг лечит и защищает щитами!',
+  8:'Новый поклонник: купец с мешками золота!',
+  10:'Финал: отец принцессы и вся свита'
 };
-// Реплики звучат от лица принцессы: больше характера, самоиронии и реакции на события.
+// Короткие реплики в прежнем стиле: простые фразы и быстрые реакции принцессы.
 const Q={
-  start:['Драконы, вы вовремя! У меня тут очередное мероприятие по спасению башни.','Они опять идут… У меня уже закончились вежливые отказы. Остались только вы!','Добро пожаловать на защиту башни! Чай после победы, обещаю.'],
-  hit:['Опять к башне! У вас там семейная скидка на осаду?','Я не принимаю гостей с мечами. Даже по предварительной записи!','Передайте ему: свидание отменено. Башня тоже против.','Почему все мои поклонники приходят с армией?','У меня сегодня день тишины. Особенно для рыцарей!','Кто выдал им адрес? Я же просила не публиковать его в летописях!'],
-  kill:['Вот это сервис! Драконы, вам бы орден выдать.','Минус один поклонник, плюс немного тишины!','Прекрасно сработано! И никакого неловкого свидания.','Запишите это в летопись. Желательно крупным шрифтом!','Так держать! Я почти перестала нервничать.','Ещё один ухажёр отправился подумать над своим поведением.'],
-  prince:['Прекрасный принц явился! Букет вижу, красные флаги тоже.','Он опять с кольцом. Кто-нибудь объяснит ему, что «нет» — тоже ответ?','Принц считает, что розы всё исправят. Даже его тактику.','Снова свидание с осадой. Романтика окончательно вышла из-под контроля.','Только не говорите, что он репетировал речь у зеркала весь год.','Он назвал это романтическим жестом. Я называю это нарушением границ!'],
-  king:['Папа приехал! Надеюсь, в этот раз без семейного совета на двести рыцарей.','Отец лично возглавил осаду. Вот это семейный контроль!','Король на месте. Держитесь: сейчас будет указ, потом ещё указ…','Папа, я просила прислать письмо, а не целую армию!','Семейное воссоединение отменяется. Причина: слишком много рыцарей.','Отец снова решил всё за меня. Даже маршрут до башни!'],
-  bossGuardBreak:['Барьер босса разрушен! Теперь бейте по самому самодовольному месту — по здоровью!','Защита лопнула! Отлично, теперь он без магической упаковки.','Барьер снят! Драконы, не давайте ему передумать!'],
-  bossTeamReward:['Командная награда! Каждый дракон получает +{gold} золота и +{scrolls} свитков. Вот это коллективный договор!','Босс повержен: награда каждому — {gold} золота и {scrolls} свитков. Наконец-то премия без мелкого шрифта!'],
-  bard:['Бард у башни! Я просила тишину, а не концерт во время осады.','Он играет так громко, что даже камни хотят сбежать.','Если услышите фальшивую ноту — это не баг, это бард.','У него серенада или тревожная сирена? Я уже не различаю.'],
-  note:['Летящая нота! Уклоняйтесь: музыкальное образование не должно быть таким опасным.','Нота летит в башню. Можно было просто отправить открытку!','Сбейте эту ноту! Она даже в нотный стан не попадает.','Осторожно! Эта нота звучит как судебный иск от соседей.'],
-  mage:['Маг лечит рыцарей! Кажется, у них командная страховка.','Он раздаёт щиты. Вот бы кто-нибудь защитил меня от этих ухажёров.','Маг снова всех подлечил. У него бесконечный запас пластырей?','Сначала рыцари ломятся в башню, теперь ещё и лечатся. Удобно устроились!'],
-  merchant:['Купец принёс золото. Наконец-то полезный груз… Ах да, это ловушка.','Не подбирайте подарки! Особенно если они летят из подозрительного мешка.','Он торгует прямо во время осады. Уважаю деловую хватку, но нет.','Скидка дня: один мешок золота, два неприятных сюрприза!'],
-  bag:['Золото летит! Не отвлекайтесь — у него явно есть скрытые условия.','Мешок с монетами? Я тоже люблю покупки, но не настолько!','Не ловите этот мешок! Это не подарок, а тяжёлая реклама.','Дракон, не засматривайся на золото. Оно сегодня с подвохом!'],
-  princeProposal:['Он снова делает предложение! Драконы, прервите этот монолог, пока он не дошёл до стихов!','Принц достал кольцо. Если он скажет «навсегда», я выпрыгну из окна!','Началось предложение руки и сердца. У вас есть несколько секунд, чтобы испортить ему финал!'],
-  princeInterrupted:['Предложение сорвано! Наконец-то кто-то перебил его длинную речь.','Принц оглушён! Вот что бывает, когда не слышишь слово «нет».','Браво! Романтическая пауза отменяется вместе с принцем.'],
-  princeRing:['Он всё-таки бросил кольцо! Это предложение или метание молота?','Кольцо летит к башне! Я не соглашалась даже на доставку!','Принц запустил кольцо. Надеюсь, у него есть чек на возврат.'],
-  princeRingImpact:['Кольцо долетело! Вот это настойчивость… совершенно нежелательная.','Оно попало в башню! Я бы сказала «да», но только если бы это было «давай уйдём».','Принц пробил защиту кольцом. В следующий раз пусть пришлёт открытку.'],
-  princeRoses:['Он снова осыпает поле розами! Красиво, но красные круги — плохой знак.','Розовый дождь! Не стойте на местах, где он собрался приземлиться!','Принц решил, что цветов мало. Теперь он украшает ими поле боя!'],
-  kingDecree:['Указ №{count} из {max}: стража, ко мне! И наденьте парадную форму!','Королевский приказ {count}/{max}: вызвать рыцарей. Да, опять. Это семейное дело!','Внимание, гвардия! Король нажал кнопку «ещё рыцарей» ({count}/{max}).','Указ {count}/{max}: всем рыцарям явиться. Отговорки не принимаются!','Король выпустил указ {count}/{max}. Аргументы закончились, начались подкрепления!'],
-  kingDecreeFinal:['Пятый указ! Стража собрана. Папа, может, теперь поговорим словами?','Пять указов — выполнено! У короля теперь целый отдел по доставке рыцарей.','Пятый приказ подписан. Чернил ушло больше, чем здравого смысла!'],
-  kingDisgrace:['Обвинение №{count} из {max}: {name}, вы назначены похитителем принцессы! Возражения не принимаются.','Король снова нашёл виноватого: {name}! Драконы, приготовьтесь к опале.','По королевскому указу {name} — главный подозреваемый. Доказательства? Корона сказала!','Дело №{count}: {name} обвиняется в похищении. Следствие завершено до начала!'],
-  kingNoKnights:['Рыцарей больше нет? Папа, обвинять некого. Может, уже пойдёшь ко мне?','Гвардия закончилась! Король отменяет опалу. Хоть одна хорошая новость за день.','На поле больше нет рыцарей. Папа, семейный визит можно продолжить без обвинений!'],
-  kingApproach:['Пять указов и пять обвинений — папа закончил бюрократию и идёт к башне. Драконы, встречайте!','Королевские бумаги закончились. Теперь отец решил явиться лично.','Папа наконец отложил печать и направился сюда. Держите оборону!'],
-  kingMarkEnded:['Опала закончилась. Король пока не придумал, кого обвинить следующим.','Обвинение снято! Кажется, даже королевская канцелярия устала.','Опала окончена. Можно вернуться к спасению башни!'],
-  bardChorus:['Бард взял припев! Враги ускорились. Драконы, испортите ему концерт!','О нет, припев! Рыцари теперь бегут быстрее, чем я от нежелательных предложений.','Бард вышел на высокую ноту — и враги на высокую скорость!'],
-  magiAlone:['Маги остались без прикрытия и бегут к башне. Вот теперь им не до лечения!','Без рыцарей маги растерялись. Кто бы мог подумать, что им нужна компания?'],
-  wakeFriend:['Павший дракон снова в строю! Вот это командная работа.','Дракон проснулся благодаря друзьям. Вот это настоящее волшебство!'],
-  wakeSolo:['Дракон проснулся… Но часть золота осталась в стране снов.','Добро пожаловать обратно! Кошелёк, правда, проснулся не весь.'],
-  dragonDown:['Ой-ой, дракон прилёг! Поднимите его, пока враги не решили, что это коврик.','Дракон уснул! Кто-нибудь, срочно принесите ему кофе… или союзника.','Один дракон выбыл из полёта. Не бросайте его, у нас тут командная игра!'],
-  dragonOut:['{name} выбыл до магазина. Как жаль — а я уже приготовила благодарственную речь!'],
-  waveClear:['Волна отбита! Собирайте монеты, пока они не решили сбежать.','Чисто! Передышка, золото и никаких предложений руки и сердца.','Ура, враги отступили! Самое время пополнить казну.'],
-  testWaveClear:['Волна очищена! Выберите следующую в панели. Только не самую спокойную, конечно.']
+  start:['Драконы, вы вовремя! Враги уже у башни.','Они опять идут… Драконы, помогите!','Защитим башню! Я рассчитываю на вас!'],
+  hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],
+  kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],
+  prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],
+  king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],
+  bossGuardBreak:['Щит босса сломан! Теперь бейте!','Защита снята! Не дайте ему отдышаться!'],
+  bossTeamReward:['Награда каждому: +{gold} золота и +{scrolls} свитков!','Босс повержен! Забирайте награду: {gold} золота и {scrolls} свитков!'],
+  bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],
+  note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],
+  mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],
+  merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],
+  bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!'],
+  princeProposal:['Принц делает предложение! Сбейте его!','Он снова с кольцом! Не дайте ему договорить!'],
+  princeInterrupted:['Предложение сорвано! Принц оглушён!'],
+  princeRing:['Принц бросает кольцо! Осторожно!','Кольцо летит к башне! Сбейте его!'],
+  princeRingImpact:['Кольцо попало в башню! Вот наглец!'],
+  princeRoses:['Принц бросает розы! Уходите с красных кругов!','Осторожно, розы! Не стойте на месте!'],
+  kingDecree:['Указ {count}/{max}: стража, на помощь!','Король зовёт рыцарей! Опять! ({count}/{max})'],
+  kingDecreeFinal:['Пятый указ! Стража собрана!'],
+  kingDisgrace:['Король объявил {name} похитителем! ({count}/{max})','Опала! {name} назначен похитителем! ({count}/{max})'],
+  kingNoKnights:['Рыцарей больше нет! Король отменяет опалу!','Все рыцари повержены! Опала снята!'],
+  kingApproach:['Указы закончились! Король идёт к башне!','Папа идёт к башне! Держите оборону!'],
+  kingMarkEnded:['Опала окончена!','Обвинение снято!'],
+  bardChorus:['Бард запел припев! Враги ускорились!','Припев ускоряет врагов! Сбейте барда!'],
+  magiAlone:['Маги без прикрытия! Теперь бегут к башне!','Рыцарей нет — маги бегут к башне!'],
+  wakeFriend:['Дракона разбудили!','Дракон снова в строю!'],
+  wakeSolo:['Дракон проснулся. Часть золота потерялась.'],
+  dragonDown:['Дракон упал! Поднимите его за 15 секунд!'],
+  dragonOut:['{name} выбыл до магазина!'],
+  waveClear:['Волна отбита! Успейте собрать монеты.'],
+  testWaveClear:['Волна очищена. Выберите следующую!']
+};
+// Короткие реплики самих противников. Говорит только один враг за раз,
+// чтобы при большом количестве участников поле не превращалось в чат.
+const ENEMY_TAUNTS={
+  knight:{speaker:'РЫЦАРЬ',lines:['Я только спросить!','Где тут башня?','Мне обещали премию!','Шлем не помять бы!','Я почти добежал!']},
+  bard:{speaker:'БАРД',lines:['Это мой хит!','Подпевайте!','Нота была верной!','Ещё один куплет!','Аплодисменты!']},
+  mage:{speaker:'МАГ',lines:['Так, где заклинание?','Щит держи ровно!','Я всё контролирую!','Это лечебная магия!','Кто тронул мой посох?']},
+  merchant:{speaker:'КУПЕЦ',lines:['Товар по акции!','Мешок почти бесплатный!','Без сдачи!','Гарантия до удара!','Только наличными!']},
+  prince:{speaker:'ПРИНЦ',lines:['Я принёс кольцо!','Где моя музыка?','Розы не дешёвые!','Это романтика!','Скажи просто да!']},
+  king:{speaker:'КОРОЛЬ',lines:['Я тут главный!','Записать в указ!','Стража, за мной!','Кто отменил налог?','Без очереди к башне!']}
 };
 const PRINCESS_HINTS=[
-  {id:'controls',wave:1,text:'Драконы, WASD или стрелки — летим, ЛКМ — огонь. Особая атака на ПКМ откроется после нужного улучшения!'},
-  {id:'loot',wave:2,text:'После волны собирайте золото и свитки. Они не украсят башню, зато помогут улучшить ваше пламя!'},
-  {id:'bard',wave:3,text:'Бард ускоряет врагов припевом. Сбейте его, пока он не взял ещё одну высокую ноту!'},
-  {id:'prince',wave:5,text:'Принц бросает розы в отмеченные красные зоны. Не стойте там — романтика романтикой, а здоровье дороже!'},
-  {id:'mage',wave:6,text:'Маг лечит рыцарей и накладывает щиты. Постарайтесь убрать его, иначе враги станут слишком живучими!'},
-  {id:'merchant',wave:8,text:'Купец бросает мешки с золотом. Не ловите их: от удара дракон на время замирает!'},
-  {id:'king',wave:10,text:'Папа-король готовит указы и опалу. Пока на поле есть рыцари, он будет искать виноватого среди драконов!'}
+  {id:'controls',wave:1,text:'WASD/стрелки — полёт, ЛКМ — огонь. ПКМ — атака после улучшения!'},
+  {id:'loot',wave:2,text:'Собирайте золото и свитки после волны. Пора в магазин!'},
+  {id:'bard',wave:3,text:'Бард ускоряет врагов припевом. Сбейте его!'},
+  {id:'prince',wave:5,text:'Принц бросает розы в красные круги. Не стойте там!'},
+  {id:'mage',wave:6,text:'Маг лечит рыцарей и даёт им щиты. Сбейте его первым!'},
+  {id:'merchant',wave:8,text:'Купец бросает мешки. Не ловите их — дракон замрёт!'},
+  {id:'king',wave:10,text:'Король отдаёт указы и объявляет опалу. Следите за рыцарями!'}
 ];
 const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Свитки',c:'#ecd9a8'}];
 // b — базовая цена, s — прирост цены за покупку, t — валюта (0 золото, 1 ноты)
@@ -495,6 +505,8 @@ let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='
 let TEST_MODE=false,testInvulnerable=false;
 let testLoadMode=false,testBotClock=0,testPerfSamples=[],testPerfRun=null,testPerfLastRaf=0,testLastSnapshotBytes=0;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
+let enemyVoiceId=-1,enemyVoiceSpeaker='',enemyVoiceText='',enemyVoiceT=0,enemyVoiceCd=4;
+const enemyLastTaunt={};
 let princessHintT=6,princessHintsShown=new Set();
 
 // ===== Игроки =====
@@ -575,7 +587,25 @@ addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;
 // ===== Вспомогательное =====
 const pick=a=>a[Math.random()*a.length|0];
 const isBoss=e=>e.k==='prince'||e.k==='king';
-function say(t,s=3){quip=t;quipT=s}
+function say(t,s=3){
+  quip=t;quipT=s;
+  // Важная реплика принцессы всегда имеет приоритет над болтовнёй врагов.
+  if(enemyVoiceT>0){enemyVoiceId=-1;enemyVoiceSpeaker='';enemyVoiceText='';enemyVoiceT=0;enemyVoiceCd=Math.max(enemyVoiceCd,2.5)}
+}
+function updateEnemyChatter(dt){
+  enemyVoiceT=Math.max(0,enemyVoiceT-dt);
+  if(enemyVoiceT<=0){enemyVoiceId=-1;enemyVoiceSpeaker='';enemyVoiceText=''}
+  enemyVoiceCd=Math.max(0,enemyVoiceCd-dt);
+  if(state!=='play'||phase!=='spawn'||quipT>0||enemyVoiceT>0||enemyVoiceCd>0)return;
+  const candidates=enemies.filter(e=>e.hp>0&&ENEMY_TAUNTS[e.k]&&e.x>=24&&e.x<=W-24&&e.y>=56&&e.y<=H-24);
+  if(!candidates.length){enemyVoiceCd=.8;return}
+  const e=pick(candidates),entry=ENEMY_TAUNTS[e.k];
+  let line=pick(entry.lines);
+  if(entry.lines.length>1&&line===enemyLastTaunt[e.k])line=entry.lines[(entry.lines.indexOf(line)+1)%entry.lines.length];
+  enemyLastTaunt[e.k]=line;
+  enemyVoiceId=e.id;enemyVoiceSpeaker=entry.speaker;enemyVoiceText=line;enemyVoiceT=2.15;
+  enemyVoiceCd=8+Math.random()*4;
+}
 function quote(key,vars={}){
   const template=pick(Q[key]||['']);
   return template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
@@ -584,7 +614,7 @@ function sayQ(key,seconds=3,vars={}){say(quote(key,vars),seconds)}
 function updatePrincessHints(dt){
   if(TEST_MODE||!isHost||state!=='play')return;
   princessHintT=Math.max(0,princessHintT-dt);
-  if(princessHintT>0||quipT>0||phase!=='spawn')return;
+  if(princessHintT>0||quipT>0||enemyVoiceT>0||phase!=='spawn')return;
   const hint=PRINCESS_HINTS.find(item=>wave>=item.wave&&!princessHintsShown.has(item.id));
   if(!hint){princessHintT=12;return}
   princessHintsShown.add(hint.id);
@@ -605,7 +635,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set();for(const row of rewardRemainders)row[0]=row[1]=0}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;enemyVoiceId=-1;enemyVoiceSpeaker='';enemyVoiceText='';enemyVoiceT=0;enemyVoiceCd=4;for(const k in enemyLastTaunt)delete enemyLastTaunt[k];princessHintT=6;princessHintsShown=new Set();for(const row of rewardRemainders)row[0]=row[1]=0}
 function nextWave(){
   wave++;queue=[];spawned=0;
   const n=Math.round((4+wave*2.2)*enemyPopulationFactorForPlayers(activePlayerCount())*(BOSS[wave]?.85:1));
@@ -1577,6 +1607,7 @@ function update(dt){
   const k=keys;
   Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down,alt:mouse.alt});
   updateTestBots(dt);
+  updateEnemyChatter(dt);
   for(const p of players)updatePlayer(p,dt);
   if(!players.some(p=>!p.asleep&&!p.gone)){state='lose';return}
   for(const b of balls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
@@ -1966,6 +1997,31 @@ function drawScroll(x,y,r){const w=r*1.5,h=r*1.9;
 function drawSheet(sh,fr,x,y,h,ph){const fw=sh.width/fr,fh=sh.height,w=h*fw/fh;ctx.drawImage(sh,(Math.floor(ph)%fr)*fw,0,fw,fh,x-w/2,y-h/2,w,h)}
 const drawIcon=(t,x,y,r)=>t?(IMG.scroll?ctx.drawImage(IMG.scroll,x-r*1.3*IMG.scroll.width/IMG.scroll.height,y-r*1.3,r*2.6*IMG.scroll.width/IMG.scroll.height,r*2.6):drawScroll(x,y,r)):drawCoin(x,y,r);
 
+function drawEnemySpeech(e,speaker,message){
+  if(!e||!message)return;
+  ctx.save();
+  const font='bold 11px Georgia,serif';
+  ctx.font=font;
+  const padX=9,boxW=Math.min(154,Math.max(76,ctx.measureText(message).width+padX*2));
+  const boxH=31;
+  const x=Math.max(8,Math.min(W-boxW-8,e.x-boxW/2));
+  const above=e.y>112;
+  const y=above?Math.max(28,e.y-e.t.sz*.72-boxH-8):Math.min(H-boxH-8,e.y+e.t.sz*.52+8);
+  ctx.fillStyle='#fff8e9';ctx.strokeStyle='#7a5360';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.roundRect(x,y,boxW,boxH,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#9a526d';ctx.beginPath();
+  const tipX=Math.max(x+12,Math.min(x+boxW-12,e.x));
+  if(above){ctx.moveTo(tipX-5,y+boxH-1);ctx.lineTo(tipX,y+boxH+6);ctx.lineTo(tipX+5,y+boxH-1)}
+  else{ctx.moveTo(tipX-5,y+1);ctx.lineTo(tipX,y-6);ctx.lineTo(tipX+5,y+1)}
+  ctx.closePath();ctx.fill();
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 7px Georgia,serif';ctx.fillStyle='#a95b74';ctx.fillText(speaker,x+boxW/2,y+8);
+  ctx.font=font;ctx.fillStyle='#38243b';
+  let text=String(message);
+  while(text.length>4&&ctx.measureText(text).width>boxW-12)text=text.slice(0,-2)+'…';
+  ctx.fillText(text,x+boxW/2,y+21,boxW-12);
+  ctx.restore();
+}
+
 function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, viewBottom, preferredY){
   const viewportWidth=Math.max(160,viewRight-viewLeft);
   const viewportHeight=Math.max(140,viewBottom-viewTop);
@@ -2140,6 +2196,10 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   drawZones();
   drawCastle();
   for(const e of enemies)drawE(e);
+  if(enemyVoiceT>0&&quipT<=0){
+    const speaker=enemies.find(e=>e.id===enemyVoiceId&&e.hp>0);
+    if(speaker)drawEnemySpeech(speaker,enemyVoiceSpeaker,enemyVoiceText);
+  }
   drawBossProjectiles();
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
   for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
@@ -2418,7 +2478,7 @@ function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(
 
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
-  net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
+  net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],H:[enemyVoiceId,enemyVoiceSpeaker,enemyVoiceText,r10(enemyVoiceT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
     P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0)|((p.in&&(p.in.fire||p.in.alt))?64:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
    E:enemies.map(e=>[
   e.id,KINDS.indexOf(e.k),
@@ -2461,7 +2521,9 @@ function guestFrame(dt,now){
   for(let i=0;i<L;i++){if(snaps[i].recv<=rt)a=snaps[i]}
   for(let i=0;i<L;i++){if(snaps[i].recv>rt){nx=snaps[i];break}}
   const al=a===nx?1:Math.min(1,Math.max(0,(rt-a.recv)/(nx.recv-a.recv))),lp=(u,v)=>u+(v-u)*al;
-  state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];chorusT=b.cT;
+  state=b.st;phase=b.ph;wave=b.w;tower=b.tw;score=b.sc;quip=b.q[0];quipT=b.q[1];
+  const voice=b.H||[-1,'','',0];enemyVoiceId=voice[0]??-1;enemyVoiceSpeaker=voice[1]||'';enemyVoiceText=voice[2]||'';enemyVoiceT=voice[3]||0;
+  chorusT=b.cT;
 chorusCd=b.cC;
 chorusBardId=b.cb??null;
 inspV=b.iv;shopLeft=b.sl;
@@ -2781,6 +2843,16 @@ function testRunDiagnostics(){
   if(!TEST_MODE)return [];
   const checks=[];
   const add=(id,label,pass,detail)=>checks.push({id,label,pass:!!pass,detail});
+  const enemyTypes=['knight','bard','mage','merchant','prince','king'];
+  add('enemy-taunts-coverage','У всех типов врагов есть собственные реплики',
+    enemyTypes.every(k=>ENEMY_TAUNTS[k]&&ENEMY_TAUNTS[k].speaker&&ENEMY_TAUNTS[k].lines.length>=5),
+    enemyTypes.map(k=>ENEMY_TAUNTS[k].speaker+': '+ENEMY_TAUNTS[k].lines.length).join(' · '));
+  const tauntLengths=enemyTypes.flatMap(k=>ENEMY_TAUNTS[k].lines.map(line=>line.length));
+  add('enemy-taunts-short','Реплики врагов остаются короткими',
+    tauntLengths.every(n=>n<=27),'Максимальная длина: '+Math.max(...tauntLengths)+' символов');
+  add('enemy-taunts-quiet','Реплики не превращают поле в одновременный чат',
+    Number.isFinite(2.15)&&2.15<=2.5&&8>=7,
+    'Одно облачко за раз · показ 2,15 с · пауза 8–12 с');
   const counts=[1,6,10,15,20];
   const scales=counts.map(dragonCrowdScaleForCount);
   const expected20=.875;
