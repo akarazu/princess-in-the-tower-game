@@ -111,7 +111,7 @@ $('#ready').onclick=()=>{const m0=players.find(p=>p.id===me.id);
   if(m0&&m0.ready){send({t:'ready',ready:false});if(want>=0)send({t:'hover',color:want})}
   else send({t:'ready',ready:true,color:want})};
 $('#start').onclick=()=>{const pend=players.filter(p=>!p.ready).length;
-  if(pend&&!confirm(pend+' игрок(ов) ещё не закрепили дракона. Им выдадут свободных. Start game?'))return;
+  if(pend&&!confirm(pend+' player(s) have not locked in a dragon yet. They will be assigned an available one. Start game?'))return;
   send({t:'start'})};
 $('#link').onclick=()=>{const u=location.origin+'/?room='+me.room;
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>$('#hint').textContent='Link copied',()=>prompt('Copy the link:',u));else prompt('Copy the link:',u)};
@@ -121,7 +121,7 @@ function onMsg(m){
   else if(m.t==='players'){players=m.players;phase=m.phase;k=m.k;if(Game.active)Game.onMsg(m);else render()}
   else if(m.t==='error'){
     if($('#lobby-view').classList.contains('hide'))$('#err').textContent=m.msg;
-    else{if(m.msg.includes('занят'))want=-1;render();$('#err2').textContent=m.msg}}
+    else{if(m.msg.includes('taken'))want=-1;render();$('#err2').textContent=m.msg}}
   else if(m.t==='host_left'){alert('The host has left. The room is closed.');location.href=location.pathname}
   else if(m.t==='started'){$('#lobby-view').classList.add('hide');document.body.classList.add('playing');Game.start({ws,me,players:m.players})}
   else if(m.t==='msg'){Game.onMsg(m)}
@@ -136,7 +136,7 @@ function render(){
   $('#pick-box').classList.toggle('hide',!picking);
   $('#lock').classList.toggle('hide',!me.host);
   $('#lock').textContent='Everyone's here ('+players.length+')';
-  $('#wait').textContent=me.host?'Когда все зашли, нажмите «Everyone's here»: новых игроков принимать не будем, а число драконов подстроится под число игроков.':'Ждём, пока хост нажмёт «Everyone's here».';
+  $('#wait').textContent=me.host?'Once everyone has joined, click “Everyone's here”. No more players will be admitted, and the number of dragons will match the player count.':'Waiting for the host to click “Everyone's here”.';
   $('#err2').textContent='';
   if(!picking){$('#hint').textContent='';return}
   $('#colors').innerHTML='';
@@ -155,7 +155,7 @@ function render(){
   const pend=players.filter(p=>!p.ready).length;
   $('#hint').textContent=(locked?(me.host?'':'Dragon locked in. To choose another one, cancel your ready status.')
     :want>=0?'You're previewing: '+COLORS[want][0]+' . Click “'+label+'” to lock in this dragon.':'Choose your dragon.')
-    +(me.host?' Locked in '+(players.length-pend)+' из '+players.length+(pend?'. The remaining players will be assigned available dragons when the game starts.':'.'):'');
+    +(me.host?' Locked in '+(players.length-pend)+' of '+players.length+(pend?'. The remaining players will be assigned available dragons when the game starts.':'.'):'');
 }
 connect();
 </script>
