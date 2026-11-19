@@ -906,7 +906,7 @@ function drop(e,o){
   const count=activePlayerCount();
   base.forEach((v,t)=>{if(v){const value=isBoss(e)?v:scaleEnemyRewardAmount(v,count,t);pickups.push({id:++uid,x:e.x+(t?12:-12),y:e.y,v:value,t,magnetRadius:pickupMagnetRadiusForBaseReward(v),life:isBoss(e)?DROP.boss:DROP.life,own:o?o.id:-1,res:o?3:0})}})
 }
-function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.dead=false;p.h=Math.min(maxH(p),p.h+1);p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
+function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.dead=false;p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
 
 // ===== Способности боссов =====
 const BLAST={cd:5,r:55,mult:1};
