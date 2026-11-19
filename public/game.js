@@ -7,84 +7,84 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_REWARDS={prince:[10,4],king:[20,8]},BN={
-  3:'Новый поклонник: бард с серенадами!',
-  5:'Босс: Прекрасный принц со свитой',
-  6:'Новый поклонник: маг лечит и защищает щитами!',
-  8:'Новый поклонник: купец с мешками золота!',
-  10:'Финал: отец принцессы и вся свита'
+  3:'A New Suitor: A Bard with Love Songs!',
+  5:'BOSS: The Charming Prince and His Entourage',
+  6:'A New Suitor: A Mage Who Heals and Shields His Allies!',
+  8:'A New Suitor: A Merchant with Bags of Gold!',
+  10:'Final Wave: The Princess's Father and His Entourage'
 };
 // Реплики принцессы: короткие, разговорные и в одном тоне.
 const Q={
-  start:['Тихо! Они близко.','Опять они.','Драконы, встречайте.','Начинается.','Кто на этот раз?','Они у входа.','Они опять идут… Драконы, вся надежда на вас!'],
-  hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],
-  kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],
-  prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],
-  king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],
-  bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],
-  note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],
-  mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],
-  merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],
-  bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!'],
-  princeInterrupted:['Предложение сорвано! Принц оглушён!'],
-  princeProposal:['Принц делает предложение! Собьём его, пока не поздно!'],
-  princeRing:['Принц бросает кольцо!'],
-  princeRingImpact:['Принц успел бросить кольцо! Принцесса в смятении!'],
-  princeRoses:['Принц осыпает всех розами! Уходите с красных кругов!'],
-  kingDecree:['Королевский указ: стража, на помощь!'],
-  kingDisgrace:['Король объявил {name} похитителем принцессы! Беги, остальные прикрывайте!'],
-  bardChorus:['Бард запел припев! Враги ускорились!'],
-  mageAlone:['Маги остались без прикрытия и бегут к башне!'],
-  bossGuardBreak:['Барьер сломан!','Щит снят!','Защита лопнула!','Не подпускайте!','Пользуйтесь моментом!'],
-  bossTeamReward:['Награда команде!','Всем по золоту!','Заслужили!','Спасибо, драконы!','Каждому — золото и свитки!'],
-  nervesWarning:['Сколько ещё?!','Хватит!','Терпение на нуле.','Это последний?','Я больше не могу!'],
-  wakeFriend:['Очнулся!','С возвращением!','Подкрепление!','Дракона разбудили!'],
-  wakeSolo:['Проснулся?','Больше не засыпай!','Я чуть не поседела!','Дракон проснулся. Часть золота потерялась по дороге.'],
-  dragonDown:['Дракон уснул!','Разбудите {name}!','Кто меня прикроет?','О нет!','Дракон упал! Его надо поднять за 15 секунд.'],
-  dragonOut:['{name} выбыл.','{name} отдохнёт от безумия.','{name} погиб: до магазина дракон выбывает.'],
-  waveClear:['Все ушли?','Ни одного поклонника? Не верю!','Дайте минуту.','Волна отбита! Успейте собрать монеты.'],
-  testWaveClear:['Чисто!','Выбирайте следующую.','Волна очищена. Выберите следующую в панели тестирования.'],
-  markEnded:['Папа одумался.','Свобода.','Наконец-то!']
+  start:['Quiet! They're close.','Not them again.','Dragons, meet our guests.','Here we go.','Who's it this time?','They're at the gate.','They're coming again… Dragons, you're my only hope!'],
+  hit:['Flowers again?!','I asked not to be disturbed!','Tell him I'm out of town.','I have a migraine!','Who gave him my address?!'],
+  kill:['That's it, my little lizards!','Thank you, my dears!','Silence… at last.','He didn't even take it personally.'],
+  prince:['The Charming Prince… Anyone but him!','He's coming with an orchestra! Fire!!!'],
+  king:['Dad?! You too?!','My father brought the royal guard. Forgive me, dragons!'],
+  bard:['A serenade?! Shoot down those notes before they reach us!','He's singing beneath my window!'],
+  note:['Is that a serenade?!','A musical note aimed at the tower? That's vandalism!','Shoot it down! It's off-key!'],
+  mage:['The mage is healing his allies! He's cheering them on with poetry!','Someone silence that matchmaker!'],
+  merchant:['A merchant! He thinks he can buy my attention!','Don't take his gold! It's a trap!'],
+  bag:['Gold? I'm a princess. I don't need it!','Dragon, stop counting the coins!'],
+  princeInterrupted:['Proposal interrupted! The prince is stunned!'],
+  princeProposal:['The prince is proposing! Stop him before it's too late!'],
+  princeRing:['The prince is throwing the ring!'],
+  princeRingImpact:['The prince managed to throw the ring! The princess is flustered!'],
+  princeRoses:['The prince is showering the field with roses! Get out of the red zones!'],
+  kingDecree:['Royal decree: guards, to me!'],
+  kingDisgrace:['The king has declared {name} the princess's kidnapper! Run! The rest of you, provide cover!'],
+  bardChorus:['The bard has started the chorus! The enemies are moving faster!'],
+  mageAlone:['The mages are exposed and are running toward the tower!'],
+  bossGuardBreak:['Barrier broken!','Shield down!','Their protection is shattered!','Keep them back!','Make the most of it!'],
+  bossTeamReward:['Team reward!','Gold for everyone!','You've earned it!','Thank you, dragons!','Gold and scrolls for everyone!'],
+  nervesWarning:['How many more?!','Enough!','I'm out of patience.','Is this the last one?','I can't take any more!'],
+  wakeFriend:['Back on your feet!','Welcome back!','Reinforcements!','They've woken a dragon!'],
+  wakeSolo:['You're awake?','Don't fall asleep again!','You nearly gave me gray hair!','The dragon is awake. Some of the gold got lost along the way.'],
+  dragonDown:['The dragon is down!','Wake up, {name}!','Who's got my back?','Oh no!','Your dragon is down! Get them back up within 15 seconds.'],
+  dragonOut:['{name} is out.','{name} is taking a break from the chaos.','{name} has been eliminated. This dragon is out until the shop.'],
+  waveClear:['Are they all gone?','Not a single suitor? I don't believe it!','Give me a minute.','Wave cleared! Collect your coins!'],
+  testWaveClear:['All clear!','Choose the next one.','Wave cleared. Choose the next wave in the test panel.'],
+  markEnded:['Dad has come to his senses.','Freedom.','At last!']
 };
 
 // Реплики персонажей показываются над тем, кто их произносит.
 const A={
-  knightIntro:['За короля!','К башне, марш!','Дорогу гвардии!','Сватать идём!','Где принцесса?'],
-  bardIntro:['Сейчас будет громко!','Слушайте припев!','Тишина? Не сегодня!','Серенада для принцессы!','Пой, душа!'],
-  bardNote:['Ловите ноту!','Это вам не концерт!','Фальшиво, зато метко!','Ля-ля!','Серенада летит!'],
-  bardNoteHit:['Ой. Не та нота!','Переборщил.','Мимо?','Хоть одна долетела!'],
-  bardChorus:['А теперь припев!','Быстрее, в такт!','Раз, два — марш!','Ускоряемся!'],
-  mageIntro:['Сейчас всех подлечу!','Щиты готовы!','Магия всё исправит!','Приворот? Легко!'],
-  mageHeal:['Держитесь, помогу!','Ещё немного магии!','Кому щит?','Подлечу!'],
-  mageAlone:['Так, где все?','План Б — бегом!','Убегаю!'],
-  merchantIntro:['Эй, драконы! Золото!','Кто хочет монетку?','Блестит! Ловите!','Золото! Даром!','Эй, ящерки! Сюда!'],
-  merchantBag:['Ловите монету!','Держите золото!','Блестящее! Ваше!','Кто быстрее?','Отвлекаю!'],
-  merchantBagHit:['Клюнул!','Работает!','Есть!','Отвлёк!'],
-  princeIntro:['Я принёс розы и кольцо!','Сегодня всё решится!','Мой выход блестящ!','Принцесса, я здесь!'],
-  princeProposal:['Принцесса, выслушай!','Важный вопрос!','Пару слов!','Выходи за меня!'],
-  princeInterrupted:['Но я не закончил!','Невежливо!','Дайте договорить!','Как так?!'],
-  princeRing:['Лови подарок!','Вот кольцо!','Поймай! Важно!','Держи!'],
-  princeRingImpact:['Ой. Не так планировал.','Упрямый.','Попало!','Так и задумано!'],
-  princeRoses:['Цветы для тебя!','Розы всё решат!','Лови букет!','Розовый дождь!'],
-  kingIntro:['Вот и я.','Где моя гвардия?','Пора навести порядок!','Дочка, я здесь!'],
-  kingDecree:['Стража, ко мне!','Ещё рыцарей!','Выполнять указ!','Гвардия, сюда!'],
-  kingDecreeFinal:['Последний указ!','Стройся!','Хватит!','Всё сюда!'],
-  kingDisgrace:['Ты — подозреваемый!','Похититель: {name}!','Корона решила: {name}!','Виноват!'],
-  kingNoKnights:['Where are my guards?','Значит, сам.','Куда все делись?'],
-  kingApproach:['Хватит бумаг!','Поговорим лично!','К башне!','Иду сам!']
+  knightIntro:['For the king!','To the tower, march!','Make way for the royal guard!','We're here to court the princess!','Where's the princess?'],
+  bardIntro:['Things are about to get loud!','Listen to the chorus!','Silence? Not today!','A serenade for the princess!','Sing, my heart!'],
+  bardNote:['Catch this note!','This isn't a concert!','Off-key, but on target!','La-la!','Here comes the serenade!'],
+  bardNoteHit:['Oops. Wrong note!','That was a bit much.','Missed?','At least one got through!'],
+  bardChorus:['And now, the chorus!','Faster, in rhythm!','One, two — march!','Pick up the pace!'],
+  mageIntro:['I'll patch everyone up!','Shields are ready!','Magic will fix everything!','A love spell? Easy!'],
+  mageHeal:['Hang in there. I've got you!','A little more magic!','Who needs a shield?','I'll heal you up!'],
+  mageAlone:['Right, where is everyone?','Plan B: run!','I'm out of here!'],
+  merchantIntro:['Hey, dragons! Gold!','Who wants a coin?','It's shiny! Catch!','Gold! Free!','Hey, lizards! Over here!'],
+  merchantBag:['Catch this coin!','Here's some gold!','Shiny! All yours!','Who's fastest?','Look over here!'],
+  merchantBagHit:['Hooked!','It's working!','Got one!','Distracted!'],
+  princeIntro:['I've brought roses and a ring!','Today, everything will be decided!','What an entrance!','Princess, I'm here!'],
+  princeProposal:['Princess, hear me out!','I have an important question!','Just a few words!','Marry me!'],
+  princeInterrupted:['But I'm not finished!','How rude!','Let me finish!','How could you?!'],
+  princeRing:['Catch your present!','Here's the ring!','Catch it! It's important!','Here!'],
+  princeRingImpact:['Oops. That wasn't the plan.','Stubborn, aren't you?','That hit!','Exactly as planned!'],
+  princeRoses:['Flowers for you!','Roses will solve everything!','Catch the bouquet!','A shower of roses!'],
+  kingIntro:['Here I am.','Where is my royal guard?','Time to restore order!','Daughter, I'm here!'],
+  kingDecree:['Guards, assemble!','More knights!','Carry out the decree!','Guards, over here!'],
+  kingDecreeFinal:['One last decree!','Form up!','Enough!','Everyone, this way!'],
+  kingDisgrace:['You're a suspect!','Kidnapper: {name}!','The Crown has decided: {name}!','Guilty!'],
+  kingNoKnights:['Where are my guards?','Then I'll do it myself.','Where did everyone go?'],
+  kingApproach:['Enough paperwork!','Let's talk in person!','To the tower!','I'll go myself!']
 };
 
 const PRINCESS_HINTS=[
-  {id:'controls',wave:1,text:'WASD или стрелки — лететь. ЛКМ — огонь, ПКМ — особая атака после улучшения.'},
-  {id:'loot',wave:2,text:'После волны собирайте золото и свитки. Тратьте на улучшения.'},
-  {id:'bard',wave:3,text:'Бард ускоряет врагов припевом. Сбейте его первым.'},
-  {id:'prince',wave:5,text:'Принц бросает розы в красные зоны. Не стойте там!'},
-  {id:'mage',wave:6,text:'Маг лечит рыцарей и даёт щиты. Уберите его первым.'},
-  {id:'merchant',wave:8,text:'Купец бросает монеты, чтобы отвлечь драконов. Не ловите!'},
-  {id:'king',wave:10,text:'Король призывает рыцарей и отмечает дракона для опалы.'}
+  {id:'controls',wave:1,text:'Use WASD or the arrow keys to fly. Left-click to breathe fire; right-click for the special attack once unlocked.'},
+  {id:'loot',wave:2,text:'Collect gold and scrolls after each wave. Spend them on upgrades.'},
+  {id:'bard',wave:3,text:'The bard speeds up enemies with his chorus. Take him out first.'},
+  {id:'prince',wave:5,text:'The prince throws roses into red zones. Stay out of them!'},
+  {id:'mage',wave:6,text:'The mage heals knights and gives them shields. Take him out first.'},
+  {id:'merchant',wave:8,text:'The merchant throws coins to distract dragons. Don't chase them!'},
+  {id:'king',wave:10,text:'The king summons knights and marks a dragon for royal disgrace.'}
 ];
-const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Свитки',c:'#ecd9a8'}];
+const CUR=[{n:'Gold',c:'#ffd24d'},{n:'Scrolls',c:'#ecd9a8'}];
 // b — базовая цена, s — прирост цены за покупку, t — валюта (0 золото, 1 ноты)
-const UP=[{n:'Усиленное дыхание',d:'урон +1, шар крупнее',b:8,s:5,t:0},{n:'Частое дыхание',d:'стреляет на 20% чаще',b:3,s:2,t:1},{n:'Быстрые крылья',d:'скорость +20%',b:3,s:2,t:1},{n:'Драконий щит',d:'поглощает удар',b:10,s:5,t:0}];
+const UP=[{n:'Powerful Breath',d:'Damage +1, larger fireball',b:8,s:5,t:0},{n:'Rapid Fire',d:'Fires 20% faster',b:3,s:2,t:1},{n:'Swift Wings',d:'Speed +20%',b:3,s:2,t:1},{n:'Dragon Shield',d:'Absorbs one hit',b:10,s:5,t:0}];
 // настройки монет: шанс золота с рыцаря, срок жизни обычной и боссовой монеты, когда начинать мигать
 const DROP={chance:.7,life:10,boss:20,warn:3};
 // состав волн: с какой волны появляется враг, его базовый вес, максимум врагов на экране.
@@ -629,7 +629,7 @@ let testLoadMode=false,testBotClock=0,testPerfSamples=[],testPerfRun=null,testPe
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
 let mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false,quipPriority=0;
 
-// ===== Игроки =====
+// ===== Playerи =====
 let players=[],me=null,isHost=false,ws=null;
 const activePlayerCount=()=>Math.max(1,players.reduce((n,p)=>n+(!p.gone?1:0),0));
 // Численность волн растёт мягче числа игроков, чтобы 20 драконов не перегружали поле.
@@ -668,7 +668,7 @@ const maxH=p=>3,flames=p=>1+Math.min(2,Math.ceil(p.lv[0]/2)),dmgOf=p=>1+Math.flo
 const wakeTime=()=>15;
 const cost=(p,i)=>Math.ceil((UP[i].b+p.lv[i]*UP[i].s)*multiplayerRewardMultiplierForPlayers(activePlayerCount()));
 const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
-const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1','взрыв по правой кнопке (раз в 5 с)'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
+const descOf=(p,i)=>[['Two fireballs per shot','Fire damage +1','Three fireballs per shot','Fire damage +1','Right-click blast (every 5 sec)'][p.lv[0]],'Fire rate +15%','Flight speed +20%',['Shield absorbs 1 hit (10 sec)','Faster shield recharge: 7 sec','2 charges, 6 sec'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
   return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,viewW:cvW,viewH:cvH,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
@@ -724,7 +724,7 @@ function sayPrincessEvent(key,seconds=2.5,cooldown=9,priority=1){
 }
 function sayActor(e,key,seconds=2.5,vars={}){
   if(!e||e.hp<=0)return;
-  const lines=A[key]||['Вперёд!'];
+  const lines=A[key]||['Let's go!'];
   const template=pick(lines);
   e.bubble=template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
   e.bubbleT=seconds;
@@ -970,10 +970,10 @@ function spawn(k){
 }
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}
 function descNew(p,i){const n=capped(p,i)?p:nx(p,i);
-  return['пламени×урон: '+flames(p)+'×'+dmgOf(p)+' → '+flames(n)+'×'+dmgOf(n),
-    'выстр./с: '+(1/(.5*Math.pow(.85,p.lv[1]))).toFixed(1)+' → '+(1/(.5*Math.pow(.85,n.lv[1]))).toFixed(1),
-    'скорость: '+Math.round(230*(1+.2*p.lv[2]))+' → '+Math.round(230*(1+.2*n.lv[2])),
-    'щит: '+shMax(p)+' → '+shMax(n)+', восст. '+(SH_T[n.lv[3]]||'—')+' с'][i]}
+  return['Fire × damage: '+flames(p)+'×'+dmgOf(p)+' → '+flames(n)+'×'+dmgOf(n),
+    'Shots/sec: '+(1/(.5*Math.pow(.85,p.lv[1]))).toFixed(1)+' → '+(1/(.5*Math.pow(.85,n.lv[1]))).toFixed(1),
+    'Speed: '+Math.round(230*(1+.2*p.lv[2]))+' → '+Math.round(230*(1+.2*n.lv[2])),
+    'Shield: '+shMax(p)+' → '+shMax(n)+', recharge '+(SH_T[n.lv[3]]||'—')+' с'][i]}
 function drop(e,o){
   if(isBoss(e)&&activePlayerCount()>1){
     // Боссовая награда общая: итоговый удар не должен определять, кто может купить улучшения.
@@ -981,7 +981,7 @@ function drop(e,o){
     const recipients=players.filter(p=>!p.gone);
     for(const p of recipients){p.w[0]+=reward[0];p.w[1]+=reward[1];p.earned+=reward[0]}
     sayQ('bossTeamReward',4,{gold:reward[0],scrolls:reward[1],count:recipients.length});
-    tag(e,'НАГРАДА КОМАНДЕ');
+    tag(e,'TEAM REWARD');
     boom(e.x,e.y,'#ffd24d',18);
     return;
   }
@@ -1015,7 +1015,7 @@ function damageEnemy(e,dmg,o,hitX=e.x,hitY=e.y){
   const result=resolveEnemyDamage(e,dmg);
   e.sh=result.mageShield;e.guard=result.bossGuard;
   if(result.mageAbsorbed>0)boom(hitX,hitY,'#8fd8ff',6);
-  if(result.guardAbsorbed>0){e.guardFlash=.18;if(result.guardBroken){e.guardBreakT=1.2;tag(e,'БАРЬЕР СНЯТ!');sayQ('bossGuardBreak',3);boom(e.x,e.y,'#bd8cff',24)}}
+  if(result.guardAbsorbed>0){e.guardFlash=.18;if(result.guardBroken){e.guardBreakT=1.2;tag(e,'BARRIER DOWN!');sayQ('bossGuardBreak',3);boom(e.x,e.y,'#bd8cff',24)}}
   if(result.hpDamage>0)e.hp-=result.hpDamage;
   if(e.hp<=0)onEnemyDefeated(e,o);
 }
@@ -1133,7 +1133,7 @@ if(a.thr>0&&a.action){
 
         sayQ('princeInterrupted',2.6,{},2);
         sayActor(e,'princeInterrupted',2.6);
-        tag(e,'Оглушён!');
+        tag(e,'Stunned!');
         boom(e.x,e.y,'#ffd24d',16);
         return;
       }
@@ -1180,7 +1180,7 @@ if(!a.arrived){
       e.hold=true;
       sayQ('princeProposal',3,{},2);
       sayActor(e,'princeProposal',3);
-      tag(e,'Предложение!');
+      tag(e,'The Proposal!');
     }
     return;
   }
@@ -1248,7 +1248,7 @@ if(!a.arrived){
     }else{
       sayActor(e,'kingApproach',2.5);
     }
-    tag(e,'К башне!');
+    tag(e,'To the tower!');
   }
 
   // Таймеры независимы: максимум пять указов и максимум пять обвинений.
@@ -1298,7 +1298,7 @@ function throwPrinceRing(e){
 
   sayQ('princeRing',2.4,{},2);
   sayActor(e,'princeRing',2.4);
-  tag(e,'Кольцо!');
+  tag(e,'The Ring!');
 }
 
 function updateBossProjectiles(dt){
@@ -1386,7 +1386,7 @@ function roseRain(e){
 
   sayQ('princeRoses',2.4,{},2);
   sayActor(e,'princeRoses',2.4);
-  tag(e,'Розы!');
+  tag(e,'Roses!');
 
   // Анимация поднятия рук
 e.ab.thr=e.ab.thrT=THROW_T;
@@ -1403,7 +1403,7 @@ function decree(e){
   const count=a?(a.decreeCount=(a.decreeCount||0)+1):1;
   if(count===1)sayQ('kingDecree',2.5,{},2);
   sayActor(e,count>=KING_MIN_DECREES?'kingDecreeFinal':'kingDecree',2.5,{count,max:KING_MIN_DECREES});
-  tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
+  tag(e,'Decree '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
 }
 function disgrace(e){
   // Опала имеет смысл только пока на поле есть живые рыцари.
@@ -1418,7 +1418,7 @@ function disgrace(e){
   const count=a?(a.disgraceCount=(a.disgraceCount||0)+1):1;
   if(count===1)sayQ('kingDisgrace',2.5,{name:p.name,count,max:KING_MIN_DISGRACES},2);
   sayActor(e,'kingDisgrace',2.5,{name:p.name,count,max:KING_MIN_DISGRACES});
-  tag(e,'Похититель '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
+  tag(e,'Kidnapper: '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
   return true;
 }
 function drawZones(){
@@ -1455,7 +1455,7 @@ function drawEnemyMarks(e){
   const ci=castInfo(e);
   if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-(isBoss(e)&&e.guard>0?58:34);
     ctx.fillStyle='#0009';ctx.fillRect(x,y,w,16);ctx.fillStyle='#ffd24d';ctx.fillRect(x,y,w*ci[0]/100,8);ctx.fillStyle='#ff5a4d';ctx.fillRect(x,y+8,w*ci[1]/100,8);
-    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,26,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+(isBoss(e)&&e.guard>0?22:30),13,'#fbe8d3','italic')}}
+    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,26,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('Stop him!',e.x,y+(isBoss(e)&&e.guard>0?22:30),13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}
 function drawRoster(){
@@ -1477,8 +1477,8 @@ function drawRoster(){
 
   ctx.textBaseline='middle';
   ctx.textAlign='right';
-  text('Отшито поклонников: '+score,right,viewTop+24,16,'#fbe8d3');
-  text('Драконы в строю: '+active+' / '+ps.length,right,viewTop+48,13,'#d9c3e8');
+  text('Suitors turned away: '+score,right,viewTop+24,16,'#fbe8d3');
+  text('Dragons still fighting: '+active+' / '+ps.length,right,viewTop+48,13,'#d9c3e8');
 
   ps.forEach((p,i)=>{
     const col=i%cols;
@@ -1554,7 +1554,7 @@ function shieldAllies(e){
     boom(o.x,o.y,'#8fd8ff',6);
   }
 
-  if(targets.length){tag(e,'Щит!');sayActor(e,'mageHeal',2.2);}
+  if(targets.length){tag(e,'Shield!');sayActor(e,'mageHeal',2.2);}
 }
 function woundedNear(e){for(const o of enemies){if(o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<=260)return true}return false}
 function cast(e,dx,dy,d,force){
@@ -1578,7 +1578,7 @@ function cast(e,dx,dy,d,force){
       best.hp=Math.min(best.max,best.hp+healAmount);
       beams.push({x1:e.x,y1:e.y,x2:best.x,y2:best.y,life:.4});
       boom(best.x,best.y,'#7dff9a',6);
-      tag(e,isBoss(best)?'Защищаю босса!':'Лечу!');
+      tag(e,isBoss(best)?'Protecting the boss!':'Healing!');
       sayActor(e,'mageHeal',2.2);
     }else{
       e.cdn=.5;
@@ -1589,13 +1589,13 @@ function cast(e,dx,dy,d,force){
   if(k==='bag'){let bd=1e9;for(const p of players){if(p.asleep)continue;const q=Math.hypot(p.x-e.x,p.y-e.y);if(q<bd){bd=q;tx=p.x;ty=p.y}}}
   const a=Math.atan2(ty-e.y,tx-e.x),v=k==='bag'?130:110;
   if(k==='bag'&&casterOnly()&&notes.filter(n=>n.k==='bag').length<15){
-    tag(e,'Распродажа!');sayActor(e,'merchantBag',2.4);sayPrincessEvent('bag',2.5,7);e.cdn=e.t.rate*.5;e.actL=e.actT=.6;
+    tag(e,'Fire sale!');sayActor(e,'merchantBag',2.4);sayPrincessEvent('bag',2.5,7);e.cdn=e.t.rate*.5;e.actL=e.actT=.6;
     for(let i=0;i<3;i++){const an=i*2.094+Math.random()*.6,bx=Math.max(30,Math.min(W-30,tx+Math.cos(an)*75)),by=Math.max(80,Math.min(H-30,ty+Math.sin(an)*75));
       notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:0,vy:0,hp:1,k:'bag',dmg:0,r:12,life:5,sx:e.x,sy:e.y,tx:bx,ty:by,t:0,d:1.1})}
     return}
   if(k==='bag'){e.actL=e.actT=.6;sayActor(e,'merchantBag',2.4);sayPrincessEvent('bag',2.5,7);}
   else sayActor(e,'bardNote',2.4);
-  tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
+  tag(e,k==='bag'?'Here!':'♪ La-la!');notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
 function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8,2)}else damageEnemy(e,1,p,e.x,e.y);
@@ -2209,7 +2209,7 @@ function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, view
   ctx.textAlign='left';
   ctx.font='bold 10px Georgia,serif';
   ctx.fillStyle='#b45d7b';
-  ctx.fillText('ПРИНЦЕССА',boxX+padX,boxY+padY+speakerHeight/2);
+  ctx.fillText('PRINCESS',boxX+padX,boxY+padY+speakerHeight/2);
   ctx.textAlign='center';
   ctx.font='italic '+fontSize+'px Georgia,serif';
   ctx.fillStyle='#3b1c3f';
@@ -2251,20 +2251,20 @@ function drawShopWrapped(value,x,centerY,maxWidth,fontSize,color,maxLines=2,line
 
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
-  text('Волна '+wave+' cleared',CX,90,40,'#ff9bb3','italic');
+  text('Wave '+wave+' cleared',CX,90,40,'#ff9bb3','italic');
   ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
   const rewardScale=multiplayerRewardMultiplierForPlayers(activePlayerCount());
-  text(activePlayerCount()>1?'Награды и цены ×'+rewardScale.toFixed(2)+' · округление без потерь':'Награды и цены: стандартные',CX,171,12,'#cbb5dc');
+  text(activePlayerCount()>1?'Rewards and prices ×'+rewardScale.toFixed(2)+' · no rounding loss':'Rewards and prices: standard',CX,171,12,'#cbb5dc');
   UP.forEach((u,i)=>{const x=SX+i*206,y=190,cap=capped(me,i),ok=!cap&&me.w[u.t]>=cost(me,i);
     ctx.fillStyle=ok?'#3a2050':'#2a1740';ctx.strokeStyle=ok?CUR[u.t].c:'#6b4a85';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,190,190,14);ctx.fill();ctx.stroke();ctx.lineWidth=1;
     drawShopWrapped(u.n,x+95,y+36,168,16,'#fbe8d3',1,18);
     drawShopWrapped(descOf(me,i),x+95,y+79,166,13,'#d9c3e8',2,16);
-    text('Куплено: '+me.lv[i],x+95,y+125,14,'#d9c3e8');
-    if(cap)text('Максимум',x+95,y+158,19,'#8a7096');
+    text('Purchased: '+me.lv[i],x+95,y+125,14,'#d9c3e8');
+    if(cap)text('MAX',x+95,y+158,19,'#8a7096');
     else{ctx.textAlign='right';text(String(cost(me,i)),x+84,y+158,22,ok?CUR[u.t].c:'#8a7096');ctx.textAlign='center';ctx.save();if(!ok)ctx.globalAlpha*=.55;drawIcon(u.t,x+108,y+155,12);ctx.restore();text('['+(i+1)+']',x+160,y+158,14,'#8a7096')}});
-  ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Ждём остальных':'Дальше',CX,481,22,'#2a1235');
-  text('«Клавиши 1–4 — купить улучшение, Пробел — продолжить. Казну бережём!»',CX,545,15,'#d9c3e8','italic');
-  text('Осталось '+Math.max(0,Math.ceil(shopLeft))+' с · готовы '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
+  ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Waiting for others':'Continue',CX,481,22,'#2a1235');
+  text('Press 1–4 to buy an upgrade, or Space to continue. Let's save our treasury!',CX,545,15,'#d9c3e8','italic');
+  text('Time left '+Math.max(0,Math.ceil(shopLeft))+' sec · ready '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
 function drawBossGuardBar(e){
   if(!isBoss(e)||!(e.guardMax>0)||!(e.guard>0))return;
   const ratio=Math.max(0,Math.min(1,e.guard/e.guardMax));
@@ -2284,7 +2284,7 @@ function drawBossGuardBar(e){
   ctx.strokeStyle='rgba(35,13,55,.42)';ctx.lineWidth=1;
   for(let i=1;i<5;i++){const sx=x+w*i/5;ctx.beginPath();ctx.moveTo(sx,y+2);ctx.lineTo(sx,y+h-2);ctx.stroke()}
   ctx.restore();
-  ctx.font='bold 8px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fffaff';ctx.shadowColor='#28123e';ctx.shadowBlur=3;ctx.fillText('БАРЬЕР',e.x,y+h/2+.35);
+  ctx.font='bold 8px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fffaff';ctx.shadowColor='#28123e';ctx.shadowBlur=3;ctx.fillText('BARRIER',e.x,y+h/2+.35);
   ctx.restore();
 }
 
@@ -2360,7 +2360,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   if(me){
     // Левый край viewport: волна, ресурсы, здоровье и особая атака.
     ctx.textAlign='left';
-    text('ВОЛНА  '+wave+' / '+TOTAL,hudLeft,hudTop+8,17,'#fbe8d3','italic');
+    text('WAVE  '+wave+' / '+TOTAL,hudLeft,hudTop+8,17,'#fbe8d3','italic');
 
     drawIcon(0,hudLeft+7,hudTop+40,10);
     text(String(me.w[0]),hudLeft+28,hudTop+45,18,CUR[0].c);
@@ -2417,7 +2417,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   // Центр viewport: прочность башни и активный эффект барда.
   const hudCenterX=(viewLeft+viewRight)/2;
   ctx.textAlign='center';
-  text('Нервы принцессы',hudCenterX,hudTop+8,15,'#fbe8d3','italic');
+  text('Princess's Patience',hudCenterX,hudTop+8,15,'#fbe8d3','italic');
   ctx.fillStyle='rgba(0,0,0,.38)';
   ctx.fillRect(hudCenterX-145,hudTop+21,290,9);
   ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';
@@ -2425,9 +2425,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
 
   const activeBardCount=enemies.filter(o=>o.hp>0&&o.k==='bard').length;
   if(state==='play'&&chorusT>0){
-    text('Припев! Враги быстрее на 60%',hudCenterX,hudTop+51,12,'#ff9bb3','italic');
+    text('Chorus! Enemies move 60% faster',hudCenterX,hudTop+51,12,'#ff9bb3','italic');
   }else if(state==='play'&&activeBardCount){
-    text('Бард запоёт через '+Math.ceil(chorusCd)+' с',hudCenterX,hudTop+51,12,'#d9c3e8','italic');
+    text('The bard sings in '+Math.ceil(chorusCd)+' с',hudCenterX,hudTop+51,12,'#d9c3e8','italic');
   }
 
   // Правый край viewport: счёт, состояние и индикаторы игроков.
@@ -2440,9 +2440,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
       drawControlHint(currentHint.text,hudLeft,hudBottom-23,Math.max(180,Math.min(650,viewRight-viewLeft-100)));
     }
     ctx.textAlign='left';
-    text('WASD / стрелки — летим · ЛКМ — огонь · ПКМ — особая атака после улучшения',hudLeft,hudBottom,10,'#e9d9ed','italic');
+    text('WASD / Arrow Keys — Fly · Left Click — Fire · Right Click — Special Attack (after upgrade)',hudLeft,hudBottom,10,'#e9d9ed','italic');
     ctx.textAlign='right';
-    text('F — полный экран',hudRight,hudBottom,10,'#e9d9ed','italic');
+    text('F — Fullscreen',hudRight,hudBottom,10,'#e9d9ed','italic');
   }
 
   if(quipT>0&&state==='play'){
@@ -2452,7 +2452,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
     ctx.save();
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    const waveLabel=phase==='break'?(BN[wave]||'Волна '+wave):('Волна '+wave+' отбита!');
+    const waveLabel=phase==='break'?(BN[wave]||'Wave '+wave):('Wave '+wave+' cleared!');
     text(waveLabel,(viewLeft+viewRight)/2,viewBottom-70,34,phase==='break'?'#fbe8d3':'#ffdd88','italic');
     ctx.restore();
   }
@@ -2522,15 +2522,15 @@ function drawEndScreen(){
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   const endingLine=state==='win'
-    ?'«Все ушли? Точно все? Драконы, вы спасли мой покой!»'
+    ?'«Are they all gone? Точно все? Драконы, вы спасли мой покой!»'
     :tower<=0
-      ?'«Всё… Мне срочно нужен отпуск от поклонников.»'
-      :'«Драконы пали, а мне всё ещё нужно где-то прятаться…»';
+      ?'“That's it… I urgently need a vacation from all these suitors.”'
+      :'“The dragons have fallen, and I still need somewhere to hide…”';
   text(endingLine,CX,tableY+34,Math.min(38,tableW*.045),'#ff9bb3','italic');
 
   const summary=state==='win'
-    ?'Отшито поклонников: '+score
-    :'Дошли до волны '+wave+' из '+TOTAL+'  ·  Отшито поклонников: '+score;
+    ?'Suitors turned away: '+score
+    :'Reached wave '+wave+' из '+TOTAL+'  ·  Suitors turned away: '+score;
   text(summary,CX,tableY+67,15,'#fbe8d3');
 
   // Колонки распределены от левого до правого края таблицы.
@@ -2543,12 +2543,12 @@ function drawEndScreen(){
   const fontSize=Math.min(18,Math.max(12,rowH*.58));
 
   ctx.textAlign='center';
-  text('МЕСТО',rankX,headerY,11,'#b9a3cc','italic');
+  text('PLACE',rankX,headerY,11,'#b9a3cc','italic');
   ctx.textAlign='left';
-  text('ДРАКОН',colorX,headerY,11,'#b9a3cc','italic');
-  text('ИГРОК',playerX,headerY,11,'#b9a3cc','italic');
+  text('DRAGON',colorX,headerY,11,'#b9a3cc','italic');
+  text('PLAYER',playerX,headerY,11,'#b9a3cc','italic');
   ctx.textAlign='right';
-  text('ОТШИТО',killsX,headerY,11,'#b9a3cc','italic');
+  text('REJECTED',killsX,headerY,11,'#b9a3cc','italic');
 
   rows.forEach((p,i)=>{
     const rowTop=rowsTop+i*rowH;
@@ -2578,7 +2578,7 @@ function drawEndScreen(){
     ctx.fillText(COLORS[p.ci][0],colorX+15,y,Math.max(60,playerX-colorX-35));
 
     ctx.fillStyle=p===me?'#ffdd88':'#fbe8d3';
-    ctx.fillText(p.name||'Игрок',playerX,y,Math.max(80,killsX-playerX-65));
+    ctx.fillText(p.name||'Player',playerX,y,Math.max(80,killsX-playerX-65));
 
     ctx.textAlign='right';
     ctx.font='bold '+fontSize+'px Georgia,serif';
@@ -2590,7 +2590,7 @@ function drawEndScreen(){
   ctx.font='italic 12px Georgia,serif';
   ctx.fillStyle='#ffdd88';
   ctx.fillText(
-    'Чтобы сыграть ещё раз, хост создаёт новую комнату (обновите страницу).',
+    'To play again, the host must create a new room (refresh the page).',
     CX,tableY+tableH-13,tableW-40
   );
 
@@ -2819,7 +2819,7 @@ function loop(t){
   draw();
   const drawEnd=measuring?performance.now():0;
   if(measuring)recordTestPerformance(t,measuredFrameMs,updateEnd-updateStart,drawEnd-updateEnd,drawEnd-loopStart);
-  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Связь с сервером потеряна. Обновите страницу.',CX,CY,26,'#ff9bb3','italic')}
+  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Connection to the server lost. Refresh the page.',CX,CY,26,'#ff9bb3','italic')}
   requestAnimationFrame(loop);
 }
 
@@ -2884,7 +2884,7 @@ function testSetPlayerCount(count){
   for(let i=1;i<target;i++){
     const p=makePlayer(i,i%COLORS.length);
     const position=playerSpawnPositionForIndex(i,target);
-    p.name='Тестовый дракон '+(i+1);
+    p.name='Test Dragon '+(i+1);
     p.nid='test-dummy-'+i;
     p.testDummy=true;
     p.lv=primary.lv.slice();
@@ -2916,7 +2916,7 @@ function testSetLoadMode(enabled){
   return {active:testLoadMode,dragons:players.filter(p=>!p.gone).length-1};
 }
 function testStartHostLoadTest(count,durationSeconds=30){
-  if(!TEST_MODE||!me)return {started:false,reason:'Тестовый режим не активен'};
+  if(!TEST_MODE||!me)return {started:false,reason:'Test mode is not active'};
   const composition=testSetPlayerCount(count);
   // Clear wave activity so this benchmark isolates host cost from active dragons,
   // their movement, volleys and projectiles rather than stress-testing enemy spawning.
@@ -2944,11 +2944,11 @@ function testPerfInfo(){
   const frames=values('frameMs'),updates=values('updateMs'),draws=values('drawMs'),totals=values('totalMs');
   const avgFrame=mean(frames),frame95=p95(frames),update95=p95(updates),draw95=p95(draws),total95=p95(totals);
   const fps=avgFrame?1000/avgFrame:0;
-  let grade='idle',status='Ожидание нагрузочного теста';
+  let grade='idle',status='Waiting for stress test';
   if(samples.length){
-    if(fps>=55&&frame95<=20&&total95<=16.7){grade='good';status='Хорошо: близко к стабильным 60 FPS'}
-    else if(fps>=45&&frame95<=28&&total95<=25){grade='warn';status='Есть нагрузка: проверьте на компьютере хоста'}
-    else{grade='bad';status='Заметные просадки: нагрузка превышает комфортный уровень'}
+    if(fps>=55&&frame95<=20&&total95<=16.7){grade='good';status='Good: close to a steady 60 FPS'}
+    else if(fps>=45&&frame95<=28&&total95<=25){grade='warn';status='Some load detected: check on the host computer'}
+    else{grade='bad';status='Noticeable slowdowns: load is above a comfortable level'}
   }
   const now=typeof performance!=='undefined'?performance.now():0;
   const elapsed=run?Math.min(run.durationMs,Math.max(0,(run.finishedAt||now)-run.startedAt))/1000:0;
@@ -2977,7 +2977,7 @@ function testStartEdict(){
     knight.y=Math.max(76,Math.min(H-42,me.y+Math.sin(angle)*145));
     knight.chase=1;
   }
-  say('ТЕСТ ОПАЛЫ: рыцари преследуют отмеченного дракона',3);
+  say('ROYAL DISGRACE TEST: knights are chasing the marked dragon',3);
   return {active:true,knights:enemies.filter(e=>e.k==='knight'&&e.hp>0).length,duration:markT};
 }
 function testRunDiagnostics(){
@@ -2987,20 +2987,20 @@ function testRunDiagnostics(){
   const counts=[1,6,10,15,20];
   const scales=counts.map(dragonCrowdScaleForCount);
   const expected20=.70;
-  add('scale-baseline','1–6 драконов сохраняют исходный размер',
+  add('scale-baseline','1–6 dragons keep their original size',
     counts.slice(0,2).every((n,i)=>Math.abs(scales[i]-1)<1e-9),'100%');
-  add('scale-20','При 20 драконах размер спрайта уменьшается до 70%',
+  add('scale-20','At 20 dragons, sprite size is reduced to 70%',
     Math.abs(scales[4]-expected20)<1e-9,(scales[4]*100).toFixed(1)+'%');
-  add('scale-smooth','Масштаб драконов плавно уменьшается при росте числа игроков',
+  add('scale-smooth','Dragon size scales down smoothly as the player count increases',
     scales.every((v,i)=>i===0||v<=scales[i-1])&&scales.every(v=>v<=1&&v>=.70),
     counts.map((n,i)=>n+': '+(scales[i]*100).toFixed(1)+'%').join(' · '));
 
   const sceneScales=counts.map(sceneCrowdScaleForCount);
-  add('scene-baseline','Сцена не меняет масштаб при 1–6 игроках',
+  add('scene-baseline','The scene keeps its original scale with 1–6 players',
     sceneScales.slice(0,2).every(v=>Math.abs(v-1)<1e-9),'100%');
-  add('scene-20','При 20 игроках камера отдаляется до 92%',
+  add('scene-20','At 20 players, the camera zooms out to 92%',
     Math.abs(sceneScales[4]-.92)<1e-9,(sceneScales[4]*100).toFixed(1)+'%');
-  add('scene-smooth','Масштаб сцены уменьшается плавно и без скачков',
+  add('scene-smooth','Scene scale decreases smoothly without jumps',
     sceneScales.every((v,i)=>i===0||v<=sceneScales[i-1])&&sceneScales.every(v=>v<=1&&v>=.92),
     counts.map((n,i)=>n+': '+(sceneScales[i]*100).toFixed(1)+'%').join(' · '));
 
@@ -3019,129 +3019,129 @@ function testRunDiagnostics(){
     spacingChecks.push({count,screenGap,visualDragon,inside:minX>=24&&maxX<=W-24&&minY>=70&&maxY<=H-24});
   }
   const minScreenGap=Math.min(...spacingChecks.map(v=>v.screenGap));
-  add('spawn-spacing','Стартовая расстановка оставляет зазор между драконами при 2–20 игроках',
+  add('spawn-spacing','The starting formation leaves space between dragons with 2–20 players',
     spacingChecks.every(v=>v.screenGap>=5&&v.inside),
-    'Минимальный зазор '+minScreenGap.toFixed(1)+' px · все позиции внутри игрового поля');
+    'Minimum gap '+minScreenGap.toFixed(1)+' px · all positions are inside the playfield');
   const maxLayout=playerSpawnLayoutForCount(20);
-  add('spawn-formation-max','При 20 игроках стартовая формация расширяется вместе с размером комнаты',
+  add('spawn-formation-max','With 20 players, the starting formation expands to fit the room size',
     maxLayout.radiusX===306&&Math.abs(maxLayout.radiusY-238.68)<1e-8,
-    'Полуоси эллипса: '+maxLayout.radiusX.toFixed(0)+' × '+maxLayout.radiusY.toFixed(0)+' мировых px');
+    'Ellipse radii: '+maxLayout.radiusX.toFixed(0)+' × '+maxLayout.radiusY.toFixed(0)+' world px');
   const sampleWorld={x:417,y:263};
   const sampleScreen={x:CX+(sampleWorld.x-CX)*sceneScales[4],y:CY+(sampleWorld.y-CY)*sceneScales[4]};
   const restored=screenToWorldPoint(sampleScreen.x,sampleScreen.y,sceneScales[4]);
-  add('scene-input','Обратное преобразование мыши сохраняет точность прицела',
+  add('scene-input','Mouse coordinate conversion preserves aiming accuracy',
     Math.hypot(restored.x-sampleWorld.x,restored.y-sampleWorld.y)<1e-8,
-    'Ошибка координат: '+Math.hypot(restored.x-sampleWorld.x,restored.y-sampleWorld.y).toFixed(8));
+    'Coordinate error: '+Math.hypot(restored.x-sampleWorld.x,restored.y-sampleWorld.y).toFixed(8));
 
   const normalKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
   const markedKnight=enemyMoveSpeed({k:'knight',chase:1,t:{sp:T.knight.sp}},false,1);
   const unmarkedKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
   const markedMage=enemyMoveSpeed({k:'mage',chase:1,t:{sp:T.mage.sp}},false,1);
-  add('knight-base','Обычная скорость рыцаря не изменилась',
-    Math.abs(normalKnight-T.knight.sp)<1e-9,normalKnight.toFixed(1)+' ед./с');
-  add('knight-edict','Под опалой рыцарь ускоряется ровно на 25%',
-    Math.abs(markedKnight/normalKnight-1.25)<1e-9,normalKnight.toFixed(1)+' → '+markedKnight.toFixed(1)+' ед./с');
-  add('knight-scope','Ускорение не действует на неотмеченных рыцарей и других врагов',
+  add('knight-base','The knight's normal movement speed is unchanged',
+    Math.abs(normalKnight-T.knight.sp)<1e-9,normalKnight.toFixed(1)+' units/sec');
+  add('knight-edict','A knight moves exactly 25% faster while under royal disgrace',
+    Math.abs(markedKnight/normalKnight-1.25)<1e-9,normalKnight.toFixed(1)+' → '+markedKnight.toFixed(1)+' units/sec');
+  add('knight-scope','The speed boost does not affect unmarked knights or other enemies',
     Math.abs(unmarkedKnight-normalKnight)<1e-9&&Math.abs(markedMage-T.mage.sp)<1e-9,
-    'Неотмеченный рыцарь: '+unmarkedKnight.toFixed(1)+' · маг: '+markedMage.toFixed(1)+' ед./с');
-  add('live-scale','Текущий тестовый состав использует тот же масштаб, что и спрайты',
+    'Unmarked knight: '+unmarkedKnight.toFixed(1)+' · mage: '+markedMage.toFixed(1)+' units/sec');
+  add('live-scale','The current test lineup uses the same scale as the rendered sprites',
     Math.abs(dragonTransform(me).scale-dragonCrowdScale())<1e-9,
     players.filter(p=>!p.gone).length+' игроков · '+(dragonCrowdScale()*100).toFixed(1)+'%');
-  add('live-scene-scale','Текущая сцена использует масштаб, соответствующий составу игроков',
+  add('live-scene-scale','The current scene uses the scale that matches the player count',
     Math.abs(sceneCrowdScale()-sceneCrowdScaleForCount(players.filter(p=>!p.gone).length))<1e-9,
     'Scene '+(sceneCrowdScale()*100).toFixed(1)+'%');
 
   const baseBounds=playerMovementBoundsForScale(1,1);
-  add('player-edge-base','При исходном масштабе сохранены прежние границы движения',
+  add('player-edge-base','Original movement boundaries are preserved at the default scale',
     Math.abs(baseBounds.minX-24)<1e-8&&Math.abs(baseBounds.maxX-(W-24))<1e-8&&Math.abs(baseBounds.minY-70)<1e-8&&Math.abs(baseBounds.maxY-(H-24))<1e-8,
     'X: '+baseBounds.minX.toFixed(1)+'–'+baseBounds.maxX.toFixed(1)+' · Y: '+baseBounds.minY.toFixed(1)+'–'+baseBounds.maxY.toFixed(1));
   const maxMoveBounds=playerMovementBoundsForScale(.92,.70);
   const wideViewportBounds=playerMovementBoundsForScale(.92,.70,1480,640);
-  add('player-edge-wide-viewport','Границы движения расширяются до фактических краёв широкого viewport', 
+  add('player-edge-wide-viewport','Movement boundaries extend to the actual edges of a wide viewport', 
     wideViewportBounds.minX<maxMoveBounds.minX&&wideViewportBounds.maxX>maxMoveBounds.maxX&&
     Math.abs((CX+(wideViewportBounds.minX-CX)*.92)-(-171+wideViewportBounds.marginX))<1e-7&&
     Math.abs((CX+(wideViewportBounds.maxX-CX)*.92)-(1480-171-wideViewportBounds.marginX))<1e-7,
-    'Широкий viewport: мировые X '+wideViewportBounds.minX.toFixed(1)+'…'+wideViewportBounds.maxX.toFixed(1));
+    'Wide viewport: world X '+wideViewportBounds.minX.toFixed(1)+'…'+wideViewportBounds.maxX.toFixed(1));
   const maxScreenEdges={
     minX:CX+(maxMoveBounds.minX-CX)*.92,
     maxX:CX+(maxMoveBounds.maxX-CX)*.92,
     minY:CY+(maxMoveBounds.minY-CY)*.92,
     maxY:CY+(maxMoveBounds.maxY-CY)*.92
   };
-  add('player-edge-expands','При 20 игроках границы движения расширяются вслед за zoom-out',
+  add('player-edge-expands','With 20 players, movement boundaries expand as the camera zooms out',
     maxMoveBounds.minX<24&&maxMoveBounds.maxX>W-24&&maxMoveBounds.minY<70&&maxMoveBounds.maxY>H-24,
-    'Мировые X: '+maxMoveBounds.minX.toFixed(1)+'–'+maxMoveBounds.maxX.toFixed(1)+' · Y: '+maxMoveBounds.minY.toFixed(1)+'–'+maxMoveBounds.maxY.toFixed(1));
-  add('player-edge-screen-match','Новые границы после отрисовки совпадают с безопасным отступом края сцены',
+    'World X: '+maxMoveBounds.minX.toFixed(1)+'–'+maxMoveBounds.maxX.toFixed(1)+' · Y: '+maxMoveBounds.minY.toFixed(1)+'–'+maxMoveBounds.maxY.toFixed(1));
+  add('player-edge-screen-match','After rendering, the new boundaries match the scene's safe edge margins',
     Math.abs(maxScreenEdges.minX-maxMoveBounds.marginX)<1e-8&&Math.abs(maxScreenEdges.maxX-(W-maxMoveBounds.marginX))<1e-8&&Math.abs(maxScreenEdges.minY-maxMoveBounds.marginTop)<1e-8&&Math.abs(maxScreenEdges.maxY-(H-maxMoveBounds.marginBottom))<1e-8,
-    'Экранные X: '+maxScreenEdges.minX.toFixed(1)+'–'+maxScreenEdges.maxX.toFixed(1)+' · Y: '+maxScreenEdges.minY.toFixed(1)+'–'+maxScreenEdges.maxY.toFixed(1));
+    'Screen X: '+maxScreenEdges.minX.toFixed(1)+'–'+maxScreenEdges.maxX.toFixed(1)+' · Y: '+maxScreenEdges.minY.toFixed(1)+'–'+maxScreenEdges.maxY.toFixed(1));
   const movementBoundsByCount=counts.map(n=>playerMovementBoundsForScale(sceneCrowdScaleForCount(n),dragonCrowdScaleForCount(n)));
-  add('player-edge-growth','Область полёта плавно расширяется для всех контрольных размеров команды',
+  add('player-edge-growth','The flight area expands smoothly for all tested team sizes',
     movementBoundsByCount.every((b,i)=>i===0||(b.minX<=movementBoundsByCount[i-1].minX&&b.maxX>=movementBoundsByCount[i-1].maxX&&b.minY<=movementBoundsByCount[i-1].minY&&b.maxY>=movementBoundsByCount[i-1].maxY)),
-    counts.map((n,i)=>n+' игроков: '+movementBoundsByCount[i].minX.toFixed(0)+'…'+movementBoundsByCount[i].maxX.toFixed(0)).join(' · '));
+    counts.map((n,i)=>n+' players: '+movementBoundsByCount[i].minX.toFixed(0)+'…'+movementBoundsByCount[i].maxX.toFixed(0)).join(' · '));
   const edgeProjectionChecks=movementBoundsByCount.every((b,i)=>{
     const scale=sceneCrowdScaleForCount(counts[i]);
     return Math.abs((CX+(b.minX-CX)*scale)-b.marginX)<1e-7&&Math.abs((CX+(b.maxX-CX)*scale)-(W-b.marginX))<1e-7&&Math.abs((CY+(b.minY-CY)*scale)-b.marginTop)<1e-7&&Math.abs((CY+(b.maxY-CY)*scale)-(H-b.marginBottom))<1e-7;
   });
-  add('player-edge-all-counts','Экранные границы корректны не только при 20, но и при 1–15 драконах',
-    edgeProjectionChecks,'Проверены 1, 6, 10, 15 и 20 игроков');
+  add('player-edge-all-counts','Screen boundaries are correct not only with 20, but also with 1–15 dragons',
+    edgeProjectionChecks,'Checked with 1, 6, 10, 15, and 20 players');
   const testClamp={x:W+500,y:H+500};
   const maxBoundsCopy={...maxMoveBounds};
   testClamp.x=Math.max(maxBoundsCopy.minX,Math.min(maxBoundsCopy.maxX,testClamp.x));
   testClamp.y=Math.max(maxBoundsCopy.minY,Math.min(maxBoundsCopy.maxY,testClamp.y));
-  add('player-edge-clamp','Функция ограничения позиции использует расширенные границы, а не старый W×H',
+  add('player-edge-clamp','Position clamping uses the expanded boundaries instead of the old W×H limits',
     Math.abs(testClamp.x-maxMoveBounds.maxX)<1e-8&&Math.abs(testClamp.y-maxMoveBounds.maxY)<1e-8&&testClamp.x>W-24&&testClamp.y>H-24,
-    'Крайняя позиция при 20 игроках: '+testClamp.x.toFixed(1)+', '+testClamp.y.toFixed(1));
+    'Extreme position with 20 players: '+testClamp.x.toFixed(1)+', '+testClamp.y.toFixed(1));
 
   const rewardCounts=[1,6,10,15,20];
   const rewardScales=rewardCounts.map(multiplayerRewardMultiplierForPlayers);
   const goldSim=rewardCounts.map(n=>simulateScaledRewards(1,n,2000));
   const scrollSim=rewardCounts.map(n=>simulateScaledRewards(2,n,2000));
-  add('economy-solo','В одиночной игре награды остаются прежними',
+  add('economy-solo','Rewards remain unchanged in solo mode',
     Math.abs(rewardScales[0]-1)<1e-9&&allocateScaledReward(1,1,0).amount===1,'×'+rewardScales[0].toFixed(2));
-  add('economy-fair-share','Ожидаемый доход на игрока сохраняется при 1–20 участниках',
+  add('economy-fair-share','Expected income per player is preserved for 1–20 players',
     goldSim.every(v=>Math.abs(v.perPlayer-v.expected)<.002)&&scrollSim.every(v=>Math.abs(v.perPlayer-v.expected)<.004),
-    rewardCounts.map((n,i)=>n+' игроков: золото '+goldSim[i].perPlayer.toFixed(3)+' / свитки '+scrollSim[i].perPlayer.toFixed(3)).join(' · '));
-  add('economy-carry','Дробные остатки округления сохраняют суммарную награду на длинной дистанции',
+    rewardCounts.map((n,i)=>n+' players: gold '+goldSim[i].perPlayer.toFixed(3)+' / scrolls '+scrollSim[i].perPlayer.toFixed(3)).join(' · '));
+  add('economy-carry','Carried fractional remainders preserve the total reward over time',
     rewardCounts.every((n,i)=>Math.abs(goldSim[i].total-2000*rewardScales[i])<1.01&&Math.abs(scrollSim[i].total-4000*rewardScales[i])<1.01),
-    'Погрешность суммарной награды не превышает 1 единицы на валюту');
-  add('economy-integer','Каждый подобранный дроп остаётся целым и минимум 1',
+    'The total reward error does not exceed 1 unit per currency');
+  add('economy-integer','Every collected drop is an integer and at least 1',
     rewardCounts.every(n=>{let r=0;for(let i=0;i<200;i++){const v=allocateScaledReward(1,n,r);if(!Number.isInteger(v.amount)||v.amount<1)return false;r=v.remainder}return r>=0&&r<1}),
-    'Проверены 200 последовательных дропов для каждой группы');
-  add('economy-magnet-stable','Масштаб награды не меняет радиус притяжения случайным образом',
+    '200 consecutive drops checked for each group');
+  add('economy-magnet-stable','Reward scaling does not unpredictably change the pickup magnet radius',
     pickupMagnetRadiusForBaseReward(1)===130&&pickupMagnetRadiusForBaseReward(2)===130&&pickupMagnetRadiusForBaseReward(10)===200,
-    'Обычные дропы: 130 px · крупная базовая награда: 200 px');
+    'Normal drops: 130 px · large base rewards: 200 px');
   const princeReward=BOSS_REWARDS.prince,kingReward=BOSS_REWARDS.king;
-  add('boss-party-rewards','Награда босса рассчитана на каждого участника команды',
+  add('boss-party-rewards','Boss rewards are calculated for every team member',
     princeReward[0]===10&&princeReward[1]===4&&kingReward[0]===20&&kingReward[1]===8,
     'Prince: '+princeReward.join('/')+' · King: '+kingReward.join('/')+' (gold/scrolls)');
   const princeGuard=bossGuardForMaxHp('prince',T.prince.hp),kingGuard=bossGuardForMaxHp('king',T.king.hp);
-  add('boss-guard-values','У принца и короля есть отдельная шкала защиты',
+  add('boss-guard-values','The prince and king each have a separate guard bar',
     princeGuard===11&&kingGuard===36,
-    'Prince: '+princeGuard+' · King: '+kingGuard+' ед. (15% / 18% HP)');
+    'Prince: '+princeGuard+' · King: '+kingGuard+' units (15% / 18% HP)');
   const guardLayout=bossGuardBarLayout({k:'king',x:500,y:300,t:T.king});
-  add('boss-guard-layout','Фиолетовая шкала находится над полосой здоровья и не сливается с ней',
+  add('boss-guard-layout','The purple bar sits above the health bar without blending into it',
     guardLayout.y+guardLayout.height<guardLayout.hpBarY&&guardLayout.width>=80&&guardLayout.height>=10,
-    'Bar '+guardLayout.width+'×'+guardLayout.height+' px · зазор до HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
+    'Bar '+guardLayout.width+'×'+guardLayout.height+' px · gap above HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
   const princeHp20=T.prince.hp*20,kingHp20=T.king.hp*20;
   const princeGuard20=bossGuardForMaxHp('prince',princeHp20),kingGuard20=bossGuardForMaxHp('king',kingHp20);
-  add('boss-guard-party-scaling','Барьер босса масштабируется вместе с его здоровьем при 20 игроках',
+  add('boss-guard-party-scaling','The boss barrier scales with boss health at 20 players',
     princeGuard20===Math.round(princeHp20*BOSS_GUARD_RATIO.prince)&&kingGuard20===Math.round(kingHp20*BOSS_GUARD_RATIO.king),
-    '20 игроков · Принц: '+princeGuard20+'/'+princeHp20+' · King: '+kingGuard20+'/'+kingHp20);
+    '20 игроков · Prince: '+princeGuard20+'/'+princeHp20+' · King: '+kingGuard20+'/'+kingHp20);
   const guardHit=resolveEnemyDamage({k:'prince',sh:0,guard:20},10);
-  add('boss-guard-absorbs','Пока барьер активен, урон не проходит в здоровье',
+  add('boss-guard-absorbs','While the barrier is active, damage does not reach health',
     guardHit.bossGuard===10&&guardHit.hpDamage===0,
-    'Барьер: 20 → '+guardHit.bossGuard+' · health damage: '+guardHit.hpDamage);
+    'Barrier: 20 → '+guardHit.bossGuard+' · health damage: '+guardHit.hpDamage);
   const breakHit=resolveEnemyDamage({k:'king',sh:0,guard:5},20);
-  add('boss-guard-no-overflow','Удар, разрушающий барьер, не пробивает здоровье насквозь',
+  add('boss-guard-no-overflow','A hit that breaks the barrier does not carry through to health',
     breakHit.bossGuard===0&&breakHit.hpDamage===0&&breakHit.guardBroken,
-    'Барьер: 5 → 0 · урон здоровью этим ударом: '+breakHit.hpDamage);
+    'Barrier: 5 → 0 · урон здоровью этим ударом: '+breakHit.hpDamage);
   const openHit=resolveEnemyDamage({k:'prince',sh:0,guard:0},7);
-  add('boss-guard-open','После снятия барьера здоровье босса снова получает урон',
+  add('boss-guard-open','Once the barrier is removed, the boss can take health damage again',
     openHit.hpDamage===7&&openHit.bossGuard===0,'Health damage: '+openHit.hpDamage);
   const layeredHit=resolveEnemyDamage({k:'king',sh:2,guard:10},3);
-  add('boss-guard-distinct','Защита мага и барьер босса работают как отдельные слои',
+  add('boss-guard-distinct','The mage's shield and the boss barrier work as separate layers',
     layeredHit.mageShield===0&&layeredHit.bossGuard===9&&layeredHit.hpDamage===0,
-    'Щит мага: 2 → 0 · барьер босса: 10 → 9');
+    'Mage shield: 2 → 0 · барьер босса: 10 → 9');
   return checks;
 }
 function testInfo(){
