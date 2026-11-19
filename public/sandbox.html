@@ -85,7 +85,8 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
         <strong id="test-player-count-value">1</strong>
       </div>
       <button id="apply-player-count" class="secondary">Показать состав</button>
-      <small>Проверяет реальную стартовую расстановку: при росте команды драконы становятся меньше, камера немного отдаляется, а эллипс появления расширяется. При 20 игроках: драконы 70%, сцена 92%, полуоси стартового эллипса 306 × 239 px. Хитбоксы и боевые параметры не меняются.</small>
+      <small>Проверяет стартовую расстановку и границы движения: при росте команды драконы становятся меньше, камера отдаляется, формация расширяется, а доступная область полёта увеличивается вместе с видимой сценой. Хитбоксы и боевые параметры не меняются.</small>
+      <div id="movement-bounds-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">Границы движения рассчитываются…</div>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
       <b style="font-size:12px">Нагрузка хоста</b>
@@ -184,6 +185,8 @@ function refreshTestInfo(){
   const info=Game.testInfo();
   const status=info.edict?' · опала активна':' · опалы нет';
   const layout=info.spawnLayout||{radiusX:0,radiusY:0};
+  const movement=info.movementBounds||{minX:0,maxX:0,minY:0,maxY:0};
+  $('#movement-bounds-info').textContent='Границы полёта: X '+movement.minX.toFixed(0)+'…'+movement.maxX.toFixed(0)+' · Y '+movement.minY.toFixed(0)+'…'+movement.maxY.toFixed(0)+' мировых px';
   $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' · персонажи '+(info.dragonScale*100).toFixed(1)+'% · сцена '+(info.sceneScale*100).toFixed(1)+'% · расстановка '+layout.radiusX.toFixed(0)+' × '+layout.radiusY.toFixed(0)+' px · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
   const economyInfo=$('#economy-info');
   if(info.economy){

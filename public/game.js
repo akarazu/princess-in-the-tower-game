@@ -200,6 +200,41 @@ function screenToWorldPoint(x, y, scale = sceneCrowdScale()) {
   };
 }
 
+// Границы движения тоже должны учитывать отдаление камеры.
+// Раньше дракон оставался зажат в старых координатах 24..W-24 / 70..H-24,
+// хотя после zoom-out видимая область уже расширялась. Поэтому персонаж
+// останавливался у невидимой стены задолго до края видимой сцены.
+// Возвращаем новые границы в мировых координатах так, чтобы после camera
+// transform их экранные координаты совпадали с прежними отступами игрового поля.
+function playerMovementBoundsForScale(sceneScale, spriteScale) {
+  const safeSceneScale = Math.max(0.01, Number(sceneScale) || 1);
+  const safeSpriteScale = Math.max(0.01, Math.min(1, Number(spriteScale) || 1));
+  // При большом количестве игроков дракон меньше, поэтому оставляем
+  // чуть более широкий безопасный отступ, но не сужаем базовую игровую область.
+  const densityPadding = 18 * (1 - safeSceneScale * safeSpriteScale);
+  const marginX = 24 + densityPadding;
+  const marginTop = 70 + densityPadding;
+  const marginBottom = 24 + densityPadding;
+  return {
+    minX: CX + (marginX - CX) / safeSceneScale,
+    maxX: CX + (W - marginX - CX) / safeSceneScale,
+    minY: CY + (marginTop - CY) / safeSceneScale,
+    maxY: CY + (H - marginBottom - CY) / safeSceneScale,
+    marginX,
+    marginTop,
+    marginBottom
+  };
+}
+function playerMovementBounds() {
+  return playerMovementBoundsForScale(sceneCrowdScale(), dragonCrowdScale());
+}
+function clampPlayerToMovementBounds(p) {
+  const bounds = playerMovementBounds();
+  p.x = Math.max(bounds.minX, Math.min(bounds.maxX, p.x));
+  p.y = Math.max(bounds.minY, Math.min(bounds.maxY, p.y));
+  return bounds;
+}
+
 // Единая матрица трансформации дракона.
 // Порядок полностью совпадает с отрисовкой: translate → scale(face) → rotate(angle).
 // Масштаб толпы применяется и к спрайту, и к точке выхода огня изо рта.
@@ -1509,8 +1544,9 @@ function updatePlayer(p,dt){
     p.y+=my/moveLength*speed*dt;
   }
 
-  p.x=Math.max(24,Math.min(W-24,p.x));
-  p.y=Math.max(70,Math.min(H-24,p.y));
+  // Расширяем мировые границы вместе с zoom-out камеры,
+  // чтобы управление не упиралось в прежний прямоугольник W×H.
+  clampPlayerToMovementBounds(p);
 
   // Сначала выбираем сторону, в которую смотрит дракон.
   // Порог небольшой, чтобы разворот влево/вправо не запаздывал.
@@ -1585,8 +1621,9 @@ function updateTestBots(dt){
     const phase=testBotClock*.82+p.id*2.399963229728653;
     p.in.mx=Math.cos(phase);
     p.in.my=Math.sin(phase*.91+p.id*.17);
-    p.in.ax=Math.max(24,Math.min(W-24,p.x+Math.cos(phase*.73+p.id)*210));
-    p.in.ay=Math.max(70,Math.min(H-24,p.y+Math.sin(phase*.79+p.id)*140));
+    const bounds=playerMovementBounds();
+    p.in.ax=Math.max(bounds.minX,Math.min(bounds.maxX,p.x+Math.cos(phase*.73+p.id)*210));
+    p.in.ay=Math.max(bounds.minY,Math.min(bounds.maxY,p.y+Math.sin(phase*.79+p.id)*140));
     p.in.fire=true;
     p.in.alt=p.lv[0]>=5&&Math.sin(testBotClock*.55+p.id*1.31)>.88;
   }
@@ -2433,7 +2470,7 @@ const net=o=>{
 };
 const r1=v=>Math.round(v),r10=v=>Math.round(v*10)/10;
 function playerByNid(id){return players.find(p=>p.nid===id)}
-function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y))}
+function clampP(p){clampPlayerToMovementBounds(p)}
 
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
@@ -2866,6 +2903,41 @@ function testRunDiagnostics(){
     Math.abs(sceneCrowdScale()-sceneCrowdScaleForCount(players.filter(p=>!p.gone).length))<1e-9,
     'Сцена '+(sceneCrowdScale()*100).toFixed(1)+'%');
 
+  const baseBounds=playerMovementBoundsForScale(1,1);
+  add('player-edge-base','При исходном масштабе сохранены прежние границы движения',
+    Math.abs(baseBounds.minX-24)<1e-8&&Math.abs(baseBounds.maxX-(W-24))<1e-8&&Math.abs(baseBounds.minY-70)<1e-8&&Math.abs(baseBounds.maxY-(H-24))<1e-8,
+    'X: '+baseBounds.minX.toFixed(1)+'–'+baseBounds.maxX.toFixed(1)+' · Y: '+baseBounds.minY.toFixed(1)+'–'+baseBounds.maxY.toFixed(1));
+  const maxMoveBounds=playerMovementBoundsForScale(.92,.70);
+  const maxScreenEdges={
+    minX:CX+(maxMoveBounds.minX-CX)*.92,
+    maxX:CX+(maxMoveBounds.maxX-CX)*.92,
+    minY:CY+(maxMoveBounds.minY-CY)*.92,
+    maxY:CY+(maxMoveBounds.maxY-CY)*.92
+  };
+  add('player-edge-expands','При 20 игроках границы движения расширяются вслед за zoom-out',
+    maxMoveBounds.minX<24&&maxMoveBounds.maxX>W-24&&maxMoveBounds.minY<70&&maxMoveBounds.maxY>H-24,
+    'Мировые X: '+maxMoveBounds.minX.toFixed(1)+'–'+maxMoveBounds.maxX.toFixed(1)+' · Y: '+maxMoveBounds.minY.toFixed(1)+'–'+maxMoveBounds.maxY.toFixed(1));
+  add('player-edge-screen-match','Новые границы после отрисовки совпадают с безопасным отступом края сцены',
+    Math.abs(maxScreenEdges.minX-maxMoveBounds.marginX)<1e-8&&Math.abs(maxScreenEdges.maxX-(W-maxMoveBounds.marginX))<1e-8&&Math.abs(maxScreenEdges.minY-maxMoveBounds.marginTop)<1e-8&&Math.abs(maxScreenEdges.maxY-(H-maxMoveBounds.marginBottom))<1e-8,
+    'Экранные X: '+maxScreenEdges.minX.toFixed(1)+'–'+maxScreenEdges.maxX.toFixed(1)+' · Y: '+maxScreenEdges.minY.toFixed(1)+'–'+maxScreenEdges.maxY.toFixed(1));
+  const movementBoundsByCount=counts.map(n=>playerMovementBoundsForScale(sceneCrowdScaleForCount(n),dragonCrowdScaleForCount(n)));
+  add('player-edge-growth','Область полёта плавно расширяется для всех контрольных размеров команды',
+    movementBoundsByCount.every((b,i)=>i===0||(b.minX<=movementBoundsByCount[i-1].minX&&b.maxX>=movementBoundsByCount[i-1].maxX&&b.minY<=movementBoundsByCount[i-1].minY&&b.maxY>=movementBoundsByCount[i-1].maxY)),
+    counts.map((n,i)=>n+' игроков: '+movementBoundsByCount[i].minX.toFixed(0)+'…'+movementBoundsByCount[i].maxX.toFixed(0)).join(' · '));
+  const edgeProjectionChecks=movementBoundsByCount.every((b,i)=>{
+    const scale=sceneCrowdScaleForCount(counts[i]);
+    return Math.abs((CX+(b.minX-CX)*scale)-b.marginX)<1e-7&&Math.abs((CX+(b.maxX-CX)*scale)-(W-b.marginX))<1e-7&&Math.abs((CY+(b.minY-CY)*scale)-b.marginTop)<1e-7&&Math.abs((CY+(b.maxY-CY)*scale)-(H-b.marginBottom))<1e-7;
+  });
+  add('player-edge-all-counts','Экранные границы корректны не только при 20, но и при 1–15 драконах',
+    edgeProjectionChecks,'Проверены 1, 6, 10, 15 и 20 игроков');
+  const testClamp={x:W+500,y:H+500};
+  const maxBoundsCopy={...maxMoveBounds};
+  testClamp.x=Math.max(maxBoundsCopy.minX,Math.min(maxBoundsCopy.maxX,testClamp.x));
+  testClamp.y=Math.max(maxBoundsCopy.minY,Math.min(maxBoundsCopy.maxY,testClamp.y));
+  add('player-edge-clamp','Функция ограничения позиции использует расширенные границы, а не старый W×H',
+    Math.abs(testClamp.x-maxMoveBounds.maxX)<1e-8&&Math.abs(testClamp.y-maxMoveBounds.maxY)<1e-8&&testClamp.x>W-24&&testClamp.y>H-24,
+    'Крайняя позиция при 20 игроках: '+testClamp.x.toFixed(1)+', '+testClamp.y.toFixed(1));
+
   const rewardCounts=[1,6,10,15,20];
   const rewardScales=rewardCounts.map(multiplayerRewardMultiplierForPlayers);
   const goldSim=rewardCounts.map(n=>simulateScaledRewards(1,n,2000));
@@ -2921,7 +2993,7 @@ function testRunDiagnostics(){
 function testInfo(){
   const boss=enemies.find(e=>e.hp>0&&isBoss(e));
   return {wave,state,enemies:enemies.length,queue:queue.length,invulnerable:testInvulnerable,
-    players:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),sceneScale:sceneCrowdScale(),spawnLayout:playerSpawnLayoutForCount(players.filter(p=>!p.gone).length),
+    players:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),sceneScale:sceneCrowdScale(),spawnLayout:playerSpawnLayoutForCount(players.filter(p=>!p.gone).length),movementBounds:playerMovementBounds(),
     knights:enemies.filter(e=>e.k==='knight'&&e.hp>0).length,
     chasingKnights:enemies.filter(e=>e.k==='knight'&&e.hp>0&&e.chase).length,
     bossGuard:boss?{kind:boss.k,guard:boss.guard||0,guardMax:boss.guardMax||0,hp:boss.hp,max:boss.max}:null,
