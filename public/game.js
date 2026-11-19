@@ -15,7 +15,7 @@ const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_RE
 };
 // Реплики принцессы: короткие, разговорные и в одном тоне.
 const Q={
-  start:['Тихо! Они близко.','Опять они.','Драконы, встречайте.','Начинается.','Кто на этот раз?','Они у входа.'],
+  start:['Тихо! Они близко.','Опять они.','Драконы, встречайте.','Начинается.','Кто на этот раз?','Они у входа.','Они опять идут… Драконы, вся надежда на вас!'],
   hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],
   kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],
   prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],
@@ -25,15 +25,24 @@ const Q={
   mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],
   merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],
   bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!'],
+  princeInterrupted:['Предложение сорвано! Принц оглушён!'],
+  princeProposal:['Принц делает предложение! Собьём его, пока не поздно!'],
+  princeRing:['Принц бросает кольцо!'],
+  princeRingImpact:['Принц успел бросить кольцо! Принцесса в смятении!'],
+  princeRoses:['Принц осыпает всех розами! Уходите с красных кругов!'],
+  kingDecree:['Королевский указ: стража, на помощь!'],
+  kingDisgrace:['Король объявил {name} похитителем принцессы! Беги, остальные прикрывайте!'],
+  bardChorus:['Бард запел припев! Враги ускорились!'],
+  mageAlone:['Маги остались без прикрытия и бегут к башне!'],
   bossGuardBreak:['Барьер сломан!','Щит снят!','Защита лопнула!','Не подпускайте!','Пользуйтесь моментом!'],
   bossTeamReward:['Награда команде!','Всем по золоту!','Заслужили!','Спасибо, драконы!','Каждому — золото и свитки!'],
   nervesWarning:['Сколько ещё?!','Хватит!','Терпение на нуле.','Это последний?','Я больше не могу!'],
-  wakeFriend:['Очнулся!','С возвращением!','Подкрепление!'],
-  wakeSolo:['Проснулся?','Больше не засыпай!','Я чуть не поседела!'],
-  dragonDown:['Дракон уснул!','Разбудите {name}!','Кто меня прикроет?','О нет!'],
-  dragonOut:['{name} выбыл.','{name} отдохнёт от безумия.'],
-  waveClear:['Все ушли?','Ни одного поклонника? Не верю!','Дайте минуту.'],
-  testWaveClear:['Чисто!','Выбирайте следующую.'],
+  wakeFriend:['Очнулся!','С возвращением!','Подкрепление!','Дракона разбудили!'],
+  wakeSolo:['Проснулся?','Больше не засыпай!','Я чуть не поседела!','Дракон проснулся. Часть золота потерялась по дороге.'],
+  dragonDown:['Дракон уснул!','Разбудите {name}!','Кто меня прикроет?','О нет!','Дракон упал! Его надо поднять за 15 секунд.'],
+  dragonOut:['{name} выбыл.','{name} отдохнёт от безумия.','{name} погиб: до магазина дракон выбывает.'],
+  waveClear:['Все ушли?','Ни одного поклонника? Не верю!','Дайте минуту.','Волна отбита! Успейте собрать монеты.'],
+  testWaveClear:['Чисто!','Выбирайте следующую.','Волна очищена. Выберите следующую в панели тестирования.'],
   markEnded:['Папа одумался.','Свобода.','Наконец-то!']
 };
 
@@ -1122,6 +1131,7 @@ if(a.thr>0&&a.action){
         a.repositionPathStarted=false;
         a.repositioned=false;
 
+        sayQ('princeInterrupted',2.6,{},2);
         sayActor(e,'princeInterrupted',2.6);
         tag(e,'Оглушён!');
         boom(e.x,e.y,'#ffd24d',16);
@@ -1168,6 +1178,7 @@ if(!a.arrived){
       a.castHp=e.hp;
       a.action='proposal';
       e.hold=true;
+      sayQ('princeProposal',3,{},2);
       sayActor(e,'princeProposal',3);
       tag(e,'Предложение!');
     }
@@ -1285,6 +1296,7 @@ function throwPrinceRing(e){
   e.ab.thr=e.ab.thrT=flight;
   e.ab.action='ring';
 
+  sayQ('princeRing',2.4,{},2);
   sayActor(e,'princeRing',2.4);
   tag(e,'Кольцо!');
 }
@@ -1304,7 +1316,7 @@ function updateBossProjectiles(dt){
         if(!(TEST_MODE&&testInvulnerable))tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);
         shake=14;
         boom(CX,CY,'#ff9bb3',24);
-        {const prince=enemies.find(o=>o.k==='prince'&&o.hp>0);if(prince)sayActor(prince,'princeRingImpact',2.4);}
+        {const prince=enemies.find(o=>o.k==='prince'&&o.hp>0);if(prince){sayQ('princeRingImpact',2.4,{},2);sayActor(prince,'princeRingImpact',2.4);}}
       }
     }
     else remain.push(p);
@@ -1372,6 +1384,7 @@ function roseRain(e){
     });
   }
 
+  sayQ('princeRoses',2.4,{},2);
   sayActor(e,'princeRoses',2.4);
   tag(e,'Розы!');
 
@@ -1388,6 +1401,7 @@ function decree(e){
   const n=4+Math.ceil(Math.sqrt(activePlayerCount())*2);
   for(let i=0;i<n;i++)spawn('knight');
   const count=a?(a.decreeCount=(a.decreeCount||0)+1):1;
+  if(count===1)sayQ('kingDecree',2.5,{},2);
   sayActor(e,count>=KING_MIN_DECREES?'kingDecreeFinal':'kingDecree',2.5,{count,max:KING_MIN_DECREES});
   tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
 }
@@ -1402,6 +1416,7 @@ function disgrace(e){
 
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
   const count=a?(a.disgraceCount=(a.disgraceCount||0)+1):1;
+  if(count===1)sayQ('kingDisgrace',2.5,{name:p.name,count,max:KING_MIN_DISGRACES},2);
   sayActor(e,'kingDisgrace',2.5,{name:p.name,count,max:KING_MIN_DISGRACES});
   tag(e,'Похититель '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
   return true;
@@ -1762,7 +1777,7 @@ if(activeBards.length){
 
     chorusBardId = caster ? caster.id : null;
 
-    if(caster)sayActor(caster,'bardChorus',2.5);
+    if(caster){sayQ('bardChorus',2.5,{},2);sayActor(caster,'bardChorus',2.5);}
   }
 
 }else{
@@ -1821,7 +1836,7 @@ players.forEach(p=>{
     let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;if(e.actL>0){e.actL-=dt;e.thr=e.actL>0?Math.max(1,Math.round((1-e.actL/e.actT)*100)):0}
     if(e.t.boss)bossAI(e,dt);
     if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}
-    const lone=lonely(e);if(lone&&!e.rush){e.rush=true;sayActor(e,'mageAlone',2.5);}
+    const lone=lonely(e);if(lone&&!e.rush){e.rush=true;sayQ('mageAlone',2.5,{},2);sayActor(e,'mageAlone',2.5);}
     // Маг может начать поддержку, когда босс входит в радиус лечения,
     // даже если сам маг ещё не подошёл близко к замку.
     const bossInHealRange=e.t.kind==='heal'&&enemies.some(o=>
