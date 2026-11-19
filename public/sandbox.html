@@ -58,8 +58,18 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
       <button class="secondary" data-spawn="bard">Бард</button>
       <button class="secondary" data-spawn="mage">Маг</button>
       <button class="secondary" data-spawn="merchant">Купец</button>
-      <button class="secondary" data-spawn="prince">Принц</button>
-      <button class="secondary" data-spawn="king">Король</button>
+      <button class="secondary" data-spawn="prince">Принц + барьер</button>
+      <button class="secondary" data-spawn="king">Король + барьер</button>
+    </div>
+    <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
+      <b style="font-size:12px">Экономика мультиплеера</b>
+      <small>Число врагов растёт мягче размера команды. Награды масштабируются с точным накоплением дробного остатка: каждый подобранный дроп остаётся целым, а суммарная валюта не теряется из-за округления. Цены улучшений сохранены как в одиночной игре; награда босса выдаётся каждому участнику.</small>
+      <div id="economy-info" style="color:#f6dcaa;font-size:11px;margin-top:6px">Загрузка расчёта экономики…</div>
+    </div>
+    <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
+      <b style="font-size:12px">Проверка защиты босса</b>
+      <small>У босса отдельная увеличенная фиолетовая шкала «БАРЬЕР» над головой (принц: 15% HP, король: 18% HP). Стреляй по нему: сначала должна уменьшаться эта шкала, а здоровье — только после её полного снятия. Голубой круг мага остаётся отдельной защитой.</small>
+      <div id="boss-guard-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">Босс не появился. Выбери принца или короля выше.</div>
     </div>
     <div class="row">
       <button id="clear-field" class="secondary">Очистить поле</button>
@@ -131,7 +141,7 @@ $('#test-player-count').addEventListener('input',e=>{
 });
 $('#apply-player-count').addEventListener('click',()=>{
   const result=Game.testSetPlayerCount($('#test-player-count').value);
-  logTest('Состав: '+result.players+' драконов · масштаб '+(result.scale*100).toFixed(1)+'%');
+  logTest('Состав: '+result.players+' драконов · персонажи '+(result.scale*100).toFixed(1)+'% · сцена '+(result.sceneScale*100).toFixed(1)+'%');
   runDiagnostics();
 });
 $('#start-host-load-test').addEventListener('click',()=>{
@@ -172,7 +182,17 @@ function runDiagnostics(){
 function refreshTestInfo(){
   const info=Game.testInfo();
   const status=info.edict?' · опала активна':' · опалы нет';
-  $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' ('+(info.dragonScale*100).toFixed(1)+'%) · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
+  $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' · персонажи '+(info.dragonScale*100).toFixed(1)+'% · сцена '+(info.sceneScale*100).toFixed(1)+'% · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
+  const economyInfo=$('#economy-info');
+  if(info.economy){
+    const economy=info.economy;
+    economyInfo.textContent='Команда '+info.players+' · врагов на волну ×'+economy.populationFactor.toFixed(2)+' · множитель дропа ×'+economy.rewardMultiplier.toFixed(2)+' · базовый дроп 1 → '+economy.one+', 2 → '+economy.two+' · цены без изменений';
+  }
+  const bossInfo=$('#boss-guard-info');
+  if(info.bossGuard){
+    const guard=info.bossGuard;
+    bossInfo.textContent=(guard.kind==='prince'?'Принц':'Король')+' · барьер: '+Math.ceil(guard.guard)+' / '+Math.ceil(guard.guardMax)+' · здоровье: '+Math.ceil(guard.hp)+' / '+Math.ceil(guard.max);
+  }else bossInfo.textContent='Босс не появился. Выбери принца или короля выше.';
   const perf=Game.testPerfInfo();
   $('#perf-fps').textContent=perf.fps?perf.fps.toFixed(1):'—';
   $('#perf-frame').textContent=perf.frameP95Ms?perf.frameP95Ms.toFixed(1)+' мс':'—';

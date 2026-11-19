@@ -6,7 +6,7 @@
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/2,CY=Math.round(H*.512);
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
-const BOSS={5:'prince',10:'king'},BN={
+const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_REWARDS={prince:[10,4],king:[20,8]},BN={
   3:'«Тише! У меня тут серенада!»',
   5:'«Принц снова с кольцом?!»',
   6:'«Маг, не лечи им всех!»',
@@ -20,6 +20,8 @@ const Q={
   kill:['Вот это сервис! Драконы, вам бы орден выдать.','Минус один поклонник, плюс немного тишины!','Прекрасно сработано! И никакого неловкого свидания.','Запишите это в летопись. Желательно крупным шрифтом!','Так держать! Я почти перестала нервничать.','Ещё один ухажёр отправился подумать над своим поведением.'],
   prince:['Прекрасный принц явился! Букет вижу, красные флаги тоже.','Он опять с кольцом. Кто-нибудь объяснит ему, что «нет» — тоже ответ?','Принц считает, что розы всё исправят. Даже его тактику.','Снова свидание с осадой. Романтика окончательно вышла из-под контроля.','Только не говорите, что он репетировал речь у зеркала весь год.','Он назвал это романтическим жестом. Я называю это нарушением границ!'],
   king:['Папа приехал! Надеюсь, в этот раз без семейного совета на двести рыцарей.','Отец лично возглавил осаду. Вот это семейный контроль!','Король на месте. Держитесь: сейчас будет указ, потом ещё указ…','Папа, я просила прислать письмо, а не целую армию!','Семейное воссоединение отменяется. Причина: слишком много рыцарей.','Отец снова решил всё за меня. Даже маршрут до башни!'],
+  bossGuardBreak:['Барьер босса разрушен! Теперь бейте по самому самодовольному месту — по здоровью!','Защита лопнула! Отлично, теперь он без магической упаковки.','Барьер снят! Драконы, не давайте ему передумать!'],
+  bossTeamReward:['Командная награда! Каждый дракон получает +{gold} золота и +{scrolls} свитков. Вот это коллективный договор!','Босс повержен: награда каждому — {gold} золота и {scrolls} свитков. Наконец-то премия без мелкого шрифта!'],
   bard:['Бард у башни! Я просила тишину, а не концерт во время осады.','Он играет так громко, что даже камни хотят сбежать.','Если услышите фальшивую ноту — это не баг, это бард.','У него серенада или тревожная сирена? Я уже не различаю.'],
   note:['Летящая нота! Уклоняйтесь: музыкальное образование не должно быть таким опасным.','Нота летит в башню. Можно было просто отправить открытку!','Сбейте эту ноту! Она даже в нотный стан не попадает.','Осторожно! Эта нота звучит как судебный иск от соседей.'],
   mage:['Маг лечит рыцарей! Кажется, у них командная страховка.','Он раздаёт щиты. Вот бы кто-нибудь защитил меня от этих ухажёров.','Маг снова всех подлечил. У него бесконечный запас пластырей?','Сначала рыцари ломятся в башню, теперь ещё и лечатся. Удобно устроились!'],
@@ -154,6 +156,29 @@ function dragonCrowdScaleForCount(visiblePlayers) {
 function dragonCrowdScale() {
   const visiblePlayers = players.reduce((count, player) => count + (player.gone ? 0 : 1), 0);
   return dragonCrowdScaleForCount(visiblePlayers);
+}
+
+// При большом количестве игроков камера немного отдаляется вместе с уменьшением драконов.
+// Это масштабирует всё игровое поле (башню, врагов, снаряды и эффекты), но не HUD и магазин.
+// При 1–6 игроках камера остаётся в исходном масштабе, при 20 — 95%.
+function sceneCrowdScaleForCount(visiblePlayers) {
+  const count = Math.max(0, Math.floor(Number(visiblePlayers) || 0));
+  const extraPlayers = Math.max(0, Math.min(14, count - 6));
+  return 1 - extraPlayers * (0.05 / 14);
+}
+function sceneCrowdScale() {
+  const visiblePlayers = players.reduce((count, player) => count + (player.gone ? 0 : 1), 0);
+  return sceneCrowdScaleForCount(visiblePlayers);
+}
+
+// Преобразование координат мыши из экранного игрового поля в мировые координаты.
+// Важно: выстрелы и прицел гостей должны использовать ту же камеру, что и хост.
+function screenToWorldPoint(x, y, scale = sceneCrowdScale()) {
+  const safeScale = Math.max(0.01, Number(scale) || 1);
+  return {
+    x: CX + (x - CX) / safeScale,
+    y: CY + (y - CY) / safeScale
+  };
 }
 
 // Единая матрица трансформации дракона.
@@ -474,6 +499,39 @@ let princessHintT=6,princessHintsShown=new Set();
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
+const activePlayerCount=()=>Math.max(1,players.reduce((n,p)=>n+(!p.gone?1:0),0));
+// Численность волн растёт мягче числа игроков, чтобы 20 драконов не перегружали поле.
+// Командный объём награды при этом масштабируется пропорционально числу участников.
+function enemyPopulationFactorForPlayers(count){const n=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));return 1+.85*Math.sqrt(n-1)}
+function multiplayerRewardMultiplierForPlayers(count){const n=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));return Math.max(1,n/enemyPopulationFactorForPlayers(n))}
+// Точный расчёт с переносом дробного остатка: небольшие награды не теряют и не создают
+// валюту из-за округления каждого отдельного дропа. Остатки независимы для золота/свитков
+// и для каждого размера команды, поэтому смена числа игроков не искажает баланс.
+function allocateScaledReward(base,count,remainder=0){
+  if(!(base>0))return{amount:0,remainder:0};
+  const exact=base*multiplayerRewardMultiplierForPlayers(count)+Math.max(0,Number(remainder)||0);
+  const amount=Math.max(1,Math.floor(exact+1e-9));
+  return{amount,remainder:Math.max(0,exact-amount)};
+}
+const rewardRemainders=Array.from({length:21},()=>[0,0]);
+function scaleEnemyRewardAmount(base,count=activePlayerCount(),currency=0){
+  const n=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));
+  const c=currency===1?1:0;
+  const result=allocateScaledReward(base,n,rewardRemainders[n][c]);
+  rewardRemainders[n][c]=result.remainder;
+  return result.amount;
+}
+function previewEnemyRewardAmount(base,count){if(!(base>0))return '0';const exact=base*multiplayerRewardMultiplierForPlayers(count),low=Math.floor(exact),high=Math.ceil(exact);return low===high?String(low):low+'–'+high}
+function simulateScaledRewards(base,count,drops=1000){
+  let remainder=0,total=0;
+  for(let i=0;i<drops;i++){const next=allocateScaledReward(base,count,remainder);total+=next.amount;remainder=next.remainder;}
+  const average=total/drops;
+  const perPlayer=average*enemyPopulationFactorForPlayers(count)/count;
+  return{total,average,perPlayer,expected:base};
+}
+function bossGuardForMaxHp(kind,maxHp){const ratio=BOSS_GUARD_RATIO[kind]||0;return ratio>0?Math.max(1,Math.round(maxHp*ratio)):0}
+function pickupMagnetRadiusForBaseReward(base){return base>=10?200:130}
+function bossGuardBarLayout(e){const width=e.k==='king'?86:78,height=12,y=e.y-e.t.r-31;return{x:e.x-width/2,y,width,height,hpBarY:e.y-e.t.r-8}}
 const maxH=p=>3,flames=p=>1+Math.min(2,Math.ceil(p.lv[0]/2)),dmgOf=p=>1+Math.floor(p.lv[0]/2),shMax=p=>p.lv[3]>=3?2:p.lv[3]>=1?1:0,SH_T=[0,10,7,6];
 const wakeTime=()=>15;
 const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
@@ -487,7 +545,21 @@ function makePlayer(id,ci){
 
 // ===== Ввод =====
 const mouse={x:CX,y:0,down:false,alt:false},keys={};
-function pos(e){const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)*cvW/r.width-ox;mouse.y=(e.clientY-r.top)*cvH/r.height-oy}
+function pos(e){
+  const r=cv.getBoundingClientRect();
+  const screenX=(e.clientX-r.left)*cvW/r.width-ox;
+  const screenY=(e.clientY-r.top)*cvH/r.height-oy;
+  // Магазин и HUD не масштабируются вместе с игровым полем.
+  // В самой игре возвращаем координаты в мировое пространство камеры.
+  if(state==='play'){
+    const world=screenToWorldPoint(screenX,screenY);
+    mouse.x=world.x;
+    mouse.y=world.y;
+  }else{
+    mouse.x=screenX;
+    mouse.y=screenY;
+  }
+}
 cv.addEventListener('pointermove',pos);
 cv.addEventListener('pointerdown',e=>{pos(e);
   if(state==='shop'){if(shopT>.4)shopClick();return}
@@ -533,10 +605,10 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set()}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set();for(const row of rewardRemainders)row[0]=row[1]=0}
 function nextWave(){
   wave++;queue=[];spawned=0;
-  const n=Math.round((4+wave*2.2)*(1+.85*Math.sqrt(players.length-1))*(BOSS[wave]?.85:1));
+  const n=Math.round((4+wave*2.2)*enemyPopulationFactorForPlayers(activePlayerCount())*(BOSS[wave]?.85:1));
   // состав волны: pickType() и таблица ENEMY_INTRO
   for(let i=0;i<n;i++)queue.push(pickType());
   if(BOSS[wave]){for(const k in ENEMY_INTRO)if(ENEMY_INTRO[k]<=wave){let c=queue.filter(x=>x===k).length;while(c++<(k==='mage'||k==='bard'?2:3))queue.push(k)}}
@@ -723,7 +795,7 @@ function makeKingPatrolPath(e) {
 
 function spawn(k){
   spawned++;
-  const a=Math.random()*6.283,t=T[k],s=k==='prince'?1+(players.length-1)*BOSSCFG.hpPrince:k==='king'?1+(players.length-1)*BOSSCFG.hpKing:1+(wave-1)*.2;
+  const a=Math.random()*6.283,t=T[k],partySize=activePlayerCount(),s=k==='prince'?1+(partySize-1)*BOSSCFG.hpPrince:k==='king'?1+(partySize-1)*BOSSCFG.hpKing:1+(wave-1)*.2;
   let x,y;
 
   if(t.boss){
@@ -742,7 +814,7 @@ function spawn(k){
   }
 
   const e={id:++uid,k,t,x,y,hp:t.hp*s,max:t.hp*s};
-  if(t.boss)e.path=makeBossPath(k,e.x,e.y);
+  if(t.boss){e.guardMax=bossGuardForMaxHp(k,e.max);e.guard=e.guardMax;e.guardFlash=0;e.guardBreakT=0;e.path=makeBossPath(k,e.x,e.y);}
   enemies.push(e);
 }
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}
@@ -751,15 +823,51 @@ function descNew(p,i){const n=capped(p,i)?p:nx(p,i);
     'выстр./с: '+(1/(.5*Math.pow(.85,p.lv[1]))).toFixed(1)+' → '+(1/(.5*Math.pow(.85,n.lv[1]))).toFixed(1),
     'скорость: '+Math.round(230*(1+.2*p.lv[2]))+' → '+Math.round(230*(1+.2*n.lv[2])),
     'щит: '+shMax(p)+' → '+shMax(n)+', восст. '+(SH_T[n.lv[3]]||'—')+' с'][i]}
-function drop(e,o){const D={knight:[Math.random()<DROP.chance?1:0,0],bard:[0,1],mage:[2,0],merchant:[2,0],prince:[10,4],king:[20,8]}[e.k];
-  D.forEach((v,t)=>{if(v)pickups.push({id:++uid,x:e.x+(t?12:-12),y:e.y,v,t,life:isBoss(e)?DROP.boss:DROP.life,own:o.id,res:3})})}
+function drop(e,o){
+  if(isBoss(e)&&activePlayerCount()>1){
+    // Боссовая награда общая: итоговый удар не должен определять, кто может купить улучшения.
+    const reward=BOSS_REWARDS[e.k]||[0,0];
+    const recipients=players.filter(p=>!p.gone);
+    for(const p of recipients){p.w[0]+=reward[0];p.w[1]+=reward[1];p.earned+=reward[0]}
+    sayQ('bossTeamReward',4,{gold:reward[0],scrolls:reward[1],count:recipients.length});
+    tag(e,'НАГРАДА КОМАНДЕ');
+    boom(e.x,e.y,'#ffd24d',18);
+    return;
+  }
+  const base={knight:[Math.random()<DROP.chance?1:0,0],bard:[0,1],mage:[2,0],merchant:[2,0],prince:BOSS_REWARDS.prince,king:BOSS_REWARDS.king}[e.k]||[0,0];
+  const count=activePlayerCount();
+  base.forEach((v,t)=>{if(v){const value=isBoss(e)?v:scaleEnemyRewardAmount(v,count,t);pickups.push({id:++uid,x:e.x+(t?12:-12),y:e.y,v:value,t,magnetRadius:pickupMagnetRadiusForBaseReward(v),life:isBoss(e)?DROP.boss:DROP.life,own:o?o.id:-1,res:o?3:0})}})
+}
 function toShop(){for(const c of pickups)boom(c.x,c.y,'#9a8aa8',5);pickups=[];for(const p of players){p.asleep=false;p.dead=false;p.h=Math.min(maxH(p),p.h+1);p.inv=0;p.frz=0;p.sh=shMax(p);p.shT=0;p.ready=false}state='shop';shopT=0}
 
 // ===== Способности боссов =====
 const BLAST={cd:5,r:55,mult:1};
-function damageEnemy(e,dmg,o){
-  if(e.hp<=0)return;if(e.sh>0){const ab=Math.min(e.sh,dmg);e.sh-=ab;dmg-=ab}
-  e.hp-=dmg;if(e.hp<=0){o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);if(isBoss(e)||Math.random()<.06)say(pick(Q.kill))}}
+function resolveEnemyDamage(e,amount){
+  let remaining=Math.max(0,Number(amount)||0);
+  let mageShield=Math.max(0,Number(e.sh)||0);
+  let bossGuard=Math.max(0,Number(e.guard)||0);
+  const mageAbsorbed=Math.min(mageShield,remaining);mageShield-=mageAbsorbed;remaining-=mageAbsorbed;
+  let guardAbsorbed=0,guardBroken=false;
+  if(isBoss(e)&&bossGuard>0&&remaining>0){
+    const before=bossGuard;guardAbsorbed=Math.min(bossGuard,remaining);bossGuard-=guardAbsorbed;
+    // Удар, который разрушает барьер, не переносит остаток урона на здоровье.
+    remaining=0;guardBroken=before>0&&bossGuard<=0;
+  }
+  return{mageShield,bossGuard,mageAbsorbed,guardAbsorbed,guardBroken,hpDamage:remaining};
+}
+function onEnemyDefeated(e,o){
+  if(e.rewarded)return;e.rewarded=true;if(o)o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);
+  if(isBoss(e)){if(activePlayerCount()===1)say(pick(Q.kill))}else if(Math.random()<.06)say(pick(Q.kill));
+}
+function damageEnemy(e,dmg,o,hitX=e.x,hitY=e.y){
+  if(!e||e.hp<=0||!(dmg>0))return;
+  const result=resolveEnemyDamage(e,dmg);
+  e.sh=result.mageShield;e.guard=result.bossGuard;
+  if(result.mageAbsorbed>0)boom(hitX,hitY,'#8fd8ff',6);
+  if(result.guardAbsorbed>0){e.guardFlash=.18;if(result.guardBroken){e.guardBreakT=1.2;tag(e,'БАРЬЕР СНЯТ!');sayQ('bossGuardBreak',3);boom(e.x,e.y,'#bd8cff',24)}}
+  if(result.hpDamage>0)e.hp-=result.hpDamage;
+  if(e.hp<=0)onEnemyDefeated(e,o);
+}
 function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLAST.mult));
   boom(b.x,b.y,'#ff9a3d',30);boom(b.x,b.y,'#ffe27a',14);shake=Math.max(shake,4);
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
@@ -1079,7 +1187,7 @@ function drawBossProjectiles(){
   }
 }
 function roseRain(e){
-  const n=Math.min(12,3+Math.ceil(players.length*.6));
+  const n=Math.min(12,3+Math.ceil(activePlayerCount()*.6));
   const alive=players.filter(p=>!p.asleep&&!p.gone);
 
   for(let i=0;i<n;i++){
@@ -1135,7 +1243,7 @@ function decree(e){
   // Жёсткий предел: никакие повторные вызовы не создадут шестой указ.
   if(a&&(a.decreeCount||0)>=KING_MIN_DECREES)return;
 
-  const n=4+Math.ceil(Math.sqrt(players.length)*2);
+  const n=4+Math.ceil(Math.sqrt(activePlayerCount())*2);
   for(let i=0;i<n;i++)spawn('knight');
   const count=a?(a.decreeCount=(a.decreeCount||0)+1):1;
   sayQ(count>=KING_MIN_DECREES?'kingDecreeFinal':'kingDecree',4,{count,max:KING_MIN_DECREES});
@@ -1188,9 +1296,9 @@ function drawEnemyMarks(e){
   const t=typeof performance!=='undefined'?performance.now()/1000:0;
   if(e.chase){ctx.strokeStyle='rgba(255,60,60,'+(.65+.3*Math.sin(t*10))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+9,0,6.283);ctx.stroke();ctx.lineWidth=1}
   const ci=castInfo(e);
-  if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-34;
+  if(ci[0]>0){const w=110,x=e.x-w/2,y=e.y-e.t.r-(isBoss(e)&&e.guard>0?58:34);
     ctx.fillStyle='#0009';ctx.fillRect(x,y,w,16);ctx.fillStyle='#ffd24d';ctx.fillRect(x,y,w*ci[0]/100,8);ctx.fillStyle='#ff5a4d';ctx.fillRect(x,y+8,w*ci[1]/100,8);
-    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,26,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+30,13,'#fbe8d3','italic')}}
+    if(IMG.ring)drawSheet(IMG.ring,6,e.x,y-16,26,(typeof performance!=='undefined'?performance.now():0)/130);else emoji('💍',e.x,y-12,22);text('собьём!',e.x,y+(isBoss(e)&&e.guard>0?22:30),13,'#fbe8d3','italic')}}
 const isCaster=kind=>kind==='heal'||kind==='bag';
 function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!queue.some(k=>!isCaster(T[k].kind))}
 function drawRoster(){
@@ -1331,7 +1439,7 @@ function cast(e,dx,dy,d,force){
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
-function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else{e.hp-=1;if(e.hp<=0){p.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,p)}}
+function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else damageEnemy(e,1,p,e.x,e.y);
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;sayQ('dragonDown',4)}}
 
 function updatePlayer(p,dt){
@@ -1472,8 +1580,7 @@ function update(dt){
   for(const p of players)updatePlayer(p,dt);
   if(!players.some(p=>!p.asleep&&!p.gone)){state='lose';return}
   for(const b of balls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
-    for(const e of enemies){if(e.hp>0&&b.life>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;let dm=b.dmg;if(e.sh>0){const ab=Math.min(e.sh,dm);e.sh-=ab;dm-=ab;boom(b.x,b.y,'#8fd8ff',8);if(dm<=0)continue}e.hp-=dm;boom(b.x,b.y,'#ffb347',5);
-      if(e.hp<=0){const o=players[b.owner];o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);if(isBoss(e)||Math.random()<.06)say(pick(Q.kill))}}}}
+    for(const e of enemies){if(e.hp>0&&b.life>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;const owner=players[b.owner];damageEnemy(e,b.dmg,owner,b.x,b.y);boom(b.x,b.y,'#ffb347',5)}}}
   for(const b of balls)for(const n of notes){if(n.hp>0&&b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){n.hp=0;b.life=0;boom(n.x,n.y,'#7fd6ff',8)}}
   for(const b of balls)if(b.blast&&b.life<=0)explode(b);
   balls=balls.filter(b=>b.life>0);
@@ -1560,6 +1667,7 @@ players.forEach(p=>{
 });
 
   for(const e of enemies){if(e.hp<=0)continue;
+    e.guardFlash=Math.max(0,(e.guardFlash||0)-dt);e.guardBreakT=Math.max(0,(e.guardBreakT||0)-dt);
     let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;if(e.actL>0){e.actL-=dt;e.thr=e.actL>0?Math.max(1,Math.round((1-e.actL/e.actT)*100)):0}
     if(e.t.boss)bossAI(e,dt);
     if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}
@@ -1680,7 +1788,7 @@ e.path = makeBossPath(
     }
 
     if(best){
-      const magnetRadius=c.v>=10?200:130;
+      const magnetRadius=Number.isFinite(c.magnetRadius)?c.magnetRadius:pickupMagnetRadiusForBaseReward(c.v);
       if(bd<magnetRadius&&bd>0){
         const step=Math.min(bd,PICKUP_MAGNET_SPEED*dt);
         c.x+=(best.x-c.x)/bd*step;
@@ -1712,9 +1820,9 @@ e.path = makeBossPath(
   shake=Math.max(0,shake-40*dt);quipT=Math.max(0,quipT-dt);updatePrincessHints(dt);
   if(phase==='break'){phaseT-=dt;if(phaseT<=0)phase='spawn'}
   else if(phase==='clear'){phaseT-=dt;if(phaseT<=0){if(TEST_MODE){phase='break';phaseT=1e9}else toShop()}}
-  else{spawnT-=dt;if(queue[0]==='bard'&&queue.length>1&&enemies.filter(x=>x.k==='bard').length>=2+Math.ceil(Math.sqrt(players.length)))queue.push(queue.shift());
+  else{spawnT-=dt;if(queue[0]==='bard'&&queue.length>1&&enemies.filter(x=>x.k==='bard').length>=2+Math.ceil(Math.sqrt(activePlayerCount())))queue.push(queue.shift());
     if(queue[0]==='mage'&&queue.length>1&&(enemies.filter(x=>x.k==='mage').length>=2||spawned<4||!enemies.some(x=>x.t.kind!=='heal')))queue.push(queue.shift());
-    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(players.length-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,(TEST_MODE?0.14:1.5-wave*0.08)/(1+0.5*Math.sqrt(players.length-1)))}
+    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(activePlayerCount()-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,(TEST_MODE?0.14:1.5-wave*0.08)/(1+0.5*Math.sqrt(activePlayerCount()-1)))}
     if(!queue.length&&!enemies.length&&!notes.length){
       if(TEST_MODE){phase='clear';phaseT=.35;sayQ('testWaveClear',3);}
       else if(wave>=TOTAL)state='win';
@@ -1973,6 +2081,8 @@ function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
   ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
+  const rewardScale=multiplayerRewardMultiplierForPlayers(activePlayerCount());
+  text(activePlayerCount()>1?'Награды обычных врагов ≈ ×'+rewardScale.toFixed(2)+' · округление без потерь · цены прежние':'Награды и цены: стандартные',CX,171,12,'#cbb5dc');
   UP.forEach((u,i)=>{const x=SX+i*206,y=190,cap=capped(me,i),ok=!cap&&me.w[u.t]>=cost(me,i);
     ctx.fillStyle=ok?'#3a2050':'#2a1740';ctx.strokeStyle=ok?CUR[u.t].c:'#6b4a85';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,190,190,14);ctx.fill();ctx.stroke();ctx.lineWidth=1;
     drawShopWrapped(u.n,x+95,y+36,168,16,'#fbe8d3',1,18);
@@ -1983,12 +2093,40 @@ function drawShop(){
   ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Ждём остальных':'Дальше',CX,481,22,'#2a1235');
   text('«Клавиши 1–4 — купить улучшение, Пробел — продолжить. Казну бережём!»',CX,545,15,'#d9c3e8','italic');
   text('Осталось '+Math.max(0,Math.ceil(shopLeft))+' с · готовы '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
+function drawBossGuardBar(e){
+  if(!isBoss(e)||!(e.guardMax>0)||!(e.guard>0))return;
+  const ratio=Math.max(0,Math.min(1,e.guard/e.guardMax));
+  const layout=bossGuardBarLayout(e),{x,y,width:w,height:h}=layout;
+  ctx.save();ctx.globalAlpha=.99;
+  // Отдельная фиолетовая шкала барьера: голубой круг мага по-прежнему рисуется независимо.
+  ctx.fillStyle='rgba(15,8,30,.96)';ctx.strokeStyle=e.guardFlash>0?'#fff7ff':'#d5a7ff';ctx.lineWidth=1.5;
+  ctx.shadowColor=e.guardFlash>0?'#fff':'rgba(180,112,255,.55)';ctx.shadowBlur=e.guardFlash>0?9:4;
+  ctx.beginPath();ctx.roundRect(x,y,w,h,4);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  const innerW=Math.max(0,(w-4)*ratio);
+  if(innerW>0){
+    const grad=ctx.createLinearGradient(x+2,y+2,x+w-2,y+2);grad.addColorStop(0,'#7540b5');grad.addColorStop(.5,'#bd83f4');grad.addColorStop(1,'#f4d6ff');
+    ctx.fillStyle=grad;ctx.beginPath();ctx.roundRect(x+2,y+2,innerW,h-4,3);ctx.fill();
+  }
+  // Маленькие деления помогают читать остаток защиты даже на уменьшенной сцене.
+  ctx.save();ctx.beginPath();ctx.roundRect(x+1,y+1,w-2,h-2,3);ctx.clip();
+  ctx.strokeStyle='rgba(35,13,55,.42)';ctx.lineWidth=1;
+  for(let i=1;i<5;i++){const sx=x+w*i/5;ctx.beginPath();ctx.moveTo(sx,y+2);ctx.lineTo(sx,y+h-2);ctx.stroke()}
+  ctx.restore();
+  ctx.font='bold 8px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fffaff';ctx.shadowColor='#28123e';ctx.shadowBlur=3;ctx.fillText('БАРЬЕР',e.x,y+h/2+.35);
+  ctx.restore();
+}
+
 function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1b1030');g.addColorStop(.6,'#5a2a5e');g.addColorStop(1,'#c4577a');
   if(IMG.bg)drawBg();else{ctx.fillStyle=g;ctx.fillRect(0,0,cvW,cvH);
   ctx.fillStyle='#fbe8d3';for(const s of stars){ctx.globalAlpha=.7;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.283);ctx.fill()}ctx.globalAlpha=1}
   ctx.translate(ox,oy);
   ctx.save();if(shake)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+  // Отдаляем только игровую сцену. HUD, подсказки и магазин остаются прежнего размера.
+  const cameraScale=sceneCrowdScale();
+  ctx.translate(CX,CY);
+  ctx.scale(cameraScale,cameraScale);
+  ctx.translate(-CX,-CY);
   ctx.textAlign='center';ctx.textBaseline='middle';
   const drawE=e=>{drawEnemy(e);drawEnemyMarks(e);if(e.sh){ctx.strokeStyle='rgba(143,216,255,.78)';ctx.lineWidth=1.35;ctx.beginPath();ctx.arc(e.x,e.y,e.t.r+3,0,6.283);ctx.stroke();ctx.lineWidth=1}if(
   e.k === 'bard' &&
@@ -1997,7 +2135,8 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
 ){
   emoji('🎵',e.x+16,e.y-22,18);
 }
-    if(e.hp<e.max){ctx.fillStyle='#0008';ctx.fillRect(e.x-18,e.y-e.t.r-10,36,4);ctx.fillStyle='#ff6b81';ctx.fillRect(e.x-18,e.y-e.t.r-10,36*e.hp/e.max,4)}};
+    if(isBoss(e))drawBossGuardBar(e);
+    if(isBoss(e)||e.hp<e.max){const bw=isBoss(e)?48:36,bh=4,bx=e.x-bw/2,by=e.y-e.t.r-8;ctx.fillStyle='#000b';ctx.fillRect(bx,by,bw,bh);ctx.fillStyle='#ff6b81';ctx.fillRect(bx,by,bw*Math.max(0,e.hp/e.max),bh)}};
   drawZones();
   drawCastle();
   for(const e of enemies)drawE(e);
@@ -2289,7 +2428,8 @@ function sendSnap(now){
   e.rush?1:0,
   e.ab&&e.ab.action==='rose'?1:
   e.ab&&e.ab.action==='ring'?2:0,
-  e.ab&&e.ab.stun>0?1:0
+  e.ab&&e.ab.stun>0?1:0,
+  r10(e.guard||0),r10(e.guardMax||0)
 ]),
    Z:zones.map(z=>[
   z.id,r1(z.x),r1(z.y),z.r,
@@ -2422,7 +2562,9 @@ inspV=b.iv;shopLeft=b.sl;
     thr:e[10],
     rush:!!e[11],
     bossAction:e[12]===1?'rose':e[12]===2?'ring':null,
-    stunned:!!e[13]
+    stunned:!!e[13],
+    guard:e[14]||0,
+    guardMax:e[15]||0
   };
 });
  zones=(b.Z||[]).map(e=>({
@@ -2513,7 +2655,7 @@ function testSetInvulnerable(enabled){
   if(TEST_MODE)testInvulnerable=!!enabled;
 }
 function testSetPlayerCount(count){
-  if(!TEST_MODE||!me)return {players:players.length,scale:dragonCrowdScale()};
+  if(!TEST_MODE||!me)return {players:players.length,scale:dragonCrowdScale(),sceneScale:sceneCrowdScale()};
   testLoadMode=false;
   testPerfSamples=[];
   testPerfRun=null;
@@ -2552,7 +2694,7 @@ function testSetPlayerCount(count){
     players.push(p);
   }
   if(markId>=players.length){markId=-1;markT=0}
-  return {players:players.length,scale:dragonCrowdScale()};
+  return {players:players.length,scale:dragonCrowdScale(),sceneScale:sceneCrowdScale()};
 }
 function testSetLoadMode(enabled){
   if(!TEST_MODE)return {active:false,dragons:0};
@@ -2609,7 +2751,7 @@ function testPerfInfo(){
   const elapsed=run?Math.min(run.durationMs,Math.max(0,(run.finishedAt||now)-run.startedAt))/1000:0;
   const renderObjects=players.filter(p=>!p.gone).length+enemies.length+balls.length+notes.length+pickups.length+parts.length+zones.length+beams.length+tags.length+bossProjectiles.length;
   return {fps,frameP95Ms:frame95,updateP95Ms:update95,drawP95Ms:draw95,totalP95Ms:total95,
-    dragons:players.filter(p=>!p.gone).length,enemies:enemies.filter(e=>e.hp>0).length,
+    dragons:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),sceneScale:sceneCrowdScale(),enemies:enemies.filter(e=>e.hp>0).length,
     projectiles:balls.length,particles:parts.length,renderObjects,snapshotKB:testLastSnapshotBytes/1024,grade,status,
     samples:samples.length,loadMode:testLoadMode,running:!!(run&&!run.finishedAt),done:!!(run&&run.finishedAt),
     elapsedSeconds:elapsed,durationSeconds:run?run.durationMs/1000:0};
@@ -2646,9 +2788,24 @@ function testRunDiagnostics(){
     counts.slice(0,2).every((n,i)=>Math.abs(scales[i]-1)<1e-9),'100%');
   add('scale-20','При 20 драконах масштаб равен 87,5%',
     Math.abs(scales[4]-expected20)<1e-9,(scales[4]*100).toFixed(1)+'%');
-  add('scale-smooth','Масштаб плавно уменьшается при росте числа драконов',
+  add('scale-smooth','Масштаб драконов плавно уменьшается при росте числа игроков',
     scales.every((v,i)=>i===0||v<=scales[i-1])&&scales.every(v=>v<=1&&v>=.875),
     counts.map((n,i)=>n+': '+(scales[i]*100).toFixed(1)+'%').join(' · '));
+
+  const sceneScales=counts.map(sceneCrowdScaleForCount);
+  add('scene-baseline','Сцена не меняет масштаб при 1–6 игроках',
+    sceneScales.slice(0,2).every(v=>Math.abs(v-1)<1e-9),'100%');
+  add('scene-20','При 20 игроках сцена плавно отдаляется до 95%',
+    Math.abs(sceneScales[4]-.95)<1e-9,(sceneScales[4]*100).toFixed(1)+'%');
+  add('scene-smooth','Масштаб сцены уменьшается плавно и без скачков',
+    sceneScales.every((v,i)=>i===0||v<=sceneScales[i-1])&&sceneScales.every(v=>v<=1&&v>=.95),
+    counts.map((n,i)=>n+': '+(sceneScales[i]*100).toFixed(1)+'%').join(' · '));
+  const sampleWorld={x:417,y:263};
+  const sampleScreen={x:CX+(sampleWorld.x-CX)*sceneScales[4],y:CY+(sampleWorld.y-CY)*sceneScales[4]};
+  const restored=screenToWorldPoint(sampleScreen.x,sampleScreen.y,sceneScales[4]);
+  add('scene-input','Обратное преобразование мыши сохраняет точность прицела',
+    Math.hypot(restored.x-sampleWorld.x,restored.y-sampleWorld.y)<1e-8,
+    'Ошибка координат: '+Math.hypot(restored.x-sampleWorld.x,restored.y-sampleWorld.y).toFixed(8));
 
   const normalKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
   const markedKnight=enemyMoveSpeed({k:'knight',chase:1,t:{sp:T.knight.sp}},false,1);
@@ -2664,13 +2821,70 @@ function testRunDiagnostics(){
   add('live-scale','Текущий тестовый состав использует тот же масштаб, что и спрайты',
     Math.abs(dragonTransform(me).scale-dragonCrowdScale())<1e-9,
     players.filter(p=>!p.gone).length+' игроков · '+(dragonCrowdScale()*100).toFixed(1)+'%');
+  add('live-scene-scale','Текущая сцена использует масштаб, соответствующий составу игроков',
+    Math.abs(sceneCrowdScale()-sceneCrowdScaleForCount(players.filter(p=>!p.gone).length))<1e-9,
+    'Сцена '+(sceneCrowdScale()*100).toFixed(1)+'%');
+
+  const rewardCounts=[1,6,10,15,20];
+  const rewardScales=rewardCounts.map(multiplayerRewardMultiplierForPlayers);
+  const goldSim=rewardCounts.map(n=>simulateScaledRewards(1,n,2000));
+  const scrollSim=rewardCounts.map(n=>simulateScaledRewards(2,n,2000));
+  add('economy-solo','В одиночной игре награды остаются прежними',
+    Math.abs(rewardScales[0]-1)<1e-9&&allocateScaledReward(1,1,0).amount===1,'×'+rewardScales[0].toFixed(2));
+  add('economy-fair-share','Ожидаемый доход на игрока сохраняется при 1–20 участниках',
+    goldSim.every(v=>Math.abs(v.perPlayer-v.expected)<.002)&&scrollSim.every(v=>Math.abs(v.perPlayer-v.expected)<.004),
+    rewardCounts.map((n,i)=>n+' игроков: золото '+goldSim[i].perPlayer.toFixed(3)+' / свитки '+scrollSim[i].perPlayer.toFixed(3)).join(' · '));
+  add('economy-carry','Дробные остатки округления сохраняют суммарную награду на длинной дистанции',
+    rewardCounts.every((n,i)=>Math.abs(goldSim[i].total-2000*rewardScales[i])<1.01&&Math.abs(scrollSim[i].total-4000*rewardScales[i])<1.01),
+    'Погрешность суммарной награды не превышает 1 единицы на валюту');
+  add('economy-integer','Каждый подобранный дроп остаётся целым и минимум 1',
+    rewardCounts.every(n=>{let r=0;for(let i=0;i<200;i++){const v=allocateScaledReward(1,n,r);if(!Number.isInteger(v.amount)||v.amount<1)return false;r=v.remainder}return r>=0&&r<1}),
+    'Проверены 200 последовательных дропов для каждой группы');
+  add('economy-magnet-stable','Масштаб награды не меняет радиус притяжения случайным образом',
+    pickupMagnetRadiusForBaseReward(1)===130&&pickupMagnetRadiusForBaseReward(2)===130&&pickupMagnetRadiusForBaseReward(10)===200,
+    'Обычные дропы: 130 px · крупная базовая награда: 200 px');
+  const princeReward=BOSS_REWARDS.prince,kingReward=BOSS_REWARDS.king;
+  add('boss-party-rewards','Награда босса рассчитана на каждого участника команды',
+    princeReward[0]===10&&princeReward[1]===4&&kingReward[0]===20&&kingReward[1]===8,
+    'Принц: '+princeReward.join('/')+' · Король: '+kingReward.join('/')+' (золото/свитки)');
+  const princeGuard=bossGuardForMaxHp('prince',T.prince.hp),kingGuard=bossGuardForMaxHp('king',T.king.hp);
+  add('boss-guard-values','У принца и короля есть отдельная шкала защиты',
+    princeGuard===11&&kingGuard===36,
+    'Принц: '+princeGuard+' · Король: '+kingGuard+' ед. (15% / 18% HP)');
+  const guardLayout=bossGuardBarLayout({k:'king',x:500,y:300,t:T.king});
+  add('boss-guard-layout','Фиолетовая шкала находится над полосой здоровья и не сливается с ней',
+    guardLayout.y+guardLayout.height<guardLayout.hpBarY&&guardLayout.width>=80&&guardLayout.height>=10,
+    'Шкала '+guardLayout.width+'×'+guardLayout.height+' px · зазор до HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
+  const princeHp20=T.prince.hp*(1+19*BOSSCFG.hpPrince),kingHp20=T.king.hp*(1+19*BOSSCFG.hpKing);
+  const princeGuard20=bossGuardForMaxHp('prince',princeHp20),kingGuard20=bossGuardForMaxHp('king',kingHp20);
+  add('boss-guard-party-scaling','Барьер босса масштабируется вместе с его здоровьем при 20 игроках',
+    princeGuard20===Math.round(princeHp20*BOSS_GUARD_RATIO.prince)&&kingGuard20===Math.round(kingHp20*BOSS_GUARD_RATIO.king),
+    '20 игроков · Принц: '+princeGuard20+'/'+princeHp20+' · Король: '+kingGuard20+'/'+kingHp20);
+  const guardHit=resolveEnemyDamage({k:'prince',sh:0,guard:20},10);
+  add('boss-guard-absorbs','Пока барьер активен, урон не проходит в здоровье',
+    guardHit.bossGuard===10&&guardHit.hpDamage===0,
+    'Барьер: 20 → '+guardHit.bossGuard+' · урон здоровью: '+guardHit.hpDamage);
+  const breakHit=resolveEnemyDamage({k:'king',sh:0,guard:5},20);
+  add('boss-guard-no-overflow','Удар, разрушающий барьер, не пробивает здоровье насквозь',
+    breakHit.bossGuard===0&&breakHit.hpDamage===0&&breakHit.guardBroken,
+    'Барьер: 5 → 0 · урон здоровью этим ударом: '+breakHit.hpDamage);
+  const openHit=resolveEnemyDamage({k:'prince',sh:0,guard:0},7);
+  add('boss-guard-open','После снятия барьера здоровье босса снова получает урон',
+    openHit.hpDamage===7&&openHit.bossGuard===0,'Урон здоровью: '+openHit.hpDamage);
+  const layeredHit=resolveEnemyDamage({k:'king',sh:2,guard:10},3);
+  add('boss-guard-distinct','Защита мага и барьер босса работают как отдельные слои',
+    layeredHit.mageShield===0&&layeredHit.bossGuard===9&&layeredHit.hpDamage===0,
+    'Щит мага: 2 → 0 · барьер босса: 10 → 9');
   return checks;
 }
 function testInfo(){
+  const boss=enemies.find(e=>e.hp>0&&isBoss(e));
   return {wave,state,enemies:enemies.length,queue:queue.length,invulnerable:testInvulnerable,
-    players:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),
+    players:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),sceneScale:sceneCrowdScale(),
     knights:enemies.filter(e=>e.k==='knight'&&e.hp>0).length,
     chasingKnights:enemies.filter(e=>e.k==='knight'&&e.hp>0&&e.chase).length,
+    bossGuard:boss?{kind:boss.k,guard:boss.guard||0,guardMax:boss.guardMax||0,hp:boss.hp,max:boss.max}:null,
+    economy:{populationFactor:enemyPopulationFactorForPlayers(activePlayerCount()),rewardMultiplier:multiplayerRewardMultiplierForPlayers(activePlayerCount()),one:previewEnemyRewardAmount(1,activePlayerCount()),two:previewEnemyRewardAmount(2,activePlayerCount()),bossReward:BOSS_REWARDS.prince},
     edict:markId>=0};
 }
 function startTest(){
