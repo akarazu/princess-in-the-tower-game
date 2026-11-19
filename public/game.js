@@ -618,7 +618,7 @@ let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='
 let TEST_MODE=false,testInvulnerable=false;
 let testLoadMode=false,testBotClock=0,testPerfSamples=[],testPerfRun=null,testPerfLastRaf=0,testLastSnapshotBytes=0;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
-let mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false;
+let mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false,quipPriority=0;
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
@@ -698,15 +698,18 @@ addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;
 // ===== Вспомогательное =====
 const pick=a=>a[Math.random()*a.length|0];
 const isBoss=e=>e.k==='prince'||e.k==='king';
-function say(t,s=3){quip=t;quipT=s}
+function say(t,s=3,priority=2){quip=t;quipT=s;quipPriority=priority}
 function quote(key,vars={}){
   const template=pick(Q[key]||['']);
   return template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
 }
-function sayQ(key,seconds=3,vars={}){say(quote(key,vars),seconds)}
-function sayPrincessEvent(key,seconds=2.5,cooldown=9){
-  if(!isHost||TEST_MODE||state!=='play'||quipT>0||princessEventCd>0)return false;
-  sayQ(key,seconds);
+function sayQ(key,seconds=3,vars={},priority=2){say(quote(key,vars),seconds,priority)}
+function sayPrincessEvent(key,seconds=2.5,cooldown=9,priority=1){
+  if(!isHost||TEST_MODE||state!=='play')return false;
+  const canInterrupt=quipT>0&&priority>quipPriority;
+  if(quipT>0&&!canInterrupt)return false;
+  if(princessEventCd>0&&priority<2)return false;
+  sayQ(key,seconds,{},priority);
   princessEventCd=cooldown;
   return true;
 }
@@ -731,7 +734,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;mobIntroShown=new Set();princessEventCd=0;towerWarningShown=false;for(const row of rewardRemainders)row[0]=row[1]=0}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;quipPriority=0;mobIntroShown=new Set();princessEventCd=0;towerWarningShown=false;for(const row of rewardRemainders)row[0]=row[1]=0}
 function nextWave(){
   wave++;queue=[];spawned=0;mobIntroShown.clear();
   const n=Math.round((4+wave*2.2)*enemyPopulationFactorForPlayers(activePlayerCount())*(BOSS[wave]?.85:1));
@@ -996,7 +999,7 @@ function resolveEnemyDamage(e,amount){
 }
 function onEnemyDefeated(e,o){
   if(e.rewarded)return;e.rewarded=true;if(o)o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);
-  if(isBoss(e)){if(activePlayerCount()===1)sayPrincessEvent('kill',2.5,10)}else if(Math.random()<.03)sayPrincessEvent('kill',2.2,14);
+  if(isBoss(e)){if(activePlayerCount()===1)sayPrincessEvent('kill',2.5,10,0)}else if(Math.random()<.03)sayPrincessEvent('kill',2.2,14,0);
 }
 function damageEnemy(e,dmg,o,hitX=e.x,hitY=e.y){
   if(!e||e.hp<=0||!(dmg>0))return;
@@ -1580,7 +1583,7 @@ function cast(e,dx,dy,d,force){
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
-function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8)}else damageEnemy(e,1,p,e.x,e.y);
+function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8,2)}else damageEnemy(e,1,p,e.x,e.y);
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;sayQ('dragonDown',4,{name:p.name})}}
 
 function updatePlayer(p,dt){
@@ -1887,7 +1890,7 @@ e.path = makeBossPath(
 }
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
-    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.3)sayPrincessEvent('hit',2.5,14)}}
+    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.3)sayPrincessEvent('hit',2.5,14,0)}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
   for(const n of notes){
@@ -1909,7 +1912,7 @@ e.path = makeBossPath(
       }
     }
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
-    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);sayPrincessEvent('note',2.5,8);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
+    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);sayPrincessEvent('note',2.5,8,2);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
@@ -1966,6 +1969,7 @@ e.path = makeBossPath(
   for(const t of tags){t.life-=dt;t.y-=18*dt}
   tags=tags.filter(t=>t.life>0);
   shake=Math.max(0,shake-40*dt);quipT=Math.max(0,quipT-dt);
+  if(quipT===0)quipPriority=0;
   princessEventCd=Math.max(0,princessEventCd-dt);
   for(const e of enemies)if(e.bubbleT>0)e.bubbleT=Math.max(0,e.bubbleT-dt);
   if(phase==='break'){phaseT-=dt;if(phaseT<=0)phase='spawn'}
@@ -1978,7 +1982,7 @@ e.path = makeBossPath(
       else if(wave>=TOTAL)state='win';
       else{phase='clear';phaseT=3;sayQ('waveClear',3);
         }}}
-  if(tower/towerMax<=.35&&!towerWarningShown&&sayPrincessEvent('nervesWarning',3,30)){
+  if(tower/towerMax<=.35&&!towerWarningShown&&sayPrincessEvent('nervesWarning',3,30,3)){
     towerWarningShown=true;
   }
   if(tower<=0){tower=0;state='lose'}
