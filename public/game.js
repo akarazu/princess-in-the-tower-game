@@ -11,66 +11,66 @@ const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_RE
   5:'BOSS: The Charming Prince and His Entourage',
   6:'A New Suitor: A Mage Who Heals and Shields His Allies!',
   8:'A New Suitor: A Merchant with Bags of Gold!',
-  10:'Final Wave: The Princess's Father and His Entourage'
+  10:'Final Wave: The Princess\'s Father and His Entourage'
 };
 // Реплики принцессы: короткие, разговорные и в одном тоне.
 const Q={
-  start:['Quiet! They're close.','Not them again.','Dragons, meet our guests.','Here we go.','Who's it this time?','They're at the gate.','They're coming again… Dragons, you're my only hope!'],
-  hit:['Flowers again?!','I asked not to be disturbed!','Tell him I'm out of town.','I have a migraine!','Who gave him my address?!'],
-  kill:['That's it, my little lizards!','Thank you, my dears!','Silence… at last.','He didn't even take it personally.'],
-  prince:['The Charming Prince… Anyone but him!','He's coming with an orchestra! Fire!!!'],
+  start:['Quiet! They\'re close.','Not them again.','Dragons, meet our guests.','Here we go.','Who\'s it this time?','They\'re at the gate.','They\'re coming again… Dragons, you\'re my only hope!'],
+  hit:['Flowers again?!','I asked not to be disturbed!','Tell him I\'m out of town.','I have a migraine!','Who gave him my address?!'],
+  kill:['That\'s it, my little lizards!','Thank you, my dears!','Silence… at last.','He didn\'t even take it personally.'],
+  prince:['The Charming Prince… Anyone but him!','He\'s coming with an orchestra! Fire!!!'],
   king:['Dad?! You too?!','My father brought the royal guard. Forgive me, dragons!'],
-  bard:['A serenade?! Shoot down those notes before they reach us!','He's singing beneath my window!'],
-  note:['Is that a serenade?!','A musical note aimed at the tower? That's vandalism!','Shoot it down! It's off-key!'],
-  mage:['The mage is healing his allies! He's cheering them on with poetry!','Someone silence that matchmaker!'],
-  merchant:['A merchant! He thinks he can buy my attention!','Don't take his gold! It's a trap!'],
-  bag:['Gold? I'm a princess. I don't need it!','Dragon, stop counting the coins!'],
+  bard:['A serenade?! Shoot down those notes before they reach us!','He\'s singing beneath my window!'],
+  note:['Is that a serenade?!','A musical note aimed at the tower? That\'s vandalism!','Shoot it down! It\'s off-key!'],
+  mage:['The mage is healing his allies! He\'s cheering them on with poetry!','Someone silence that matchmaker!'],
+  merchant:['A merchant! He thinks he can buy my attention!','Don\'t take his gold! It\'s a trap!'],
+  bag:['Gold? I\'m a princess. I don\'t need it!','Dragon, stop counting the coins!'],
   princeInterrupted:['Proposal interrupted! The prince is stunned!'],
-  princeProposal:['The prince is proposing! Stop him before it's too late!'],
+  princeProposal:['The prince is proposing! Stop him before it\'s too late!'],
   princeRing:['The prince is throwing the ring!'],
   princeRingImpact:['The prince managed to throw the ring! The princess is flustered!'],
   princeRoses:['The prince is showering the field with roses! Get out of the red zones!'],
   kingDecree:['Royal decree: guards, to me!'],
-  kingDisgrace:['The king has declared {name} the princess's kidnapper! Run! The rest of you, provide cover!'],
+  kingDisgrace:['The king has declared {name} the princess\'s kidnapper! Run! The rest of you, provide cover!'],
   bardChorus:['The bard has started the chorus! The enemies are moving faster!'],
   mageAlone:['The mages are exposed and are running toward the tower!'],
   bossGuardBreak:['Barrier broken!','Shield down!','Their protection is shattered!','Keep them back!','Make the most of it!'],
-  bossTeamReward:['Team reward!','Gold for everyone!','You've earned it!','Thank you, dragons!','Gold and scrolls for everyone!'],
-  nervesWarning:['How many more?!','Enough!','I'm out of patience.','Is this the last one?','I can't take any more!'],
-  wakeFriend:['Back on your feet!','Welcome back!','Reinforcements!','They've woken a dragon!'],
-  wakeSolo:['You're awake?','Don't fall asleep again!','You nearly gave me gray hair!','The dragon is awake. Some of the gold got lost along the way.'],
-  dragonDown:['The dragon is down!','Wake up, {name}!','Who's got my back?','Oh no!','Your dragon is down! Get them back up within 15 seconds.'],
+  bossTeamReward:['Team reward!','Gold for everyone!','You\'ve earned it!','Thank you, dragons!','Gold and scrolls for everyone!'],
+  nervesWarning:['How many more?!','Enough!','I\'m out of patience.','Is this the last one?','I can\'t take any more!'],
+  wakeFriend:['Back on your feet!','Welcome back!','Reinforcements!','They\'ve woken a dragon!'],
+  wakeSolo:['You\'re awake?','Don\'t fall asleep again!','You nearly gave me gray hair!','The dragon is awake. Some of the gold got lost along the way.'],
+  dragonDown:['The dragon is down!','Wake up, {name}!','Who\'s got my back?','Oh no!','Your dragon is down! Get them back up within 15 seconds.'],
   dragonOut:['{name} is out.','{name} is taking a break from the chaos.','{name} has been eliminated. This dragon is out until the shop.'],
-  waveClear:['Are they all gone?','Not a single suitor? I don't believe it!','Give me a minute.','Wave cleared! Collect your coins!'],
+  waveClear:['Are they all gone?','Not a single suitor? I don\'t believe it!','Give me a minute.','Wave cleared! Collect your coins!'],
   testWaveClear:['All clear!','Choose the next one.','Wave cleared. Choose the next wave in the test panel.'],
   markEnded:['Dad has come to his senses.','Freedom.','At last!']
 };
 
 // Реплики персонажей показываются над тем, кто их произносит.
 const A={
-  knightIntro:['For the king!','To the tower, march!','Make way for the royal guard!','We're here to court the princess!','Where's the princess?'],
+  knightIntro:['For the king!','To the tower, march!','Make way for the royal guard!','We\'re here to court the princess!','Where\'s the princess?'],
   bardIntro:['Things are about to get loud!','Listen to the chorus!','Silence? Not today!','A serenade for the princess!','Sing, my heart!'],
-  bardNote:['Catch this note!','This isn't a concert!','Off-key, but on target!','La-la!','Here comes the serenade!'],
+  bardNote:['Catch this note!','This isn\'t a concert!','Off-key, but on target!','La-la!','Here comes the serenade!'],
   bardNoteHit:['Oops. Wrong note!','That was a bit much.','Missed?','At least one got through!'],
   bardChorus:['And now, the chorus!','Faster, in rhythm!','One, two — march!','Pick up the pace!'],
-  mageIntro:['I'll patch everyone up!','Shields are ready!','Magic will fix everything!','A love spell? Easy!'],
-  mageHeal:['Hang in there. I've got you!','A little more magic!','Who needs a shield?','I'll heal you up!'],
-  mageAlone:['Right, where is everyone?','Plan B: run!','I'm out of here!'],
-  merchantIntro:['Hey, dragons! Gold!','Who wants a coin?','It's shiny! Catch!','Gold! Free!','Hey, lizards! Over here!'],
-  merchantBag:['Catch this coin!','Here's some gold!','Shiny! All yours!','Who's fastest?','Look over here!'],
-  merchantBagHit:['Hooked!','It's working!','Got one!','Distracted!'],
-  princeIntro:['I've brought roses and a ring!','Today, everything will be decided!','What an entrance!','Princess, I'm here!'],
+  mageIntro:['I\'ll patch everyone up!','Shields are ready!','Magic will fix everything!','A love spell? Easy!'],
+  mageHeal:['Hang in there. I\'ve got you!','A little more magic!','Who needs a shield?','I\'ll heal you up!'],
+  mageAlone:['Right, where is everyone?','Plan B: run!','I\'m out of here!'],
+  merchantIntro:['Hey, dragons! Gold!','Who wants a coin?','It\'s shiny! Catch!','Gold! Free!','Hey, lizards! Over here!'],
+  merchantBag:['Catch this coin!','Here\'s some gold!','Shiny! All yours!','Who\'s fastest?','Look over here!'],
+  merchantBagHit:['Hooked!','It\'s working!','Got one!','Distracted!'],
+  princeIntro:['I\'ve brought roses and a ring!','Today, everything will be decided!','What an entrance!','Princess, I\'m here!'],
   princeProposal:['Princess, hear me out!','I have an important question!','Just a few words!','Marry me!'],
-  princeInterrupted:['But I'm not finished!','How rude!','Let me finish!','How could you?!'],
-  princeRing:['Catch your present!','Here's the ring!','Catch it! It's important!','Here!'],
-  princeRingImpact:['Oops. That wasn't the plan.','Stubborn, aren't you?','That hit!','Exactly as planned!'],
+  princeInterrupted:['But I\'m not finished!','How rude!','Let me finish!','How could you?!'],
+  princeRing:['Catch your present!','Here\'s the ring!','Catch it! It\'s important!','Here!'],
+  princeRingImpact:['Oops. That wasn\'t the plan.','Stubborn, aren\'t you?','That hit!','Exactly as planned!'],
   princeRoses:['Flowers for you!','Roses will solve everything!','Catch the bouquet!','A shower of roses!'],
-  kingIntro:['Here I am.','Where is my royal guard?','Time to restore order!','Daughter, I'm here!'],
+  kingIntro:['Here I am.','Where is my royal guard?','Time to restore order!','Daughter, I\'m here!'],
   kingDecree:['Guards, assemble!','More knights!','Carry out the decree!','Guards, over here!'],
   kingDecreeFinal:['One last decree!','Form up!','Enough!','Everyone, this way!'],
-  kingDisgrace:['You're a suspect!','Kidnapper: {name}!','The Crown has decided: {name}!','Guilty!'],
-  kingNoKnights:['Where are my guards?','Then I'll do it myself.','Where did everyone go?'],
-  kingApproach:['Enough paperwork!','Let's talk in person!','To the tower!','I'll go myself!']
+  kingDisgrace:['You\'re a suspect!','Kidnapper: {name}!','The Crown has decided: {name}!','Guilty!'],
+  kingNoKnights:['Where are my guards?','Then I\'ll do it myself.','Where did everyone go?'],
+  kingApproach:['Enough paperwork!','Let\'s talk in person!','To the tower!','I\'ll go myself!']
 };
 
 const PRINCESS_HINTS=[
@@ -79,7 +79,7 @@ const PRINCESS_HINTS=[
   {id:'bard',wave:3,text:'The bard speeds up enemies with his chorus. Take him out first.'},
   {id:'prince',wave:5,text:'The prince throws roses into red zones. Stay out of them!'},
   {id:'mage',wave:6,text:'The mage heals knights and gives them shields. Take him out first.'},
-  {id:'merchant',wave:8,text:'The merchant throws coins to distract dragons. Don't chase them!'},
+  {id:'merchant',wave:8,text:'The merchant throws coins to distract dragons. Don\'t chase them!'},
   {id:'king',wave:10,text:'The king summons knights and marks a dragon for royal disgrace.'}
 ];
 const CUR=[{n:'Gold',c:'#ffd24d'},{n:'Scrolls',c:'#ecd9a8'}];
@@ -724,7 +724,7 @@ function sayPrincessEvent(key,seconds=2.5,cooldown=9,priority=1){
 }
 function sayActor(e,key,seconds=2.5,vars={}){
   if(!e||e.hp<=0)return;
-  const lines=A[key]||['Let's go!'];
+  const lines=A[key]||['Let\'s go!'];
   const template=pick(lines);
   e.bubble=template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
   e.bubbleT=seconds;
@@ -2263,7 +2263,7 @@ function drawShop(){
     if(cap)text('MAX',x+95,y+158,19,'#8a7096');
     else{ctx.textAlign='right';text(String(cost(me,i)),x+84,y+158,22,ok?CUR[u.t].c:'#8a7096');ctx.textAlign='center';ctx.save();if(!ok)ctx.globalAlpha*=.55;drawIcon(u.t,x+108,y+155,12);ctx.restore();text('['+(i+1)+']',x+160,y+158,14,'#8a7096')}});
   ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Waiting for others':'Continue',CX,481,22,'#2a1235');
-  text('Press 1–4 to buy an upgrade, or Space to continue. Let's save our treasury!',CX,545,15,'#d9c3e8','italic');
+  text('Press 1–4 to buy an upgrade, or Space to continue. Let\'s save our treasury!',CX,545,15,'#d9c3e8','italic');
   text('Time left '+Math.max(0,Math.ceil(shopLeft))+' sec · ready '+players.filter(p=>p.ready&&!p.gone).length+' of '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
 function drawBossGuardBar(e){
   if(!isBoss(e)||!(e.guardMax>0)||!(e.guard>0))return;
@@ -2417,7 +2417,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   // Центр viewport: прочность башни и активный эффект барда.
   const hudCenterX=(viewLeft+viewRight)/2;
   ctx.textAlign='center';
-  text('Princess's Patience',hudCenterX,hudTop+8,15,'#fbe8d3','italic');
+  text('Princess\'s Patience',hudCenterX,hudTop+8,15,'#fbe8d3','italic');
   ctx.fillStyle='rgba(0,0,0,.38)';
   ctx.fillRect(hudCenterX-145,hudTop+21,290,9);
   ctx.fillStyle=tower/towerMax>.35?'#ff9bb3':'#ff4d4d';
@@ -2524,7 +2524,7 @@ function drawEndScreen(){
   const endingLine=state==='win'
     ?'“Are they all gone? Really all of them? Dragons, you have saved my peace and quiet!”'
     :tower<=0
-      ?'“That's it… I urgently need a vacation from all these suitors.”'
+      ?'“That\'s it… I urgently need a vacation from all these suitors.”'
       :'“The dragons have fallen, and I still need somewhere to hide…”';
   text(endingLine,CX,tableY+34,Math.min(38,tableW*.045),'#ff9bb3','italic');
 
@@ -3037,7 +3037,7 @@ function testRunDiagnostics(){
   const markedKnight=enemyMoveSpeed({k:'knight',chase:1,t:{sp:T.knight.sp}},false,1);
   const unmarkedKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
   const markedMage=enemyMoveSpeed({k:'mage',chase:1,t:{sp:T.mage.sp}},false,1);
-  add('knight-base','The knight's normal movement speed is unchanged',
+  add('knight-base','The knight\'s normal movement speed is unchanged',
     Math.abs(normalKnight-T.knight.sp)<1e-9,normalKnight.toFixed(1)+' units/sec');
   add('knight-edict','A knight moves exactly 25% faster while under royal disgrace',
     Math.abs(markedKnight/normalKnight-1.25)<1e-9,normalKnight.toFixed(1)+' → '+markedKnight.toFixed(1)+' units/sec');
@@ -3071,7 +3071,7 @@ function testRunDiagnostics(){
   add('player-edge-expands','With 20 players, movement boundaries expand as the camera zooms out',
     maxMoveBounds.minX<24&&maxMoveBounds.maxX>W-24&&maxMoveBounds.minY<70&&maxMoveBounds.maxY>H-24,
     'World X: '+maxMoveBounds.minX.toFixed(1)+'–'+maxMoveBounds.maxX.toFixed(1)+' · Y: '+maxMoveBounds.minY.toFixed(1)+'–'+maxMoveBounds.maxY.toFixed(1));
-  add('player-edge-screen-match','After rendering, the new boundaries match the scene's safe edge margins',
+  add('player-edge-screen-match','After rendering, the new boundaries match the scene\'s safe edge margins',
     Math.abs(maxScreenEdges.minX-maxMoveBounds.marginX)<1e-8&&Math.abs(maxScreenEdges.maxX-(W-maxMoveBounds.marginX))<1e-8&&Math.abs(maxScreenEdges.minY-maxMoveBounds.marginTop)<1e-8&&Math.abs(maxScreenEdges.maxY-(H-maxMoveBounds.marginBottom))<1e-8,
     'Screen X: '+maxScreenEdges.minX.toFixed(1)+'–'+maxScreenEdges.maxX.toFixed(1)+' · Y: '+maxScreenEdges.minY.toFixed(1)+'–'+maxScreenEdges.maxY.toFixed(1));
   const movementBoundsByCount=counts.map(n=>playerMovementBoundsForScale(sceneCrowdScaleForCount(n),dragonCrowdScaleForCount(n)));
@@ -3139,7 +3139,7 @@ function testRunDiagnostics(){
   add('boss-guard-open','Once the barrier is removed, the boss can take health damage again',
     openHit.hpDamage===7&&openHit.bossGuard===0,'Health damage: '+openHit.hpDamage);
   const layeredHit=resolveEnemyDamage({k:'king',sh:2,guard:10},3);
-  add('boss-guard-distinct','The mage's shield and the boss barrier work as separate layers',
+  add('boss-guard-distinct','The mage\'s shield and the boss barrier work as separate layers',
     layeredHit.mageShield===0&&layeredHit.bossGuard===9&&layeredHit.hpDamage===0,
     'Mage shield: 2 → 0 · boss barrier: 10 → 9');
   return checks;
