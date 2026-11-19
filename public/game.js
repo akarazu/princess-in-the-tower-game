@@ -2290,7 +2290,19 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   for(const e of enemies)drawE(e);
   drawBossProjectiles();
   for(const b of beams){ctx.strokeStyle='rgba(125,255,154,'+Math.min(1,b.life*3)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x1,b.y1);ctx.lineTo(b.x2,b.y2);ctx.stroke();ctx.lineWidth=1}
-  for(const t of tags){ctx.globalAlpha=Math.min(1,t.life*2);text(t.txt,t.x,t.y,15,'#fff3e6','italic')}ctx.globalAlpha=1;
+  for(const t of tags){
+    // Не дублируем короткий тег действия, если над тем же персонажем
+    // уже отображается его реплика.
+    const coveredByActorSpeech=enemies.some(e=>
+      e.bubbleT>0&&
+      Math.abs(e.x-t.x)<48&&
+      Math.abs((e.y-e.t.sz*.72-12)-t.y)<18
+    );
+    if(coveredByActorSpeech)continue;
+    ctx.globalAlpha=Math.min(1,t.life*2);
+    text(t.txt,t.x,t.y,15,'#fff3e6','italic');
+  }
+  ctx.globalAlpha=1;
   for(const n of notes){const bg=n.k==='bag';if(bg){ctx.strokeStyle='rgba(255,210,77,'+(.35+.35*Math.sin(n.t*12))+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.tx,n.ty,30,0,6.283);ctx.stroke()}ctx.strokeStyle=bg?'#ffd24d':'#ff6b9a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(n.x,n.y,n.r+2,0,6.283);ctx.stroke();ctx.lineWidth=1;if(bg&&IMG.coinBag)drawSheet(IMG.coinBag,6,n.x,n.y,30,(typeof performance!=='undefined'?performance.now():0)/110+n.id);else emoji(bg?'💰':'🎵',n.x,n.y,20)}
   for(const k of pickups){if(k.life<DROP.warn&&Math.floor(k.life*8)%2)continue;drawIcon(k.t,k.x,k.y,8+Math.min(k.v,10)*.6)}
   players.filter(p=>!p.gone).forEach(drawDragon);
