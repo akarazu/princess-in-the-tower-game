@@ -41,7 +41,7 @@ const Q={
   wakeSolo:['You\'re awake?','Don\'t fall asleep again!','You nearly gave me gray hair!','The dragon is awake. Some of the gold got lost along the way.'],
   dragonDown:['The dragon is down!','Wake up, {name}!','Who\'s got my back?','Oh no!','Your dragon is down! Get them back up within 15 seconds.'],
   dragonOut:['{name} is out.','{name} is taking a break from the chaos.','{name} has been eliminated. This dragon is out until the shop.'],
-  waveClear:['Are they all gone?','Not a single suitor? I don\'t believe it!','Give me a minute.','Wave cleared! Collect your coins!'],
+  waveClear:['Wave repelled! Hurry and collect the coins.'],
   testWaveClear:['All clear!','Choose the next one.','Wave cleared. Choose the next wave in the test panel.'],
   markEnded:['Dad has come to his senses.','Freedom.','At last!']
 };
