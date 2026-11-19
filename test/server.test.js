@@ -132,7 +132,7 @@ test('server is safe to serve files and supports a 20-player room', async t => {
 
   const index = await httpRequest(baseUrl + '/');
   assert.equal(index.statusCode, 200);
-  assert.match(index.body, /Башня принцессы/);
+  assert.match(index.body, /Princess in the Tower/);
 
   const gameScript = await httpRequest(baseUrl + '/game.js');
   assert.equal(gameScript.statusCode, 200);
@@ -162,7 +162,7 @@ test('server is safe to serve files and supports a 20-player room', async t => {
     client.send({
       t: 'join',
       room: 'LOAD20',
-      name: `Игрок ${i + 1}`,
+      name: `Player ${i + 1}`,
       create: i === 0
     });
     const joined = await client.next(message => message.t === 'joined');
@@ -171,9 +171,9 @@ test('server is safe to serve files and supports a 20-player room', async t => {
 
   const overflow = await connectClient(wsUrl);
   clients.push(overflow);
-  overflow.send({ t: 'join', room: 'LOAD20', name: 'Лишний игрок', create: false });
+  overflow.send({ t: 'join', room: 'LOAD20', name: 'Extra player', create: false });
   const full = await overflow.next(message => message.t === 'error');
-  assert.match(full.msg, /максимум 20/);
+  assert.match(full.msg, /maximum 20/);
 
   clients[0].send({ t: 'lock' });
   const picking = await clients[0].next(message => message.t === 'players' && message.phase === 'pick');
