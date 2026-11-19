@@ -7,13 +7,53 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BN={
-  3:'Новый поклонник: бард с серенадами!',
-  5:'Босс: Прекрасный принц со свитой',
-  6:'Новый поклонник: маг лечит и защищает щитами!',
-  8:'Новый поклонник: купец с мешками золота!',
-  10:'Финал: отец принцессы и вся свита'
+  3:'«Тише! У меня тут серенада!»',
+  5:'«Принц снова с кольцом?!»',
+  6:'«Маг, не лечи им всех!»',
+  8:'«Купец! Что в мешке?»',
+  10:'«Папа?! Где вся гвардия?!»'
 };
-const Q={hit:['Опять с цветами!','Я просила не беспокоить!','Передайте ему, что я в отъезде.','У меня мигрень!','Кто дал ему адрес?!'],kill:['Так держать, ящерки!','Спасибо, мои хорошие!','Тишина… наконец-то.','Он даже не обиделся.'],prince:['Прекрасный принц… Только не он!','Он идёт с оркестром! Огонь!!!'],king:['Папа?! Ты тоже?!','Отец привёл гвардию. Драконы, простите меня!'],bard:['Серенады?! Сбивайте ноты, пока они не долетели!','Он поёт под моим окном!'],note:['Это что, серенада?!','Нота в башню — это уже хулиганство!','Сбейте её, она фальшивит!'],mage:['Маг лечит своих! Он их подбадривает стихами!','Кто-нибудь, заткните этого свата!'],merchant:['Купец! Он хочет купить моё внимание!','Не берите его золото, это ловушка!'],bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!']};
+// Реплики звучат от лица принцессы: больше характера, самоиронии и реакции на события.
+const Q={
+  start:['Драконы, вы вовремя! У меня тут очередное мероприятие по спасению башни.','Они опять идут… У меня уже закончились вежливые отказы. Остались только вы!','Добро пожаловать на защиту башни! Чай после победы, обещаю.'],
+  hit:['Опять к башне! У вас там семейная скидка на осаду?','Я не принимаю гостей с мечами. Даже по предварительной записи!','Передайте ему: свидание отменено. Башня тоже против.','Почему все мои поклонники приходят с армией?','У меня сегодня день тишины. Особенно для рыцарей!','Кто выдал им адрес? Я же просила не публиковать его в летописях!'],
+  kill:['Вот это сервис! Драконы, вам бы орден выдать.','Минус один поклонник, плюс немного тишины!','Прекрасно сработано! И никакого неловкого свидания.','Запишите это в летопись. Желательно крупным шрифтом!','Так держать! Я почти перестала нервничать.','Ещё один ухажёр отправился подумать над своим поведением.'],
+  prince:['Прекрасный принц явился! Букет вижу, красные флаги тоже.','Он опять с кольцом. Кто-нибудь объяснит ему, что «нет» — тоже ответ?','Принц считает, что розы всё исправят. Даже его тактику.','Снова свидание с осадой. Романтика окончательно вышла из-под контроля.','Только не говорите, что он репетировал речь у зеркала весь год.','Он назвал это романтическим жестом. Я называю это нарушением границ!'],
+  king:['Папа приехал! Надеюсь, в этот раз без семейного совета на двести рыцарей.','Отец лично возглавил осаду. Вот это семейный контроль!','Король на месте. Держитесь: сейчас будет указ, потом ещё указ…','Папа, я просила прислать письмо, а не целую армию!','Семейное воссоединение отменяется. Причина: слишком много рыцарей.','Отец снова решил всё за меня. Даже маршрут до башни!'],
+  bard:['Бард у башни! Я просила тишину, а не концерт во время осады.','Он играет так громко, что даже камни хотят сбежать.','Если услышите фальшивую ноту — это не баг, это бард.','У него серенада или тревожная сирена? Я уже не различаю.'],
+  note:['Летящая нота! Уклоняйтесь: музыкальное образование не должно быть таким опасным.','Нота летит в башню. Можно было просто отправить открытку!','Сбейте эту ноту! Она даже в нотный стан не попадает.','Осторожно! Эта нота звучит как судебный иск от соседей.'],
+  mage:['Маг лечит рыцарей! Кажется, у них командная страховка.','Он раздаёт щиты. Вот бы кто-нибудь защитил меня от этих ухажёров.','Маг снова всех подлечил. У него бесконечный запас пластырей?','Сначала рыцари ломятся в башню, теперь ещё и лечатся. Удобно устроились!'],
+  merchant:['Купец принёс золото. Наконец-то полезный груз… Ах да, это ловушка.','Не подбирайте подарки! Особенно если они летят из подозрительного мешка.','Он торгует прямо во время осады. Уважаю деловую хватку, но нет.','Скидка дня: один мешок золота, два неприятных сюрприза!'],
+  bag:['Золото летит! Не отвлекайтесь — у него явно есть скрытые условия.','Мешок с монетами? Я тоже люблю покупки, но не настолько!','Не ловите этот мешок! Это не подарок, а тяжёлая реклама.','Дракон, не засматривайся на золото. Оно сегодня с подвохом!'],
+  princeProposal:['Он снова делает предложение! Драконы, прервите этот монолог, пока он не дошёл до стихов!','Принц достал кольцо. Если он скажет «навсегда», я выпрыгну из окна!','Началось предложение руки и сердца. У вас есть несколько секунд, чтобы испортить ему финал!'],
+  princeInterrupted:['Предложение сорвано! Наконец-то кто-то перебил его длинную речь.','Принц оглушён! Вот что бывает, когда не слышишь слово «нет».','Браво! Романтическая пауза отменяется вместе с принцем.'],
+  princeRing:['Он всё-таки бросил кольцо! Это предложение или метание молота?','Кольцо летит к башне! Я не соглашалась даже на доставку!','Принц запустил кольцо. Надеюсь, у него есть чек на возврат.'],
+  princeRingImpact:['Кольцо долетело! Вот это настойчивость… совершенно нежелательная.','Оно попало в башню! Я бы сказала «да», но только если бы это было «давай уйдём».','Принц пробил защиту кольцом. В следующий раз пусть пришлёт открытку.'],
+  princeRoses:['Он снова осыпает поле розами! Красиво, но красные круги — плохой знак.','Розовый дождь! Не стойте на местах, где он собрался приземлиться!','Принц решил, что цветов мало. Теперь он украшает ими поле боя!'],
+  kingDecree:['Указ №{count} из {max}: стража, ко мне! И наденьте парадную форму!','Королевский приказ {count}/{max}: вызвать рыцарей. Да, опять. Это семейное дело!','Внимание, гвардия! Король нажал кнопку «ещё рыцарей» ({count}/{max}).','Указ {count}/{max}: всем рыцарям явиться. Отговорки не принимаются!','Король выпустил указ {count}/{max}. Аргументы закончились, начались подкрепления!'],
+  kingDecreeFinal:['Пятый указ! Стража собрана. Папа, может, теперь поговорим словами?','Пять указов — выполнено! У короля теперь целый отдел по доставке рыцарей.','Пятый приказ подписан. Чернил ушло больше, чем здравого смысла!'],
+  kingDisgrace:['Обвинение №{count} из {max}: {name}, вы назначены похитителем принцессы! Возражения не принимаются.','Король снова нашёл виноватого: {name}! Драконы, приготовьтесь к опале.','По королевскому указу {name} — главный подозреваемый. Доказательства? Корона сказала!','Дело №{count}: {name} обвиняется в похищении. Следствие завершено до начала!'],
+  kingNoKnights:['Рыцарей больше нет? Папа, обвинять некого. Может, уже пойдёшь ко мне?','Гвардия закончилась! Король отменяет опалу. Хоть одна хорошая новость за день.','На поле больше нет рыцарей. Папа, семейный визит можно продолжить без обвинений!'],
+  kingApproach:['Пять указов и пять обвинений — папа закончил бюрократию и идёт к башне. Драконы, встречайте!','Королевские бумаги закончились. Теперь отец решил явиться лично.','Папа наконец отложил печать и направился сюда. Держите оборону!'],
+  kingMarkEnded:['Опала закончилась. Король пока не придумал, кого обвинить следующим.','Обвинение снято! Кажется, даже королевская канцелярия устала.','Опала окончена. Можно вернуться к спасению башни!'],
+  bardChorus:['Бард взял припев! Враги ускорились. Драконы, испортите ему концерт!','О нет, припев! Рыцари теперь бегут быстрее, чем я от нежелательных предложений.','Бард вышел на высокую ноту — и враги на высокую скорость!'],
+  magiAlone:['Маги остались без прикрытия и бегут к башне. Вот теперь им не до лечения!','Без рыцарей маги растерялись. Кто бы мог подумать, что им нужна компания?'],
+  wakeFriend:['Павший дракон снова в строю! Вот это командная работа.','Дракон проснулся благодаря друзьям. Вот это настоящее волшебство!'],
+  wakeSolo:['Дракон проснулся… Но часть золота осталась в стране снов.','Добро пожаловать обратно! Кошелёк, правда, проснулся не весь.'],
+  dragonDown:['Ой-ой, дракон прилёг! Поднимите его, пока враги не решили, что это коврик.','Дракон уснул! Кто-нибудь, срочно принесите ему кофе… или союзника.','Один дракон выбыл из полёта. Не бросайте его, у нас тут командная игра!'],
+  dragonOut:['{name} выбыл до магазина. Как жаль — а я уже приготовила благодарственную речь!'],
+  waveClear:['Волна отбита! Собирайте монеты, пока они не решили сбежать.','Чисто! Передышка, золото и никаких предложений руки и сердца.','Ура, враги отступили! Самое время пополнить казну.'],
+  testWaveClear:['Волна очищена! Выберите следующую в панели. Только не самую спокойную, конечно.']
+};
+const PRINCESS_HINTS=[
+  {id:'controls',wave:1,text:'Драконы, WASD или стрелки — летим, ЛКМ — огонь. Особая атака на ПКМ откроется после нужного улучшения!'},
+  {id:'loot',wave:2,text:'После волны собирайте золото и свитки. Они не украсят башню, зато помогут улучшить ваше пламя!'},
+  {id:'bard',wave:3,text:'Бард ускоряет врагов припевом. Сбейте его, пока он не взял ещё одну высокую ноту!'},
+  {id:'prince',wave:5,text:'Принц бросает розы в отмеченные красные зоны. Не стойте там — романтика романтикой, а здоровье дороже!'},
+  {id:'mage',wave:6,text:'Маг лечит рыцарей и накладывает щиты. Постарайтесь убрать его, иначе враги станут слишком живучими!'},
+  {id:'merchant',wave:8,text:'Купец бросает мешки с золотом. Не ловите их: от удара дракон на время замирает!'},
+  {id:'king',wave:10,text:'Папа-король готовит указы и опалу. Пока на поле есть рыцари, он будет искать виноватого среди драконов!'}
+];
 const CUR=[{n:'Золото',c:'#ffd24d'},{n:'Свитки',c:'#ecd9a8'}];
 // b — базовая цена, s — прирост цены за покупку, t — валюта (0 золото, 1 ноты)
 const UP=[{n:'Усиленное дыхание',d:'урон +1, шар крупнее',b:8,s:5,t:0},{n:'Частое дыхание',d:'стреляет на 20% чаще',b:3,s:2,t:1},{n:'Быстрые крылья',d:'скорость +20%',b:3,s:2,t:1},{n:'Драконий щит',d:'поглощает удар',b:10,s:5,t:0}];
@@ -412,6 +452,7 @@ function drawCastle(){
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
 let TEST_MODE=false,testInvulnerable=false;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
+let princessHintT=6,princessHintsShown=new Set();
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
@@ -445,6 +486,21 @@ addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;
 const pick=a=>a[Math.random()*a.length|0];
 const isBoss=e=>e.k==='prince'||e.k==='king';
 function say(t,s=3){quip=t;quipT=s}
+function quote(key,vars={}){
+  const template=pick(Q[key]||['']);
+  return template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
+}
+function sayQ(key,seconds=3,vars={}){say(quote(key,vars),seconds)}
+function updatePrincessHints(dt){
+  if(TEST_MODE||!isHost||state!=='play')return;
+  princessHintT=Math.max(0,princessHintT-dt);
+  if(princessHintT>0||quipT>0||phase!=='spawn')return;
+  const hint=PRINCESS_HINTS.find(item=>wave>=item.wave&&!princessHintsShown.has(item.id));
+  if(!hint){princessHintT=12;return}
+  princessHintsShown.add(hint.id);
+  say(hint.text,5);
+  princessHintT=8;
+}
 function tag(e,txt){tags.push({x:e.x,y:e.y-34,txt,life:1.3})}
 function boom(x,y,col,n){if(isHost&&evs.length<40)evs.push([Math.round(x),Math.round(y),col,n]);spark(x,y,col,n)}
 function spark(x,y,col,n){for(let i=0;i<n&&parts.length<400;i++){const a=Math.random()*6.283,v=30+Math.random()*100;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.42+Math.random()*.25,col})}}
@@ -459,7 +515,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set()}
 function nextWave(){
   wave++;queue=[];spawned=0;
   const n=Math.round((4+wave*2.2)*(1+.85*Math.sqrt(players.length-1))*(BOSS[wave]?.85:1));
@@ -792,7 +848,7 @@ if(a.thr>0&&a.action){
         a.repositionPathStarted=false;
         a.repositioned=false;
 
-        say('Предложение сорвано! Принц оглушён!');
+        sayQ('princeInterrupted',4);
         tag(e,'Оглушён!');
         boom(e.x,e.y,'#ffd24d',16);
         return;
@@ -838,7 +894,7 @@ if(!a.arrived){
       a.castHp=e.hp;
       a.action='proposal';
       e.hold=true;
-      say('Принц делает предложение! Собьём его, пока не поздно!',4);
+      sayQ('princeProposal',4);
       tag(e,'Предложение!');
     }
     return;
@@ -903,9 +959,9 @@ if(!a.arrived){
     e.path=makeBossPath('king',e.x,e.y,undefined,undefined,0); // После патруля — строго прямая к башне.
 
     if(!knightsRemain){
-      say('На поле больше нет рыцарей. Король отменяет опалу и направляется к башне!',4);
+      sayQ('kingNoKnights',4);
     }else{
-      say('Король отдал пять указов и пять раз объявил драконов похитителями. Теперь он направляется к башне!',4);
+      sayQ('kingApproach',4);
     }
     tag(e,'К башне!');
   }
@@ -955,7 +1011,7 @@ function throwPrinceRing(e){
   e.ab.thr=e.ab.thrT=flight;
   e.ab.action='ring';
 
-  say('Принц бросает кольцо!');
+  sayQ('princeRing',3);
   tag(e,'Кольцо!');
 }
 
@@ -974,7 +1030,7 @@ function updateBossProjectiles(dt){
         if(!(TEST_MODE&&testInvulnerable))tower=Math.max(0,tower-towerMax*BOSSCFG.castHit);
         shake=14;
         boom(CX,CY,'#ff9bb3',24);
-        say('Принц успел бросить кольцо! Принцесса в смятении!');
+        sayQ('princeRingImpact',4);
       }
     }
     else remain.push(p);
@@ -1042,7 +1098,7 @@ function roseRain(e){
     });
   }
 
-  say('Принц осыпает всех розами! Уходите с красных кругов!');
+  sayQ('princeRoses',4);
   tag(e,'Розы!');
 
   // Анимация поднятия рук
@@ -1058,7 +1114,7 @@ function decree(e){
   const n=4+Math.ceil(Math.sqrt(players.length)*2);
   for(let i=0;i<n;i++)spawn('knight');
   const count=a?(a.decreeCount=(a.decreeCount||0)+1):1;
-  say(count>=KING_MIN_DECREES?'Пятый королевский указ! Стража собрана.':'Королевский указ '+count+'/'+KING_MIN_DECREES+': стража, на помощь!');
+  sayQ(count>=KING_MIN_DECREES?'kingDecreeFinal':'kingDecree',4,{count,max:KING_MIN_DECREES});
   tag(e,'Указ '+Math.min(count,KING_MIN_DECREES)+'/'+KING_MIN_DECREES);
 }
 function disgrace(e){
@@ -1072,7 +1128,7 @@ function disgrace(e){
 
   const p=alive[Math.random()*alive.length|0];markId=p.id;markT=BOSSCFG.disgraceT;
   const count=a?(a.disgraceCount=(a.disgraceCount||0)+1):1;
-  say('Король в '+count+'-й раз объявил '+p.name+' похитителем принцессы! Драконы, защищайтесь! ('+count+'/'+KING_MIN_DISGRACES+')',4);
+  sayQ('kingDisgrace',4,{name:p.name,count,max:KING_MIN_DISGRACES});
   tag(e,'Похититель '+Math.min(count,KING_MIN_DISGRACES)+'/'+KING_MIN_DISGRACES);
   return true;
 }
@@ -1250,9 +1306,9 @@ function cast(e,dx,dy,d,force){
   if(k==='bag')e.actL=e.actT=.6;
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
-  if(byFriend)say('Дракона разбудили!');else{p.w[0]=Math.floor(p.w[0]*.75);say('Дракон проснулся. Часть золота потерялась по дороге.')}}
+  if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
 function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else{e.hp-=1;if(e.hp<=0){p.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,p)}}
-  if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;say('Дракон упал! Его надо поднять за 15 секунд.')}}
+  if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;sayQ('dragonDown',4)}}
 
 function updatePlayer(p,dt){
   p.coinGlow=Math.max(0,(p.coinGlow||0)-dt);
@@ -1286,7 +1342,7 @@ function updatePlayer(p,dt){
     }else if(p.wt<=0){
       p.dead=true;
       p.w[0]=Math.floor(p.w[0]*.75);
-      say(p.name+' погиб: до магазина дракон выбывает.',4);
+      sayQ('dragonOut',4,{name:p.name});
       boom(p.x,p.y,'#9a8aa8',16);
     }
 
@@ -1412,7 +1468,7 @@ if(activeBards.length){
 
     chorusBardId = caster ? caster.id : null;
 
-    say('Бард запел припев! Враги ускорились!');
+    sayQ('bardChorus',4);
   }
 
 }else{
@@ -1455,11 +1511,7 @@ if(markId>=0){
     markId=-1;
     markT=0;
 
-    say(
-      !knightsRemain
-        ? 'Опала закончилась: рыцарей больше нет!'
-        : 'Опала закончилась.'
-    );
+    sayQ(!knightsRemain?'kingNoKnights':'kingMarkEnded',4);
   }
 }
 
@@ -1471,7 +1523,7 @@ players.forEach(p=>{
     let dx=CX-e.x,dy=CY-e.y,d=Math.hypot(dx,dy);e.chase=0;if(e.actL>0){e.actL-=dt;e.thr=e.actL>0?Math.max(1,Math.round((1-e.actL/e.actT)*100)):0}
     if(e.t.boss)bossAI(e,dt);
     if(markId>=0&&!e.t.rng&&!e.t.boss){const mp=players[markId];dx=mp.x-e.x;dy=mp.y-e.y;d=Math.hypot(dx,dy)||1;e.chase=1}
-    const lone=lonely(e);if(lone&&!e.rush){e.rush=true;say('Маги остались без прикрытия и бегут к башне!')}
+    const lone=lonely(e);if(lone&&!e.rush){e.rush=true;sayQ('magiAlone',4);}
     // Маг может начать поддержку, когда босс входит в радиус лечения,
     // даже если сам маг ещё не подошёл близко к замку.
     const bossInHealRange=e.t.kind==='heal'&&enemies.some(o=>
@@ -1566,29 +1618,65 @@ e.path = makeBossPath(
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
   zones=zones.filter(z=>z.t<z.d);
   updateBossProjectiles(dt);
-  for(const c of pickups){if(!players[c.own].asleep)c.life-=dt;c.res-=dt;
-    let best=null,bd=1e9;
-    for(const p of players){if(p.asleep||(c.res>0&&c.own!==p.id))continue;const d=Math.hypot(p.x-c.x,p.y-c.y);if(d<bd){bd=d;best=p}}
-    if(best){if(bd<(c.v>=10?200:130)){const m=bd||1;c.x+=(best.x-c.x)/m*260*dt;c.y+=(best.y-c.y)/m*260*dt}
-      if(bd<28){best.w[c.t]+=c.v;if(!c.t){best.earned+=c.v;best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;}c.life=0;c.got=true;boom(c.x,c.y,CUR[c.t].c,4)}}}
+  // Pickups are resolved only by the host. Re-check distance after magnet movement
+  // so a coin that enters the collection radius is collected on this same tick.
+  const PICKUP_RADIUS=34;
+  const PICKUP_MAGNET_SPEED=300;
+  for(const c of pickups){
+    if(c.got)continue;
+    const owner=players.find(p=>p.id===c.own)||null;
+    if(!owner||owner.asleep||owner.dead||owner.gone)c.res=0;
+    // Preserve the existing lifetime pause while the original owner is asleep.
+    if(!owner||!owner.asleep)c.life-=dt;
+    c.res=Math.max(0,(c.res||0)-dt);
+
+    let best=null,bd=Infinity;
+    for(const p of players){
+      if(p.asleep||p.dead||p.gone||(c.res>0&&c.own!==p.id))continue;
+      const d=Math.hypot(p.x-c.x,p.y-c.y);
+      if(d<bd){bd=d;best=p}
+    }
+
+    if(best){
+      const magnetRadius=c.v>=10?200:130;
+      if(bd<magnetRadius&&bd>0){
+        const step=Math.min(bd,PICKUP_MAGNET_SPEED*dt);
+        c.x+=(best.x-c.x)/bd*step;
+        c.y+=(best.y-c.y)/bd*step;
+      }
+      // Use the updated position, not the pre-magnet distance. The 34px
+      // threshold also prevents fast dragons from skipping over small pickups.
+      const pickupDistance=Math.hypot(best.x-c.x,best.y-c.y);
+      if(pickupDistance<=PICKUP_RADIUS){
+        c.got=true;
+        c.life=0;
+        best.w[c.t]+=c.v;
+        if(!c.t){
+          best.earned+=c.v;
+          best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;
+        }
+        boom(best.x,best.y,CUR[c.t].c,4);
+      }
+    }
+  }
   for(const c of pickups)if(c.life<=0&&!c.got)boom(c.x,c.y,'#9a8aa8',5);
-  pickups=pickups.filter(c=>c.life>0);
+  pickups=pickups.filter(c=>c.life>0&&!c.got);
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
   parts=parts.filter(p=>p.life>0);
   for(const b of beams)b.life-=dt;
   beams=beams.filter(b=>b.life>0);
   for(const t of tags){t.life-=dt;t.y-=18*dt}
   tags=tags.filter(t=>t.life>0);
-  shake=Math.max(0,shake-40*dt);quipT-=dt;
+  shake=Math.max(0,shake-40*dt);quipT=Math.max(0,quipT-dt);updatePrincessHints(dt);
   if(phase==='break'){phaseT-=dt;if(phaseT<=0)phase='spawn'}
   else if(phase==='clear'){phaseT-=dt;if(phaseT<=0){if(TEST_MODE){phase='break';phaseT=1e9}else toShop()}}
   else{spawnT-=dt;if(queue[0]==='bard'&&queue.length>1&&enemies.filter(x=>x.k==='bard').length>=2+Math.ceil(Math.sqrt(players.length)))queue.push(queue.shift());
     if(queue[0]==='mage'&&queue.length>1&&(enemies.filter(x=>x.k==='mage').length>=2||spawned<4||!enemies.some(x=>x.t.kind!=='heal')))queue.push(queue.shift());
     if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(players.length-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,(TEST_MODE?0.14:1.5-wave*0.08)/(1+0.5*Math.sqrt(players.length-1)))}
     if(!queue.length&&!enemies.length&&!notes.length){
-      if(TEST_MODE){phase='clear';phaseT=.35;say('Волна очищена. Выберите следующую в панели тестирования.',3)}
+      if(TEST_MODE){phase='clear';phaseT=.35;sayQ('testWaveClear',3);}
       else if(wave>=TOTAL)state='win';
-      else{phase='clear';phaseT=3;say('Волна отбита! Успейте собрать монеты.',3);
+      else{phase='clear';phaseT=3;sayQ('waveClear',3);
         }}}
   if(tower<=0){tower=0;state='lose'}
 }
@@ -1729,7 +1817,7 @@ const drawIcon=(t,x,y,r)=>t?(IMG.scroll?ctx.drawImage(IMG.scroll,x-r*1.3*IMG.scr
 function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, viewBottom, preferredY){
   const viewportWidth=Math.max(160,viewRight-viewLeft);
   const viewportHeight=Math.max(140,viewBottom-viewTop);
-  const padX=15, padY=9, fontSize=17, lineHeight=21;
+  const padX=15, padY=9, fontSize=17, lineHeight=21, speakerHeight=15;
   const boxMaxWidth=Math.max(128,viewportWidth-32);
   const maxTextWidth=Math.max(100,boxMaxWidth-padX*2);
   const words=String(message||'').trim().split(/\s+/).filter(Boolean);
@@ -1771,7 +1859,7 @@ function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, view
   if(!lines.length)lines.push('');
 
   // Keep even unusually long lines inside short/tall viewports.
-  const maxLines=Math.max(1,Math.floor((viewportHeight-116-padY*2)/lineHeight));
+  const maxLines=Math.max(1,Math.floor((viewportHeight-116-padY*2-speakerHeight)/lineHeight));
   if(lines.length>maxLines){
     lines.length=maxLines;
     let last=lines[maxLines-1];
@@ -1781,7 +1869,7 @@ function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, view
 
   const measuredWidth=Math.max(...lines.map(v=>ctx.measureText(v).width));
   const boxWidth=Math.min(boxMaxWidth,measuredWidth+padX*2);
-  const boxHeight=lines.length*lineHeight+padY*2;
+  const boxHeight=lines.length*lineHeight+padY*2+speakerHeight;
   const minX=viewLeft+16;
   const maxX=Math.max(minX,viewRight-16-boxWidth);
   const boxX=Math.max(minX,Math.min(maxX,centerX-boxWidth/2));
@@ -1793,24 +1881,63 @@ function drawPrincessSpeech(message, centerX, viewLeft, viewRight, viewTop, view
   ctx.beginPath();
   ctx.roundRect(boxX,boxY,boxWidth,boxHeight,12);
   ctx.fill();
-  ctx.textAlign='center';
   ctx.textBaseline='middle';
+  ctx.textAlign='left';
+  ctx.font='bold 10px Georgia,serif';
+  ctx.fillStyle='#b45d7b';
+  ctx.fillText('ПРИНЦЕССА',boxX+padX,boxY+padY+speakerHeight/2);
+  ctx.textAlign='center';
   ctx.font='italic '+fontSize+'px Georgia,serif';
   ctx.fillStyle='#3b1c3f';
-  lines.forEach((row,i)=>ctx.fillText(row,boxX+boxWidth/2,boxY+padY+lineHeight*(i+.5),maxTextWidth));
+  lines.forEach((row,i)=>ctx.fillText(row,boxX+boxWidth/2,boxY+padY+speakerHeight+lineHeight*(i+.5),maxTextWidth));
   ctx.restore();
 }
+function drawShopWrapped(value,x,centerY,maxWidth,fontSize,color,maxLines=2,lineHeight=16){
+  const words=String(value||'').split(/\s+/).filter(Boolean);
+  const lines=[];
+  ctx.save();
+  ctx.font=fontSize+'px Georgia,serif';
+  let line='';
+  for(const word of words){
+    const candidate=line?line+' '+word:word;
+    if(ctx.measureText(candidate).width<=maxWidth||!line){
+      line=candidate;
+    }else{
+      lines.push(line);
+      line=word;
+      if(lines.length===maxLines-1)break;
+    }
+  }
+  if(line&&lines.length<maxLines)lines.push(line);
+  const consumed=lines.join(' ').length;
+  if(consumed<String(value||'').length&&lines.length){
+    let last=lines.length-1;
+    let shortened=lines[last];
+    while(shortened&&ctx.measureText(shortened+'…').width>maxWidth)shortened=shortened.slice(0,-1);
+    lines[last]=(shortened||'').trimEnd()+'…';
+  }
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillStyle=color;
+  const startY=centerY-(lines.length-1)*lineHeight/2;
+  lines.forEach((row,i)=>ctx.fillText(row,x,startY+i*lineHeight,maxWidth));
+  ctx.restore();
+  return lines.length;
+}
+
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
   ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
   UP.forEach((u,i)=>{const x=SX+i*206,y=190,cap=capped(me,i),ok=!cap&&me.w[u.t]>=cost(me,i);
     ctx.fillStyle=ok?'#3a2050':'#2a1740';ctx.strokeStyle=ok?CUR[u.t].c:'#6b4a85';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,190,190,14);ctx.fill();ctx.stroke();ctx.lineWidth=1;
-    text(u.n,x+95,y+40,17,'#fbe8d3','italic');text(descOf(me,i),x+95,y+80,14,'#d9c3e8');text('Куплено: '+me.lv[i],x+95,y+118,14,'#d9c3e8');
+    drawShopWrapped(u.n,x+95,y+36,168,16,'#fbe8d3',1,18);
+    drawShopWrapped(descOf(me,i),x+95,y+79,166,13,'#d9c3e8',2,16);
+    text('Куплено: '+me.lv[i],x+95,y+125,14,'#d9c3e8');
     if(cap)text('Максимум',x+95,y+158,19,'#8a7096');
     else{ctx.textAlign='right';text(String(cost(me,i)),x+84,y+158,22,ok?CUR[u.t].c:'#8a7096');ctx.textAlign='center';ctx.save();if(!ok)ctx.globalAlpha*=.55;drawIcon(u.t,x+108,y+155,12);ctx.restore();text('['+(i+1)+']',x+160,y+158,14,'#8a7096')}});
   ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Ждём остальных':'Дальше',CX,481,22,'#2a1235');
-  text('Нажмите на улучшение или клавишу 1–4, чтобы купить. Пробел — готов к следующей волне.',CX,545,15,'#d9c3e8','italic');
+  text('«Клавиши 1–4 — купить улучшение, Пробел — продолжить. Казну бережём!»',CX,545,15,'#d9c3e8','italic');
   text('Осталось '+Math.max(0,Math.ceil(shopLeft))+' с · готовы '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
 function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1b1030');g.addColorStop(.6,'#5a2a5e');g.addColorStop(1,'#c4577a');
@@ -1932,9 +2059,9 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   // Подсказки закреплены у нижних углов видимого viewport.
   if(state==='play'){
     ctx.textAlign='left';
-    text('WASD / стрелки — движение  ·  ЛКМ — огонь  ·  ПКМ — особая атака',hudLeft,hudBottom,11,'#e9d9ed');
+    text('«WASD / стрелки — летим; ЛКМ — огонь; ПКМ — особая атака после улучшения!»',hudLeft,hudBottom,10,'#e9d9ed','italic');
     ctx.textAlign='right';
-    text('F — весь экран',hudRight,hudBottom,11,'#e9d9ed');
+    text('«F — полный экран. Вдруг драмы мало!»',hudRight,hudBottom,10,'#e9d9ed','italic');
   }
 
   if(quipT>0&&state==='play'){
@@ -1952,6 +2079,41 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   else if(state!=='play'){
     drawEndScreen();
   }
+}
+
+function drawRankMedal(x,y,place,size){
+  const palettes={
+    1:{ribbon:'#b93f56',ribbon2:'#e36b76',base:'#f2c84b',edge:'#8d5d18',shine:'#fff0a8'},
+    2:{ribbon:'#5278b5',ribbon2:'#86a8dc',base:'#dfe8f2',edge:'#596b80',shine:'#ffffff'},
+    3:{ribbon:'#9b4938',ribbon2:'#d47a50',base:'#ca8050',edge:'#71402b',shine:'#ffe0bf'}
+  };
+  const c=palettes[place];
+  if(!c)return;
+  const r=size*.39;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.lineJoin='round';
+  // Two visible ribbon tails behind the medal face.
+  ctx.fillStyle=c.ribbon;
+  ctx.beginPath();ctx.moveTo(-r*.66,-r*.42);ctx.lineTo(-r*.5,r*1.16);ctx.lineTo(-r*.02,r*.76);ctx.lineTo(-r*.2,-r*.3);ctx.closePath();ctx.fill();
+  ctx.fillStyle=c.ribbon2;
+  ctx.beginPath();ctx.moveTo(r*.2,-r*.32);ctx.lineTo(r*.02,r*.76);ctx.lineTo(r*.56,r*1.12);ctx.lineTo(r*.68,-r*.42);ctx.closePath();ctx.fill();
+  const gradient=ctx.createRadialGradient(-r*.28,-r*.34,r*.08,0,0,r*1.2);
+  gradient.addColorStop(0,c.shine);gradient.addColorStop(.55,c.base);gradient.addColorStop(1,c.edge);
+  ctx.fillStyle=gradient;ctx.strokeStyle=c.edge;ctx.lineWidth=Math.max(1,size*.075);
+  ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=c.shine;ctx.lineWidth=Math.max(.7,size*.035);
+  ctx.beginPath();ctx.arc(0,0,r*.72,0,Math.PI*2);ctx.stroke();
+  // A small contrasting star keeps the silver medal readable at compact row heights.
+  ctx.fillStyle=place===2?'#53677f':'#704a1d';
+  ctx.beginPath();
+  for(let i=0;i<10;i++){
+    const a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r*.43:r*.19;
+    const px=Math.cos(a)*rr,py=Math.sin(a)*rr;
+    if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.closePath();ctx.fill();
+  ctx.restore();
 }
 
 function drawEndScreen(){
@@ -1978,10 +2140,12 @@ function drawEndScreen(){
 
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  text(
-    state==='win'?'Принцесса в безопасности!':(tower<=0?'Нервы сдали…':'Все драконы пали…'),
-    CX,tableY+34,Math.min(38,tableW*.045),'#ff9bb3','italic'
-  );
+  const endingLine=state==='win'
+    ?'«Башня спасена! Я знала, что драконы — лучшая охрана!»'
+    :tower<=0
+      ?'«Башня пала… Но это ещё не конец истории!»'
+      :'«Драконы пали, но вы сражались как легенды!»';
+  text(endingLine,CX,tableY+34,Math.min(38,tableW*.045),'#ff9bb3','italic');
 
   const summary=state==='win'
     ?'Отшито поклонников: '+score
@@ -2019,7 +2183,7 @@ function drawEndScreen(){
     }
 
     ctx.textAlign='center';
-    if(i<3)emoji(['🥇','🥈','🥉'][i],rankX,y,fontSize+3);
+    if(i<3)drawRankMedal(rankX,y,i+1,Math.max(16,Math.min(22,rowH*.82)));
     else text(String(i+1),rankX,y,fontSize,'#fbe8d3');
 
     ctx.fillStyle=COLORS[p.ci][1];
@@ -2296,7 +2460,7 @@ function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
   players=o.players.map((q,i)=>{const p=makePlayer(i,q.color);p.name=q.name;p.nid=q.id;const a=i/o.players.length*6.283;p.x=CX+Math.cos(a)*110;p.y=CY+Math.sin(a)*110;return p});
   me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*(1+.6*Math.sqrt(players.length-1)));
   resetWorld();
-  if(isHost){nextWave();say('Они опять идут… Драконы, вся надежда на вас!',4)}
+  if(isHost){nextWave();sayQ('start',4)}
   requestAnimationFrame(loop);
 }
 function onMsg(m){
