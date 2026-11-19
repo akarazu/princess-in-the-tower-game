@@ -152,7 +152,7 @@ $('#start-host-load-test').addEventListener('click',()=>{
 });
 $('#stop-host-load-test').addEventListener('click',()=>{
   const result=Game.testStopHostLoadTest();
-  logTest(result.stopped?'Stress test stopped.':'Тестовый режим не активен');
+  logTest(result.stopped?'Stress test stopped.':'Test mode is not active');
 });
 $('#test-edict').addEventListener('click',()=>{
   const result=Game.testStartEdict();
@@ -208,7 +208,7 @@ function refreshTestInfo(){
   $('#perf-snapshot').textContent='Host snapshot: '+(perf.snapshotKB?perf.snapshotKB.toFixed(1)+' KB':'—')+' · JSON serialization enabled';
   if(perf.durationSeconds){
     const state=perf.done?'completed':perf.running?'running':'ready';
-    $('#perf-run-status').textContent='Test '+state+' · '+perf.elapsedSeconds.toFixed(1)+' / '+perf.durationSeconds.toFixed(0)+' sec. · кадров: '+perf.samples;
+    $('#perf-run-status').textContent='Test '+state+' · '+perf.elapsedSeconds.toFixed(1)+' / '+perf.durationSeconds.toFixed(0)+' sec. · frames: '+perf.samples;
   }else $('#perf-run-status').textContent='Run the test for 30 seconds.';
   setTimeout(refreshTestInfo,500);
 }
