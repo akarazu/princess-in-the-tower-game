@@ -1755,7 +1755,13 @@ const activeBards = enemies.filter(
   e => e.hp > 0 && e.k === 'bard'
 );
 
-if(activeBards.length){
+// Бард использует припев только тогда, когда есть другие враги,
+// которых можно ускорить. Оставшись один, он продолжает стрелять нотами.
+const chorusHasAllies = enemies.some(
+  e => e.hp > 0 && e.k !== 'bard'
+);
+
+if(activeBards.length && chorusHasAllies){
 
   chorusCd -= dt;
 
