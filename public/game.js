@@ -435,14 +435,17 @@ function drawBg(){const im=IMG.bg,s=Math.max(cvW/im.width,cvH/im.height),w=im.wi
   ctx.drawImage(im,Math.min(0,Math.max(cvW-w,CX+ox-.5*w)),Math.min(0,Math.max(cvH-h,CY+oy-.512*h)),w,h)}
 function drawBall(b){
   const sh=IMG.fire,t=typeof performance!=='undefined'?performance.now():0;
+  // Визуальный размер огня следует за размером драконов в комнате.
+  // Радиус попадания b.r и вся игровая физика остаются неизменными.
+  const visualScale=dragonCrowdScale();
   if(!sh){
     ctx.fillStyle=b.col;
     ctx.beginPath();
-    ctx.arc(b.x,b.y,b.r,0,6.283);
+    ctx.arc(b.x,b.y,b.r*visualScale,0,6.283);
     ctx.fill();
     return;
   }
-  const fw=sh.width/FFR,fh=sh.height,w=34+(b.r-7.5)*7,h=w*fh/fw,f=Math.floor(t/60+b.id)%FFR;
+  const fw=sh.width/FFR,fh=sh.height,w=(34+(b.r-7.5)*7)*visualScale,h=w*fh/fw,f=Math.floor(t/60+b.id)%FFR;
   ctx.save();
   ctx.translate(b.x,b.y);
   ctx.rotate(b.ang||0);
