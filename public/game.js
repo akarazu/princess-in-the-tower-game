@@ -698,7 +698,7 @@ addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;
 // ===== Вспомогательное =====
 const pick=a=>a[Math.random()*a.length|0];
 const isBoss=e=>e.k==='prince'||e.k==='king';
-function say(t,s=3,priority=2){quip=t;quipT=s;quipPriority=priority}
+function say(t,s=3,priority=2){if(quipT>0&&priority<quipPriority)return false;quip=t;quipT=s;quipPriority=priority;return true}
 function quote(key,vars={}){
   const template=pick(Q[key]||['']);
   return template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
