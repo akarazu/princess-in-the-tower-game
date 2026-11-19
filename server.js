@@ -278,7 +278,7 @@ wss.on('connection', ws => {
         return send(client, { t: 'error', msg: 'A room with that code already exists' });
       }
       if (message.create !== true && !room) {
-        return send(client, { t: 'error', msg: 'No room with that code exists. The host hasn't created it yet.' });
+        return send(client, { t: 'error', msg: 'No room with that code exists. The host hasn\'t created it yet.' });
       }
       if (!room) {
         room = { host: null, clients: new Map(), n: 0, started: false, phase: 'gather', k: 0 };
