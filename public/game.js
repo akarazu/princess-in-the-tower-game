@@ -654,7 +654,7 @@ function pickupMagnetRadiusForBaseReward(base){return base>=10?200:130}
 function bossGuardBarLayout(e){const width=e.k==='king'?86:78,height=12,y=e.y-e.t.r-31;return{x:e.x-width/2,y,width,height,hpBarY:e.y-e.t.r-8}}
 const maxH=p=>3,flames=p=>1+Math.min(2,Math.ceil(p.lv[0]/2)),dmgOf=p=>1+Math.floor(p.lv[0]/2),shMax=p=>p.lv[3]>=3?2:p.lv[3]>=1?1:0,SH_T=[0,10,7,6];
 const wakeTime=()=>15;
-const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
+const cost=(p,i)=>Math.ceil((UP[i].b+p.lv[i]*UP[i].s)*multiplayerRewardMultiplierForPlayers(activePlayerCount()));
 const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
 const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1','взрыв по правой кнопке (раз в 5 с)'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
@@ -920,7 +920,7 @@ function makeKingPatrolPath(e) {
 
 function spawn(k){
   spawned++;
-  const a=Math.random()*6.283,t=T[k],partySize=activePlayerCount(),s=k==='prince'?1+(partySize-1)*BOSSCFG.hpPrince:k==='king'?1+(partySize-1)*BOSSCFG.hpKing:1+(wave-1)*.2;
+  const a=Math.random()*6.283,t=T[k],partySize=activePlayerCount(),populationFactor=enemyPopulationFactorForPlayers(partySize),s=t.boss?partySize:(1+(wave-1)*.2)*partySize/populationFactor;
   let x,y;
 
   if(t.boss){
@@ -1551,7 +1551,7 @@ function cast(e,dx,dy,d,force){
 
     if(best){
       // Сохраняем прежний объём лечения, но выбираем босса первым.
-      const healAmount=isBoss(best)?1:Math.max(1,best.max*.3);
+      const healAmount=isBoss(best)?activePlayerCount():Math.max(1,best.max*.3);
       best.hp=Math.min(best.max,best.hp+healAmount);
       beams.push({x1:e.x,y1:e.y,x2:best.x,y2:best.y,life:.4});
       boom(best.x,best.y,'#7dff9a',6);
@@ -1882,7 +1882,7 @@ e.path = makeBossPath(
 }
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
-    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg;e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
+    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
   for(const n of notes){
@@ -1904,7 +1904,7 @@ e.path = makeBossPath(
       }
     }
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
-    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg;n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
+    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
@@ -1967,7 +1967,7 @@ e.path = makeBossPath(
   else if(phase==='clear'){phaseT-=dt;if(phaseT<=0){if(TEST_MODE){phase='break';phaseT=1e9}else toShop()}}
   else{spawnT-=dt;if(queue[0]==='bard'&&queue.length>1&&enemies.filter(x=>x.k==='bard').length>=2+Math.ceil(Math.sqrt(activePlayerCount())))queue.push(queue.shift());
     if(queue[0]==='mage'&&queue.length>1&&(enemies.filter(x=>x.k==='mage').length>=2||spawned<4||!enemies.some(x=>x.t.kind!=='heal')))queue.push(queue.shift());
-    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(activePlayerCount()-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,(TEST_MODE?0.14:1.5-wave*0.08)/(1+0.5*Math.sqrt(activePlayerCount()-1)))}
+    if(queue.length&&spawnT<=0&&enemies.length<MAXON+8*(activePlayerCount()-1)){spawn(queue.shift());spawnT=Math.max(TEST_MODE?0.05:0.3,TEST_MODE?0.14:1.5-wave*0.08)/enemyPopulationFactorForPlayers(activePlayerCount())}
     if(!queue.length&&!enemies.length&&!notes.length){
       if(TEST_MODE){phase='clear';phaseT=.35;sayQ('testWaveClear',3);}
       else if(wave>=TOTAL)state='win';
@@ -2230,7 +2230,7 @@ function drawShop(){
   text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
   ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
   const rewardScale=multiplayerRewardMultiplierForPlayers(activePlayerCount());
-  text(activePlayerCount()>1?'Награды обычных врагов ≈ ×'+rewardScale.toFixed(2)+' · округление без потерь · цены прежние':'Награды и цены: стандартные',CX,171,12,'#cbb5dc');
+  text(activePlayerCount()>1?'Награды и цены ×'+rewardScale.toFixed(2)+' · округление без потерь':'Награды и цены: стандартные',CX,171,12,'#cbb5dc');
   UP.forEach((u,i)=>{const x=SX+i*206,y=190,cap=capped(me,i),ok=!cap&&me.w[u.t]>=cost(me,i);
     ctx.fillStyle=ok?'#3a2050':'#2a1740';ctx.strokeStyle=ok?CUR[u.t].c:'#6b4a85';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x,y,190,190,14);ctx.fill();ctx.stroke();ctx.lineWidth=1;
     drawShopWrapped(u.n,x+95,y+36,168,16,'#fbe8d3',1,18);
@@ -3098,7 +3098,7 @@ function testRunDiagnostics(){
   add('boss-guard-layout','Фиолетовая шкала находится над полосой здоровья и не сливается с ней',
     guardLayout.y+guardLayout.height<guardLayout.hpBarY&&guardLayout.width>=80&&guardLayout.height>=10,
     'Шкала '+guardLayout.width+'×'+guardLayout.height+' px · зазор до HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
-  const princeHp20=T.prince.hp*(1+19*BOSSCFG.hpPrince),kingHp20=T.king.hp*(1+19*BOSSCFG.hpKing);
+  const princeHp20=T.prince.hp*20,kingHp20=T.king.hp*20;
   const princeGuard20=bossGuardForMaxHp('prince',princeHp20),kingGuard20=bossGuardForMaxHp('king',kingHp20);
   add('boss-guard-party-scaling','Барьер босса масштабируется вместе с его здоровьем при 20 игроках',
     princeGuard20===Math.round(princeHp20*BOSS_GUARD_RATIO.prince)&&kingGuard20===Math.round(kingHp20*BOSS_GUARD_RATIO.king),
@@ -3147,7 +3147,7 @@ function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
   TEST_MODE=false;testInvulnerable=false;
   ws=o.ws;
   players=o.players.map((q,i)=>{const p=makePlayer(i,q.color);p.name=q.name;p.nid=q.id;const position=playerSpawnPositionForIndex(i,o.players.length);p.x=position.x;p.y=position.y;return p});
-  me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*(1+.6*Math.sqrt(players.length-1)));
+  me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*enemyPopulationFactorForPlayers(players.length));
   resetWorld();
   if(isHost){nextWave();sayQ('start',4)}
   requestAnimationFrame(loop);
