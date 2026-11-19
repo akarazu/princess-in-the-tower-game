@@ -27,8 +27,6 @@ const Q={
   bag:['Золото? Да я принцесса, мне не нужно!','Дракон, не считай монеты!'],
   bossGuardBreak:['Барьер сломан!','Щит снят!','Защита лопнула!','Не подпускайте!','Пользуйтесь моментом!'],
   bossTeamReward:['Награда команде!','Всем по золоту!','Заслужили!','Спасибо, драконы!','Каждому — золото и свитки!'],
-  coinPickup:['Золото.','В копилку.'],
-  scrollPickup:['Свитки!','Магия.','Пригодится.','Может, невидимость?','Пусть меня не найдут.'],
   nervesWarning:['Сколько ещё?!','Хватит!','Терпение на нуле.','Это последний?','Я больше не могу!'],
   wakeFriend:['Очнулся!','С возвращением!','Подкрепление!'],
   wakeSolo:['Проснулся?','Больше не засыпай!','Я чуть не поседела!'],
@@ -998,7 +996,7 @@ function resolveEnemyDamage(e,amount){
 }
 function onEnemyDefeated(e,o){
   if(e.rewarded)return;e.rewarded=true;if(o)o.kills++;score++;boom(e.x,e.y,'#ff8fa8',14);drop(e,o);
-  if(isBoss(e)){if(activePlayerCount()===1)say(pick(Q.kill))}else if(Math.random()<.06)say(pick(Q.kill));
+  if(isBoss(e)){if(activePlayerCount()===1)sayPrincessEvent('kill',2.5,10)}else if(Math.random()<.03)sayPrincessEvent('kill',2.2,14);
 }
 function damageEnemy(e,dmg,o,hitX=e.x,hitY=e.y){
   if(!e||e.hp<=0||!(dmg>0))return;
@@ -1889,7 +1887,7 @@ e.path = makeBossPath(
 }
     }
     for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
-    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.5)say(pick(Q.hit))}}
+    if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.3)sayPrincessEvent('hit',2.5,14)}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
   for(const n of notes){
@@ -1955,7 +1953,7 @@ e.path = makeBossPath(
           best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;
         }
         boom(best.x,best.y,CUR[c.t].c,4);
-        sayPrincessEvent(c.t===0?'coinPickup':'scrollPickup',2.2,c.t===0?16:9);
+        // Подбор валюты остаётся без реплики, чтобы не перебивать боевые события.
       }
     }
   }
