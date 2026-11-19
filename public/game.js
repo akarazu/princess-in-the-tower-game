@@ -497,16 +497,14 @@ function drawShadow(x, y, rx, ry, opacity = 0.22) {
   
   function drawActorSpeech(e){
   if(!(e.bubbleT>0&&e.bubble))return;
-  // Не показываем реплику у края, пока сам персонаж ещё за пределами поля.
+  // Реплика появляется простым текстом над персонажем — без рамки и имени.
   if(e.x<12||e.x>W-12||e.y<24||e.y>H-12)return;
-  const labels={knight:'РЫЦАРЬ',bard:'БАРД',mage:'МАГ',merchant:'КУПЕЦ',prince:'ПРИНЦ',king:'КОРОЛЬ'};
-  const label=labels[e.k]||'';
-  const maxTextWidth=176,lineHeight=14,padX=9,padY=6;
+  const maxTextWidth=220,lineHeight=14;
   const lines=[];
   ctx.save();
   ctx.font='italic 12px Georgia,serif';
   let line='';
-  for(const word of String(e.bubble).split(/\s+/)){
+  for(const word of String(e.bubble).split(/\\s+/)){
     const candidate=line?line+' '+word:word;
     if(ctx.measureText(candidate).width<=maxTextWidth||!line)line=candidate;
     else{lines.push(line);line=word;}
@@ -518,26 +516,18 @@ function drawShadow(x, y, rx, ry, opacity = 0.22) {
     while(last.length&&ctx.measureText(last+'…').width>maxTextWidth)last=last.slice(0,-1);
     lines[1]=last+'…';
   }
-  const textWidth=Math.max(...lines.map(v=>ctx.measureText(v).width),32);
-  ctx.font='bold 8px Georgia,serif';
-  const labelWidth=ctx.measureText(label).width;
-  const boxW=Math.min(194,Math.max(textWidth,labelWidth)+padX*2);
-  const boxH=padY*2+10+lines.length*lineHeight;
-  const bx=Math.max(8,Math.min(W-boxW-8,e.x-boxW/2));
-  const by=Math.max(10,e.y-e.t.sz*.72-boxH-13);
-  const tailX=Math.max(bx+12,Math.min(bx+boxW-12,e.x));
+  const baseY=Math.max(16,e.y-e.t.sz*.72-12);
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.lineJoin='round';
+  ctx.lineWidth=3;
+  ctx.strokeStyle='rgba(35,13,42,.82)';
   ctx.fillStyle='#fff3e6';
-  ctx.strokeStyle=e.t.boss?'#d9a84e':'#b98aa9';
-  ctx.lineWidth=1.2;
-  ctx.beginPath();
-  ctx.roundRect(bx,by,boxW,boxH,8);
-  ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(tailX-5,by+boxH-1);ctx.lineTo(tailX,by+boxH+7);ctx.lineTo(tailX+5,by+boxH-1);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.font='bold 8px Georgia,serif';ctx.fillStyle='#9a617b';
-  ctx.fillText(label,bx+boxW/2,by+padY+4);
-  ctx.font='italic 12px Georgia,serif';ctx.fillStyle='#3b1c3f';
-  lines.forEach((row,i)=>ctx.fillText(row,bx+boxW/2,by+padY+12+lineHeight*(i+.5),maxTextWidth));
+  lines.forEach((row,i)=>{
+    const y=baseY+(i-(lines.length-1)/2)*lineHeight;
+    ctx.strokeText(row,e.x,y,maxTextWidth);
+    ctx.fillText(row,e.x,y,maxTextWidth);
+  });
   ctx.restore();
 }
 function drawEnemy(e){
@@ -2635,6 +2625,21 @@ inspV=b.iv;shopLeft=b.sl;
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
   clampP(me);
 
+  // Сначала согласуем прогноз позиции гостя со снимком хоста.
+  // Только после этого рассчитываем направление и точку выхода пламени.
+  const au=b.P[me.id],err=Math.hypot(au[0]-me.x,au[1]-me.y);
+  if(me.frz>0){
+    // When hit by the gold bag, mirror the host's frozen position exactly.
+    me.x=au[0];
+    me.y=au[1];
+  }else{
+    const gain=me.asleep?.3:err>150?.15:(mx||my)?0:.12;
+    const g=1-Math.pow(1-gain,dt*60);
+    me.x+=(au[0]-me.x)*g;
+    me.y+=(au[1]-me.y)*g;
+  }
+  clampP(me);
+
   if(!me.asleep&&Math.abs(mouse.x-me.x)>1){
     me.face=mouse.x>me.x?1:-1;
   }
@@ -2695,17 +2700,6 @@ inspV=b.iv;shopLeft=b.sl;
     for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;break}
     for(const n of notes)if(b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){b.life=0;break}}
   myBalls=myBalls.filter(b=>b.life>0);
-  const au=b.P[me.id],err=Math.hypot(au[0]-me.x,au[1]-me.y);
-  if(me.frz>0){
-    // When hit by the gold bag, mirror the host's frozen position exactly.
-    me.x=au[0];
-    me.y=au[1];
-  }else{
-    const gain=me.asleep?.3:err>150?.15:(mx||my)?0:.12;
-    const g=1-Math.pow(1-gain,dt*60);
-    me.x+=(au[0]-me.x)*g;
-    me.y+=(au[1]-me.y)*g;
-  }
   const mp=arr=>new Map((arr||[]).map(e=>[e[0],e])),ea=mp(a.E),ba=mp(a.B),ka=mp(a.K);
   enemies=nx.E.map(e=>{
   const o=ea.get(e[0]),kk=KINDS[e[1]];
