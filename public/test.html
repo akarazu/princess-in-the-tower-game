@@ -97,7 +97,7 @@ function onMsg(m){
   const now=performance.now();
   if(m.t==='echo'){rttS.push(now-m.ts);if(rttS.length>30)rttS.shift();const s=stat(rttS);
     mark('rtt',color(s.avg,80,200),'average '+Math.round(s.avg)+' ms, from '+Math.round(s.min)+' to '+Math.round(s.max)+' мс')}
-  else if(m.t==='joined'){me=m;players=m.players;mark('room','ok','room '+m.room+', вы '+(m.host?'host':'player'));showPlayers()}
+  else if(m.t==='joined'){me=m;players=m.players;mark('room','ok','room '+m.room+', you are '+(m.host?'host':'player'));showPlayers()}
   else if(m.t==='players'){players=m.players;showPlayers()}
   else if(m.t==='host_left'){me=null;mark('room','bad','the host left; the room is closed');showPlayers()}
   else if(m.t==='error'){log('Server: '+m.msg);mark('room','bad',m.msg)}
@@ -120,7 +120,7 @@ $('#load').onclick=()=>{
 function finish(){
   const expected=load.sent*load.exp,got=load.rtts.length,loss=Math.max(0,100*(1-got/expected)),s=stat(load.rtts);
   const good=loss<2&&s&&s.avg<200,mid=loss<5&&s&&s.avg<400;
-  mark('load',good?'ok':mid?'warn':'bad','sent '+load.sent+', ответов '+got+' of '+expected+', потери '+loss.toFixed(1)+'%, average latency '+Math.round(s?s.avg:0)+' мс');
+  mark('load',good?'ok':mid?'warn':'bad','sent '+load.sent+', responses '+got+' of '+expected+', packet loss '+loss.toFixed(1)+'%, average latency '+Math.round(s?s.avg:0)+' ms');
   $('#verdict').textContent=good?'The connection is suitable for our game.':mid?'You can play, but you may experience stuttering.':'The connection is too weak.';
   $('#load').disabled=!(me&&players.length>1);
 }
