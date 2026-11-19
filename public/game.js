@@ -206,30 +206,44 @@ function screenToWorldPoint(x, y, scale = sceneCrowdScale()) {
 // останавливался у невидимой стены задолго до края видимой сцены.
 // Возвращаем новые границы в мировых координатах так, чтобы после camera
 // transform их экранные координаты совпадали с прежними отступами игрового поля.
-function playerMovementBoundsForScale(sceneScale, spriteScale) {
+function playerMovementBoundsForScale(sceneScale, spriteScale, viewportWidth = W, viewportHeight = H) {
   const safeSceneScale = Math.max(0.01, Number(sceneScale) || 1);
   const safeSpriteScale = Math.max(0.01, Math.min(1, Number(spriteScale) || 1));
-  // При большом количестве игроков дракон меньше, поэтому оставляем
-  // чуть более широкий безопасный отступ, но не сужаем базовую игровую область.
+  const viewWidth = Math.max(W, Number(viewportWidth) || W);
+  const viewHeight = Math.max(H, Number(viewportHeight) || H);
+  const viewOffsetX = (viewWidth - W) / 2;
+  const viewOffsetY = (viewHeight - H) / 2;
+  // Сохраняем отступ от физических краёв экрана, а не от старого W×H.
   const densityPadding = 18 * (1 - safeSceneScale * safeSpriteScale);
   const marginX = 24 + densityPadding;
   const marginTop = 70 + densityPadding;
   const marginBottom = 24 + densityPadding;
+  const screenMinX = -viewOffsetX + marginX;
+  const screenMaxX = viewWidth - viewOffsetX - marginX;
+  const screenMinY = -viewOffsetY + marginTop;
+  const screenMaxY = viewHeight - viewOffsetY - marginBottom;
   return {
-    minX: CX + (marginX - CX) / safeSceneScale,
-    maxX: CX + (W - marginX - CX) / safeSceneScale,
-    minY: CY + (marginTop - CY) / safeSceneScale,
-    maxY: CY + (H - marginBottom - CY) / safeSceneScale,
+    minX: CX + (screenMinX - CX) / safeSceneScale,
+    maxX: CX + (screenMaxX - CX) / safeSceneScale,
+    minY: CY + (screenMinY - CY) / safeSceneScale,
+    maxY: CY + (screenMaxY - CY) / safeSceneScale,
     marginX,
     marginTop,
-    marginBottom
+    marginBottom,
+    viewWidth,
+    viewHeight
   };
 }
 function playerMovementBounds() {
-  return playerMovementBoundsForScale(sceneCrowdScale(), dragonCrowdScale());
+  return playerMovementBoundsForScale(sceneCrowdScale(), dragonCrowdScale(), cvW, cvH);
 }
 function clampPlayerToMovementBounds(p) {
-  const bounds = playerMovementBounds();
+  const bounds = playerMovementBoundsForScale(
+    sceneCrowdScale(),
+    dragonCrowdScale(),
+    p.viewW || cvW,
+    p.viewH || cvH
+  );
   p.x = Math.max(bounds.minX, Math.min(bounds.maxX, p.x));
   p.y = Math.max(bounds.minY, Math.min(bounds.maxY, p.y));
   return bounds;
@@ -592,7 +606,7 @@ const cost=(p,i)=>UP[i].b+p.lv[i]*UP[i].s;
 const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
 const descOf=(p,i)=>[['два пламени за выстрел','урон пламени +1','три пламени за выстрел','урон пламени +1','взрыв по правой кнопке (раз в 5 с)'][p.lv[0]],'скорострельность +15%','скорость полёта +20%',['щит на 1 удар (10 с)','щит быстрее: 7 с','2 заряда, 6 с'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
-  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,
+  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,viewW:cvW,viewH:cvH,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
     in:{mx:0,my:0,ax:CX,ay:0,fire:false}}
 }
@@ -1631,6 +1645,7 @@ function updateTestBots(dt){
 
 function update(dt){
   const k=keys;
+  me.viewW=cvW;me.viewH=cvH;
   Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down,alt:mouse.alt});
   updateTestBots(dt);
   for(const p of players)updatePlayer(p,dt);
@@ -2482,7 +2497,7 @@ function stepParts(dt){for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=d
 
 function guestFrame(dt,now){
   const k=keys,mx=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my=(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0);
-  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:!!mouse.down,al:!!mouse.alt})}
+  if(now-lastIn>40){lastIn=now;me.viewW=cvW;me.viewH=cvH;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:!!mouse.down,al:!!mouse.alt,vw:cvW,vh:cvH})}
   stepParts(dt);
   if(state==='shop')shopT+=dt;else shopT=0;
   const L=snaps.length;if(!L)return;
@@ -2882,6 +2897,12 @@ function testRunDiagnostics(){
     Math.abs(baseBounds.minX-24)<1e-8&&Math.abs(baseBounds.maxX-(W-24))<1e-8&&Math.abs(baseBounds.minY-70)<1e-8&&Math.abs(baseBounds.maxY-(H-24))<1e-8,
     'X: '+baseBounds.minX.toFixed(1)+'–'+baseBounds.maxX.toFixed(1)+' · Y: '+baseBounds.minY.toFixed(1)+'–'+baseBounds.maxY.toFixed(1));
   const maxMoveBounds=playerMovementBoundsForScale(.92,.70);
+  const wideViewportBounds=playerMovementBoundsForScale(.92,.70,1480,640);
+  add('player-edge-wide-viewport','Границы движения расширяются до фактических краёв широкого viewport', 
+    wideViewportBounds.minX<maxMoveBounds.minX&&wideViewportBounds.maxX>maxMoveBounds.maxX&&
+    Math.abs((CX+(wideViewportBounds.minX-CX)*.92)-(-171+wideViewportBounds.marginX))<1e-7&&
+    Math.abs((CX+(wideViewportBounds.maxX-CX)*.92)-(1480-171-wideViewportBounds.marginX))<1e-7,
+    'Широкий viewport: мировые X '+wideViewportBounds.minX.toFixed(1)+'…'+wideViewportBounds.maxX.toFixed(1));
   const maxScreenEdges={
     minX:CX+(maxMoveBounds.minX-CX)*.92,
     maxX:CX+(maxMoveBounds.maxX-CX)*.92,
@@ -3004,7 +3025,11 @@ function onMsg(m){
   const d=m.data;
   if(isHost){
     const p=playerByNid(m.from);if(!p||p.gone)return;
-    if(d.k==='in')Object.assign(p.in,{mx:+d.mx||0,my:+d.my||0,ax:+d.ax||0,ay:+d.ay||0,fire:!!d.f,alt:!!d.al});
+    if(d.k==='in'){
+      Object.assign(p.in,{mx:+d.mx||0,my:+d.my||0,ax:+d.ax||0,ay:+d.ay||0,fire:!!d.f,alt:!!d.al});
+      if(Number.isFinite(+d.vw))p.viewW=Math.max(W,Math.min(W*2.6,+d.vw));
+      if(Number.isFinite(+d.vh))p.viewH=Math.max(H,Math.min(H*2.6,+d.vh));
+    }
     else if(d.k==='buy'&&state==='shop'&&d.i>=0&&d.i<UP.length)buy(p,d.i|0);
     else if(d.k==='go'&&state==='shop'){p.ready=true;checkGo()}
   }else if(d.k==='snap'){
