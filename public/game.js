@@ -16,11 +16,16 @@ const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_RE
 // Реплики принцессы: короткие, разговорные и в одном тоне.
 const Q={
   start:['Тихо! Они близко.','Опять они.','Драконы, встречайте.','Начинается.','Кто на этот раз?','Они у входа.'],
+  bard:['Бард с серенадами?! Только не концерт под окнами!','Я просила тишины, а не музыкальную осаду!','Снова серенада. Где кнопка выключения?!'],
+  mage:['Новый маг?! Только не лечите их бесконечно!','Маг присоединился. Драконы, сначала уберите его!'],
+  prince:['Прекрасный принц снова здесь. Букет вижу, согласия не было!','Опять с кольцом?! Моё «нет» не нуждается в повторе!'],
+  king:['Папа решил явиться лично?! Только без семейного совета!','Король на подходе. Надеюсь, он забыл армию дома!'],
+  note:['Нота?! Это серенада или звуковая атака?!','Осторожно, летит фальшивая нота!','Я просила музыку потише, а не побольнее!'],
   hit:['Опять с цветами!','Я просила не беспокоить!','Он нашёл вход?! Я же заперла дверь!','Передайте ему: меня нет.','У меня мигрень!','Кто дал ему адрес?!','Он у двери.','Дверь заперта. И окна тоже.','Скажите: нет.','Я занята!','"Нет" — это тоже ответ!','Приём только по записи.'],
   kill:['Ушёл? Точно ушёл?','Ещё один?','Ни слова о свадьбе!','Спасибо, драконы!','Все бы так.','Минус один.','Так, кто следующий?'],
   bossGuardBreak:['Барьер сломан!','Щит снят!','Защита лопнула!','Не подпускайте!','Пользуйтесь моментом!'],
   bossTeamReward:['Награда команде!','Всем по золоту!','Заслужили!','Спасибо, драконы!','Каждому — золото и свитки!'],
-  coinPickup:['Золото.','В копилку.','Пригодится.','Уже плюс.','Хоть что-то полезное.'],
+  coinPickup:['Золото.','В копилку.'],
   scrollPickup:['Свитки!','Магия.','Пригодится.','Может, невидимость?','Пусть меня не найдут.'],
   nervesWarning:['Сколько ещё?!','Хватит!','Терпение на нуле.','Это последний?','Я больше не могу!'],
   wakeFriend:['Очнулся!','С возвращением!','Подкрепление!'],
@@ -739,7 +744,9 @@ function nextWave(){
   queue.sort(()=>Math.random()-.5);
   if(BOSS[wave])queue.splice(n>>1,0,BOSS[wave]);
   phase='break';phaseT=3;spawnT=0;
-  sayQ('start',2.5);
+  if(BOSS[wave])sayQ(BOSS[wave],3.5);
+  else if(NEWQ[wave])sayQ(NEWQ[wave],3.5);
+  else sayQ('start',2.5);
 }
 function pickType(){const ks=Object.keys(ENEMY_INTRO).filter(k=>ENEMY_INTRO[k]<=wave),w=ks.map(k=>ENEMY_W[k]*(wave-ENEMY_INTRO[k]<2?2.5:1));
   let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<ks.length;i++){r-=w[i];if(r<=0)return ks[i]}return ks[0]}
@@ -1575,7 +1582,7 @@ function cast(e,dx,dy,d,force){
   tag(e,k==='bag'?'Держи!':'♪ Ля-ля!');notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
-function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note')e.hp=0;else damageEnemy(e,1,p,e.x,e.y);
+function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8)}else damageEnemy(e,1,p,e.x,e.y);
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;sayQ('dragonDown',4,{name:p.name})}}
 
 function updatePlayer(p,dt){
@@ -1904,7 +1911,7 @@ e.path = makeBossPath(
       }
     }
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
-    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
+    if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);sayPrincessEvent('note',2.5,8);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
     for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
@@ -1948,7 +1955,7 @@ e.path = makeBossPath(
           best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;
         }
         boom(best.x,best.y,CUR[c.t].c,4);
-        sayPrincessEvent(c.t===0?'coinPickup':'scrollPickup',2.4,9);
+        sayPrincessEvent(c.t===0?'coinPickup':'scrollPickup',2.2,c.t===0?16:9);
       }
     }
   }
