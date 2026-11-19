@@ -492,6 +492,8 @@ function drawShadow(x, y, rx, ry, opacity = 0.22) {
   
   function drawActorSpeech(e){
   if(!(e.bubbleT>0&&e.bubble))return;
+  // Не показываем реплику у края, пока сам персонаж ещё за пределами поля.
+  if(e.x<12||e.x>W-12||e.y<24||e.y>H-12)return;
   const labels={knight:'РЫЦАРЬ',bard:'БАРД',mage:'МАГ',merchant:'КУПЕЦ',prince:'ПРИНЦ',king:'КОРОЛЬ'};
   const label=labels[e.k]||'';
   const maxTextWidth=176,lineHeight=14,padX=9,padY=6;
@@ -952,7 +954,8 @@ function spawn(k){
   }else if(!mobIntroShown.has(k)){
     mobIntroShown.add(k);
     const introKey={knight:'knightIntro',bard:'bardIntro',mage:'mageIntro',merchant:'merchantIntro'}[k];
-    if(introKey)sayActor(e,introKey,2.6);
+    // Обычные враги появляются за краем поля: даём реплике время дождаться их появления.
+    if(introKey)sayActor(e,introKey,6);
   }
 }
 function nx(p,i){return{lv:p.lv.map((v,j)=>j===i?v+1:v)}}
