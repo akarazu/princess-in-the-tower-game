@@ -15,16 +15,19 @@ const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_RE
 };
 // Реплики принцессы: короткие, разговорные и в одном тоне.
 const Q={
-  start:['Драконы, башню снова осаждают. Поможете?','Ну вот, опять гости. Драконы, за дело!','Башню на вас оставляю. Я верю в ваши крылья!'],
-  hit:['Опять к башне? Других маршрутов нет?','Мечи оставьте у входа!','Я не заказывала такой визит!','Кто опять показал им дорогу?','У меня вообще-то тихий день!','Кажется, они не поняли намёк.'],
-  kill:['Минус один! Отличная работа!','Вот это меткость, драконы!','Так держать! Башня цела.','Ещё один решил отступить.','Красиво! Даже пыль улеглась.','Запишу это в вашу копилку заслуг!'],
-  bossGuardBreak:['Барьер снят! Теперь бейте по боссу!','Защита исчезла. Не упустите момент!','Щит сломан! Отличная работа!'],
+  start:['Драконы, башню снова осаждают. Поможете?','Ну вот, опять гости. Драконы, за дело!','Башню на вас оставляю. Я верю в ваши крылья!','Я надеялась на спокойный день. Наивно, да?','Хорошо, что вы рядом. У меня тут стены тонкие!'],
+  hit:['Опять к башне? Других маршрутов нет?','Мечи оставьте у входа!','Я не заказывала такой визит!','Кто опять показал им дорогу?','У меня вообще-то тихий день!','Кажется, они не поняли намёк.','Башня не принимает гостей без приглашения!','Эй, осторожнее! Тут вообще-то кто-то живёт!','Может, попробуем решить всё без тарана?'],
+  kill:['Минус один! Отличная работа!','Вот это меткость, драконы!','Так держать! Башня цела.','Ещё один решил отступить.','Красиво! Даже пыль улеглась.','Запишу это в вашу копилку заслуг!','Отлично! Становится заметно тише.','Ещё один повод не менять охрану!','Вот за это я и люблю драконов!'],
+  bossGuardBreak:['Барьер снят! Теперь бейте по боссу!','Защита исчезла. Не упустите момент!','Щит сломан! Отличная работа!','Вот теперь он без своей волшебной брони!'],
   bossTeamReward:['Награда всей команде: +{gold} золота и +{scrolls} свитков!','Каждому дракону — {gold} золота и {scrolls} свитков. Заслужили!'],
+  coinPickup:['О, монетки! Хоть что-то приятное сегодня.','Золото! Уже начинает нравиться эта осада.','Отлично, казна пополняется!','Собирайте монеты. Башня сама себя не починит!'],
+  scrollPickup:['Свитки в копилку! Магия ещё пригодится.','О, свитки! Берегите их, это ценный запас.','Ещё немного магии — и мы непобедимы.'],
+  towerWarning:['Башня долго не выдержит! Нужна помощь!','Ой, стены уже трещат. Не отвлекайтесь!','Драконы, башня на пределе. Держим оборону!','Кажется, ремонт выйдет очень дорогим…'],
   wakeFriend:['Дракон вернулся! Вот это команда!','Снова в строю. Отличная работа!'],
   wakeSolo:['С возвращением! Кошелёк немного полегчал.','Проснулся! Правда, золота стало меньше.'],
   dragonDown:['Дракон выбыл! Кто-нибудь, помогите ему!','Один дракон уснул. Не оставляйте его!'],
   dragonOut:['{name} не успел вернуться к магазину. Очень жаль!'],
-  waveClear:['Волна отбита! Собирайте добычу!','Чисто! Можно перевести дух.','Враги отступили. Время пополнить запас золота!'],
+  waveClear:['Волна отбита! Собирайте добычу!','Чисто! Можно перевести дух.','Враги отступили. Время пополнить запас золота!','Тишина! Давайте запомним это чувство.','Неплохо! Башня всё ещё на месте.','Передышка! Только не расслабляйтесь надолго.'],
   testWaveClear:['Волна очищена! Выберите следующую.'],
   markEnded:['Опала закончилась. Можно выдохнуть!']
 };
@@ -620,7 +623,7 @@ let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='
 let TEST_MODE=false,testInvulnerable=false;
 let testLoadMode=false,testBotClock=0,testPerfSamples=[],testPerfRun=null,testPerfLastRaf=0,testLastSnapshotBytes=0;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
-let princessHintT=6,princessHintsShown=new Set(),mobIntroShown=new Set();
+let princessHintT=6,princessHintsShown=new Set(),mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false;
 
 // ===== Игроки =====
 let players=[],me=null,isHost=false,ws=null;
@@ -706,6 +709,12 @@ function quote(key,vars={}){
   return template.replace(/\{([a-zA-Z]+)\}/g,(match,name)=>Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):match);
 }
 function sayQ(key,seconds=3,vars={}){say(quote(key,vars),seconds)}
+function sayPrincessEvent(key,seconds=2.5,cooldown=9){
+  if(!isHost||TEST_MODE||state!=='play'||quipT>0||princessEventCd>0)return false;
+  sayQ(key,seconds);
+  princessEventCd=cooldown;
+  return true;
+}
 function sayActor(e,key,seconds=2.5,vars={}){
   if(!e||e.hp<=0)return;
   const lines=A[key]||['Вперёд!'];
@@ -737,7 +746,7 @@ function goReq(){if(isHost)goOn();else net({k:'go'})}
 function shopClick(){UP.forEach((u,i)=>{const x=SX+i*206;if(mouse.x>x&&mouse.x<x+190&&mouse.y>190&&mouse.y<380)buyReq(i)});if(Math.abs(mouse.x-CX)<110&&mouse.y>450&&mouse.y<498)goReq()}
 
 // ===== Ход игры =====
-function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set();mobIntroShown=new Set();for(const row of rewardRemainders)row[0]=row[1]=0}
+function resetWorld(){state='play';wave=0;tower=towerMax;score=0;enemies=[];notes=[];beams=[];tags=[];balls=[];pickups=[];parts=[];shake=0;zones=[];bossProjectiles=[];markId=-1;quip='';quipT=0;princessHintT=6;princessHintsShown=new Set();mobIntroShown=new Set();princessEventCd=0;towerWarningShown=false;for(const row of rewardRemainders)row[0]=row[1]=0}
 function nextWave(){
   wave++;queue=[];spawned=0;mobIntroShown.clear();
   const n=Math.round((4+wave*2.2)*enemyPopulationFactorForPlayers(activePlayerCount())*(BOSS[wave]?.85:1));
@@ -1955,6 +1964,7 @@ e.path = makeBossPath(
           best.coinGlow=(best.in&&(best.in.fire||best.in.alt))?0:1.2;
         }
         boom(best.x,best.y,CUR[c.t].c,4);
+        sayPrincessEvent(c.t===0?'coinPickup':'scrollPickup',2.4,9);
       }
     }
   }
@@ -1967,6 +1977,7 @@ e.path = makeBossPath(
   for(const t of tags){t.life-=dt;t.y-=18*dt}
   tags=tags.filter(t=>t.life>0);
   shake=Math.max(0,shake-40*dt);quipT=Math.max(0,quipT-dt);
+  princessEventCd=Math.max(0,princessEventCd-dt);
   for(const e of enemies)if(e.bubbleT>0)e.bubbleT=Math.max(0,e.bubbleT-dt);
   updatePrincessHints(dt);
   if(phase==='break'){phaseT-=dt;if(phaseT<=0)phase='spawn'}
@@ -1979,6 +1990,9 @@ e.path = makeBossPath(
       else if(wave>=TOTAL)state='win';
       else{phase='clear';phaseT=3;sayQ('waveClear',3);
         }}}
+  if(tower/towerMax<=.35&&!towerWarningShown&&sayPrincessEvent('towerWarning',3,30)){
+    towerWarningShown=true;
+  }
   if(tower<=0){tower=0;state='lose'}
 }
 
