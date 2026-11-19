@@ -198,11 +198,23 @@ test('server is safe to serve files and supports a 20-player room', async t => {
 
   clients[1].send({
     t: 'msg', to: 'host',
-    data: { k: 'in', mx: 9, my: -9, ax: 9000, ay: -9000, f: true, al: false }
+    // The browser's previous guest client sent numeric 1/0 flags.
+    // Keep accepting that wire format so cached clients can still shoot.
+    data: { k: 'in', mx: 9, my: -9, ax: 9000, ay: -9000, f: 1, al: 1 }
   });
   const forwardedInput = await clients[0].next(message => message.t === 'msg' && message.from === started.players[1].id && message.data?.k === 'in');
   assert.deepEqual(
     [forwardedInput.data.mx, forwardedInput.data.my, forwardedInput.data.ax, forwardedInput.data.ay],
     [1, -1, 4096, -2048]
   );
+  assert.equal(forwardedInput.data.f, true, 'numeric fire flag must reach the host as true');
+  assert.equal(forwardedInput.data.al, true, 'numeric special-attack flag must reach the host as true');
+
+  clients[1].send({
+    t: 'msg', to: 'host',
+    data: { k: 'in', mx: 0, my: 0, ax: 100, ay: 100, f: false, al: false }
+  });
+  const releasedInput = await clients[0].next(message => message.t === 'msg' && message.from === started.players[1].id && message.data?.k === 'in');
+  assert.equal(releasedInput.data.f, false, 'released fire input must reach the host as false');
+  assert.equal(releasedInput.data.al, false, 'released special-attack input must reach the host as false');
 });
