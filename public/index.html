@@ -136,7 +136,7 @@ function render(){
   $('#pick-box').classList.toggle('hide',!picking);
   $('#lock').classList.toggle('hide',!me.host);
   $('#lock').textContent="Everyone's here ("+players.length+')';
-  $('#wait').textContent=me.host?'Once everyone has joined, click “Everyone's here”. No more players will be admitted, and the number of dragons will match the player count.':'Waiting for the host to click “Everyone's here”.';
+  $("#wait").textContent=me.host?"Once everyone has joined, click “Everyone's here”. No more players will be admitted, and the number of dragons will match the player count.":"Waiting for the host to click “Everyone's here”.";
   $('#err2').textContent='';
   if(!picking){$('#hint').textContent='';return}
   $('#colors').innerHTML='';
