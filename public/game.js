@@ -2006,7 +2006,7 @@ function drawDragon(p){
     else emoji('💰',p.x+54*visualScale,p.y-38*visualScale,22*visualScale);
   }
 
-  text(p.name,p.x,p.y+50*visualScale,14,c);
+  text(p.name,p.x,p.y+50*visualScale,14,COLORS[p.ci][1]);
 }
 
 function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
