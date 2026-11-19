@@ -26,7 +26,14 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
 #test-results li.bad{color:#ff9eab;background:#ff6b8112}
 #test-panel small,#test-panel p{color:var(--dim);font-size:11px;margin:6px 0}
 #test-info{color:#ffd98a;background:#ffffff10;padding:7px 8px;border-radius:7px;margin:8px 0;font-size:12px}
-@media(max-width:600px){#test-panel{width:218px;left:6px;top:6px;padding:8px;max-height:58dvh}}
+#perf-box{padding:8px;margin:8px 0;background:#ffffff0a;border:1px solid #76548d;border-radius:8px}
+#perf-box .perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:7px 0}
+#perf-box .metric{padding:6px;border-radius:6px;background:#ffffff0b}
+#perf-box .metric small{display:block;margin:0;color:var(--dim);font-size:10px}
+#perf-box .metric strong{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+#perf-grade{font-size:11px;padding:6px;border-radius:6px;background:#ffffff10;color:var(--dim)}
+#perf-grade.good{color:#a8ffc0;background:#7dff9a12}#perf-grade.warn{color:#ffd98a;background:#ffd98a12}#perf-grade.bad{color:#ff9eab;background:#ff6b8112}
+@media(max-width:600px){#test-panel{width:218px;left:6px;top:6px;padding:8px;max-height:72dvh}}
 </style>
 </head>
 <body>
@@ -68,7 +75,28 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
         <strong id="test-player-count-value">1</strong>
       </div>
       <button id="apply-player-count" class="secondary">Показать состав</button>
-      <small>Добавляет неподвижных тестовых драконов на поле, чтобы увидеть масштаб при 1–20 участниках.</small>
+      <small>Добавляет тестовых драконов на поле, чтобы оценить читаемость масштаба при 1–20 участниках.</small>
+    </div>
+    <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
+      <b style="font-size:12px">Нагрузка хоста</b>
+      <div class="grid">
+        <button id="start-host-load-test">Запустить тест · 30 сек.</button>
+        <button id="stop-host-load-test" class="secondary">Остановить</button>
+      </div>
+      <small>Тестовые драконы двигаются и стреляют с максимальными улучшениями. Измеряются игровой цикл, отрисовка и JSON-сериализация снимка хоста; реальные сетевые задержки не моделируются.</small>
+      <div id="perf-box">
+        <div class="perf-grid">
+          <div class="metric"><small>Средний FPS</small><strong id="perf-fps">—</strong></div>
+          <div class="metric"><small>Кадр p95</small><strong id="perf-frame">—</strong></div>
+          <div class="metric"><small>Обновление p95</small><strong id="perf-update">—</strong></div>
+          <div class="metric"><small>Отрисовка p95</small><strong id="perf-draw">—</strong></div>
+        </div>
+        <div id="perf-grade">Ожидание нагрузочного теста</div>
+        <small>p95 — время, в которое укладываются 95% измеренных кадров. Для 60 FPS ориентир кадра — около 16,7 мс.</small>
+        <small id="perf-objects">Объекты: —</small>
+        <small id="perf-snapshot">Размер снимка: —</small>
+        <small id="perf-run-status">Запусти тест на 30 секунд.</small>
+      </div>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
       <b style="font-size:12px">Проверка королевской опалы</b>
@@ -106,6 +134,14 @@ $('#apply-player-count').addEventListener('click',()=>{
   logTest('Состав: '+result.players+' драконов · масштаб '+(result.scale*100).toFixed(1)+'%');
   runDiagnostics();
 });
+$('#start-host-load-test').addEventListener('click',()=>{
+  const result=Game.testStartHostLoadTest($('#test-player-count').value,30);
+  logTest(result.started?'Нагрузочный тест запущен: '+result.players+' драконов · '+result.duration+' сек.':'Не удалось запустить тест');
+});
+$('#stop-host-load-test').addEventListener('click',()=>{
+  const result=Game.testStopHostLoadTest();
+  logTest(result.stopped?'Нагрузочный тест остановлен.':'Тестовый режим не активен');
+});
 $('#test-edict').addEventListener('click',()=>{
   const result=Game.testStartEdict();
   logTest(result.active?'Опала активна · рыцарей: '+result.knights+' · длительность: '+result.duration+' с':'Не удалось запустить опалу');
@@ -137,6 +173,18 @@ function refreshTestInfo(){
   const info=Game.testInfo();
   const status=info.edict?' · опала активна':' · опалы нет';
   $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' ('+(info.dragonScale*100).toFixed(1)+'%) · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
+  const perf=Game.testPerfInfo();
+  $('#perf-fps').textContent=perf.fps?perf.fps.toFixed(1):'—';
+  $('#perf-frame').textContent=perf.frameP95Ms?perf.frameP95Ms.toFixed(1)+' мс':'—';
+  $('#perf-update').textContent=perf.updateP95Ms?perf.updateP95Ms.toFixed(1)+' мс':'—';
+  $('#perf-draw').textContent=perf.drawP95Ms?perf.drawP95Ms.toFixed(1)+' мс':'—';
+  const grade=$('#perf-grade');grade.className=perf.grade;grade.textContent=perf.status;
+  $('#perf-objects').textContent='Драконы: '+perf.dragons+' · враги: '+perf.enemies+' · снаряды: '+perf.projectiles+' · частицы: '+perf.particles+' · всего объектов: '+perf.renderObjects;
+  $('#perf-snapshot').textContent='Снимок хоста: '+(perf.snapshotKB?perf.snapshotKB.toFixed(1)+' КБ':'—')+' · JSON-сериализация включена';
+  if(perf.durationSeconds){
+    const state=perf.done?'завершён':perf.running?'идёт':'готов';
+    $('#perf-run-status').textContent='Тест '+state+' · '+perf.elapsedSeconds.toFixed(1)+' / '+perf.durationSeconds.toFixed(0)+' сек. · кадров: '+perf.samples;
+  }else $('#perf-run-status').textContent='Запусти тест на 30 секунд.';
   setTimeout(refreshTestInfo,500);
 }
 runDiagnostics();

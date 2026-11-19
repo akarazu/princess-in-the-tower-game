@@ -468,6 +468,7 @@ function drawCastle(){
 // ===== Состояние мира =====
 let state='play',wave=0,tower=100,towerMax=100,score=0,queue=[],spawnT=0,phase='break',phaseT=0;
 let TEST_MODE=false,testInvulnerable=false;
+let testLoadMode=false,testBotClock=0,testPerfSamples=[],testPerfRun=null,testPerfLastRaf=0,testLastSnapshotBytes=0;
 let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',quipT=0,last=0,shopT=0,spawned=0,inspV=1,chorusCd=6,chorusT=0,chorusBardId=null,tags=[],uid=0,evs=[],active=false,zones=[],bossProjectiles=[],markId=-1,markT=0;
 let princessHintT=6,princessHintsShown=new Set();
 
@@ -1449,9 +1450,25 @@ function updatePlayer(p,dt){
   }
 }
 
+function updateTestBots(dt){
+  if(!TEST_MODE||!testLoadMode)return;
+  testBotClock+=dt;
+  for(const p of players){
+    if(!p.testDummy||p.gone||p.asleep||p.dead)continue;
+    const phase=testBotClock*.82+p.id*2.399963229728653;
+    p.in.mx=Math.cos(phase);
+    p.in.my=Math.sin(phase*.91+p.id*.17);
+    p.in.ax=Math.max(24,Math.min(W-24,p.x+Math.cos(phase*.73+p.id)*210));
+    p.in.ay=Math.max(70,Math.min(H-24,p.y+Math.sin(phase*.79+p.id)*140));
+    p.in.fire=true;
+    p.in.alt=p.lv[0]>=5&&Math.sin(testBotClock*.55+p.id*1.31)>.88;
+  }
+}
+
 function update(dt){
   const k=keys;
   Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down,alt:mouse.alt});
+  updateTestBots(dt);
   for(const p of players)updatePlayer(p,dt);
   if(!players.some(p=>!p.asleep&&!p.gone)){state='lose';return}
   for(const b of balls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
@@ -2246,7 +2263,16 @@ function drawEndScreen(){
 
 const SHOP_TIME=30,KINDS=Object.keys(T),SNAP_MS=80;
 let lastSnap=0,snaps=[],shopLeft=SHOP_TIME,lastIn=0,myBalls=[];
-const net=o=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'msg',to:isHost?'all':'host',data:o}))};
+const net=o=>{
+  if(ws&&ws.readyState===1){
+    ws.send(JSON.stringify({t:'msg',to:isHost?'all':'host',data:o}));
+  }else if(TEST_MODE&&testLoadMode&&o.k==='snap'){
+    // Include the host's snapshot-serialization cost in the local benchmark,
+    // even though the sandbox intentionally has no live WebSocket connection.
+    const payload=JSON.stringify({t:'msg',to:isHost?'all':'host',data:o});
+    testLastSnapshotBytes=payload.length;
+  }
+};
 const r1=v=>Math.round(v),r10=v=>Math.round(v*10)/10;
 function playerByNid(id){return players.find(p=>p.nid===id)}
 function clampP(p){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(70,Math.min(H-24,p.y))}
@@ -2418,14 +2444,35 @@ inspV=b.iv;shopLeft=b.sl;
 }));
 }
 
+function recordTestPerformance(t,frameMs,updateMs,drawMs,totalMs){
+  const sample={frameMs,updateMs,drawMs,totalMs};
+  testPerfSamples.push(sample);
+  if(testPerfSamples.length>180)testPerfSamples.shift();
+  if(testPerfRun&&!testPerfRun.finishedAt){
+    testPerfRun.samples.push(sample);
+    if(t-testPerfRun.startedAt>=testPerfRun.durationMs){
+      testPerfRun.finishedAt=t;
+      testSetLoadMode(false);
+    }
+  }
+}
+
 function loop(t){
+  const measuring=TEST_MODE&&typeof performance!=='undefined';
+  const loopStart=measuring?performance.now():0;
+  const measuredFrameMs=measuring&&testPerfLastRaf>0?Math.max(0,t-testPerfLastRaf):0;
+  if(measuring)testPerfLastRaf=t;
   const dt=Math.min(.05,(t-last)/1000||0);last=t;frameDt=dt;
+  const updateStart=measuring?performance.now():0;
   if(isHost){
     if(state==='play')update(dt);
     else{parts=[];if(state==='shop'){shopT+=dt;shopLeft=SHOP_TIME-shopT;if(shopLeft<=0)nextFromShop()}}
     sendSnap(t);
   }else guestFrame(dt,t);
+  const updateEnd=measuring?performance.now():0;
   draw();
+  const drawEnd=measuring?performance.now():0;
+  if(measuring)recordTestPerformance(t,measuredFrameMs,updateEnd-updateStart,drawEnd-updateEnd,drawEnd-loopStart);
   if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Связь с сервером потеряна. Обновите страницу.',CX,CY,26,'#ff9bb3','italic')}
   requestAnimationFrame(loop);
 }
@@ -2467,6 +2514,11 @@ function testSetInvulnerable(enabled){
 }
 function testSetPlayerCount(count){
   if(!TEST_MODE||!me)return {players:players.length,scale:dragonCrowdScale()};
+  testLoadMode=false;
+  testPerfSamples=[];
+  testPerfRun=null;
+  testPerfLastRaf=0;
+  testLastSnapshotBytes=0;
   const target=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));
   const primary=me;
   primary.id=0;
@@ -2490,6 +2542,8 @@ function testSetPlayerCount(count){
     p.name='Тестовый дракон '+(i+1);
     p.nid='test-dummy-'+i;
     p.testDummy=true;
+    p.lv=primary.lv.slice();
+    p.sh=shMax(p);
     p.x=Math.max(70,Math.min(W-70,CX+Math.cos(angle)*ring*1.55));
     p.y=Math.max(95,Math.min(H-70,CY+Math.sin(angle)*ring*.72));
     p.in.ax=p.x;
@@ -2500,6 +2554,67 @@ function testSetPlayerCount(count){
   if(markId>=players.length){markId=-1;markT=0}
   return {players:players.length,scale:dragonCrowdScale()};
 }
+function testSetLoadMode(enabled){
+  if(!TEST_MODE)return {active:false,dragons:0};
+  testLoadMode=!!enabled;
+  for(const p of players){
+    if(!p.testDummy)continue;
+    p.lv=me.lv.slice();
+    if(testLoadMode){
+      p.asleep=false;p.dead=false;p.gone=false;p.h=maxH(p);
+      p.in.fire=true;
+    }else{
+      p.in.mx=0;p.in.my=0;p.in.fire=false;p.in.alt=false;
+      p.in.ax=p.x;p.in.ay=p.y;
+    }
+  }
+  return {active:testLoadMode,dragons:players.filter(p=>!p.gone).length-1};
+}
+function testStartHostLoadTest(count,durationSeconds=30){
+  if(!TEST_MODE||!me)return {started:false,reason:'Тестовый режим не активен'};
+  const composition=testSetPlayerCount(count);
+  // Clear wave activity so this benchmark isolates host cost from active dragons,
+  // their movement, volleys and projectiles rather than stress-testing enemy spawning.
+  testClearActors();
+  testSetLoadMode(true);
+  const duration=Math.max(5,Math.min(120,Number(durationSeconds)||30));
+  testPerfSamples=[];
+  testPerfLastRaf=0;
+  testLastSnapshotBytes=0;
+  testPerfRun={startedAt:typeof performance!=='undefined'?performance.now():0,durationMs:duration*1000,samples:[],finishedAt:0};
+  return {started:true,players:composition.players,duration,scale:composition.scale};
+}
+function testStopHostLoadTest(){
+  if(!TEST_MODE)return {stopped:false};
+  testSetLoadMode(false);
+  if(testPerfRun&&!testPerfRun.finishedAt)testPerfRun.finishedAt=typeof performance!=='undefined'?performance.now():0;
+  return {stopped:true,players:players.filter(p=>!p.gone).length};
+}
+function testPerfInfo(){
+  const run=testPerfRun;
+  const samples=run?run.samples:(testLoadMode?testPerfSamples:[]);
+  const values=key=>samples.map(s=>s[key]).filter(v=>Number.isFinite(v)&&v>0);
+  const mean=a=>a.length?a.reduce((sum,v)=>sum+v,0)/a.length:0;
+  const p95=a=>{if(!a.length)return 0;const sorted=a.slice().sort((x,y)=>x-y);return sorted[Math.min(sorted.length-1,Math.ceil(sorted.length*.95)-1)]};
+  const frames=values('frameMs'),updates=values('updateMs'),draws=values('drawMs'),totals=values('totalMs');
+  const avgFrame=mean(frames),frame95=p95(frames),update95=p95(updates),draw95=p95(draws),total95=p95(totals);
+  const fps=avgFrame?1000/avgFrame:0;
+  let grade='idle',status='Ожидание нагрузочного теста';
+  if(samples.length){
+    if(fps>=55&&frame95<=20&&total95<=16.7){grade='good';status='Хорошо: близко к стабильным 60 FPS'}
+    else if(fps>=45&&frame95<=28&&total95<=25){grade='warn';status='Есть нагрузка: проверьте на компьютере хоста'}
+    else{grade='bad';status='Заметные просадки: нагрузка превышает комфортный уровень'}
+  }
+  const now=typeof performance!=='undefined'?performance.now():0;
+  const elapsed=run?Math.min(run.durationMs,Math.max(0,(run.finishedAt||now)-run.startedAt))/1000:0;
+  const renderObjects=players.filter(p=>!p.gone).length+enemies.length+balls.length+notes.length+pickups.length+parts.length+zones.length+beams.length+tags.length+bossProjectiles.length;
+  return {fps,frameP95Ms:frame95,updateP95Ms:update95,drawP95Ms:draw95,totalP95Ms:total95,
+    dragons:players.filter(p=>!p.gone).length,enemies:enemies.filter(e=>e.hp>0).length,
+    projectiles:balls.length,particles:parts.length,renderObjects,snapshotKB:testLastSnapshotBytes/1024,grade,status,
+    samples:samples.length,loadMode:testLoadMode,running:!!(run&&!run.finishedAt),done:!!(run&&run.finishedAt),
+    elapsedSeconds:elapsed,durationSeconds:run?run.durationMs/1000:0};
+}
+
 function testStartEdict(){
   if(!TEST_MODE||!me)return {active:false,knights:0};
   me.asleep=false;
@@ -2596,6 +2711,6 @@ function onMsg(m){
     for(const v of d.V)spark(v[0],v[1],v[2],Math.min(v[3],8));
   }
 }
-window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
+window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testSetLoadMode,testStartHostLoadTest,testStopHostLoadTest,testPerfInfo,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
 
 })();
