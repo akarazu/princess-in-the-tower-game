@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Башня принцессы: лобби</title>
+<title>Princess in the Tower: Lobby</title>
 <style>
 :root{--bg:#1b1030;--card:#2a1740;--ink:#fbe8d3;--dim:#b9a3cc;--rose:#ff9bb3;--ok:#7dff9a;--bad:#ff6b81;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1030;--card:#2a1740;--ink:#fbe8d3;--dim:#b9a3cc}}
@@ -37,41 +37,41 @@ body.playing canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
 </head>
 <body>
 <main>
-<h1>Башня принцессы</h1>
-<p id="status">Подключаемся к серверу… (первый раз бесплатный сервер просыпается до минуты)</p>
+<h1>Princess in the Tower</h1>
+<p id="status">Connecting to the server… (the free server may take up to a minute to wake up the first time)</p>
 
 <div id="join-view" class="card">
-  <h2>Вход</h2>
-  <label>Ваше имя<input id="name" maxlength="20" placeholder="например, Аня"></label>
-  <div id="host-box"><button id="create" disabled>Создать комнату (я хост)</button></div>
-  <label>Код комнаты<input id="room" maxlength="8" style="text-transform:uppercase" placeholder="если вас пригласили"></label>
-  <button id="join" class="sec" disabled>Войти в комнату</button>
+  <h2>Join</h2>
+  <label>Your name<input id="name" maxlength="20" placeholder="e.g. Alex"></label>
+  <div id="host-box"><button id="create" disabled>Create a room (I'm the host)</button></div>
+  <label>Room code<input id="room" maxlength="8" style="text-transform:uppercase" placeholder="if you were invited"></label>
+  <button id="join" class="sec" disabled>Join room</button>
   <div id="err" style="color:var(--bad)"></div>
 </div>
 
 <div id="lobby-view" class="card hide">
-  <h2>Комната <span id="code"></span></h2>
-  <button id="link" class="sec">Скопировать ссылку для коллег</button>
-  <h2 style="margin-top:10px">Игроки (<span id="count">0</span>)</h2>
+  <h2>Room <span id="code"></span></h2>
+  <button id="link" class="sec">Copy invite link</button>
+  <h2 style="margin-top:10px">Players (<span id="count">0</span>)</h2>
   <div id="players"></div>
 
   <div id="gather-box" style="margin-top:12px">
-    <button id="lock" class="hide">Все в сборе</button>
+    <button id="lock" class="hide">Everyone's here</button>
     <p id="wait"></p>
   </div>
 
   <div id="pick-box" class="hide">
-    <h2 style="margin-top:14px">Выберите дракона</h2>
+    <h2 style="margin-top:14px">Choose your dragon</h2>
     <div id="colors" class="grid"></div>
     <div style="margin-top:14px">
-      <button id="ready">Я готов</button><button id="start" class="hide">Начать игру</button><button id="reopen" class="sec hide">Ещё кто-то заходит</button>
+      <button id="ready">I'm ready</button><button id="start" class="hide">Start game</button><button id="reopen" class="sec hide">Someone else is joining</button>
     </div>
   </div>
   <p id="hint"></p>
   <div id="err2" style="color:var(--bad)"></div>
 </div>
 
-<div id="start-view" class="card hide"><h2>Игра начинается!</h2><p>Лобби работает. Сама игра подключится на следующем этапе.</p><div id="final"></div></div>
+<div id="start-view" class="card hide"><h2>The game is starting!</h2><p>The lobby is working. The game will launch in the next step.</p><div id="final"></div></div>
 </main>
 <canvas id="c" width="1138" height="640"></canvas>
 <script src="shared.js"></script>
@@ -84,21 +84,21 @@ $('#room').value=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 $('#name').value=localStorage.getItem('ptw-name')||'';
 if($('#room').value){$('#host-box').classList.add('hide')}   // пришли по ссылке: создавать комнату не нужно
 
-const colOf=p=>p.color>=0?COLORS[p.color][1]:'#555',nameOf=p=>p.color>=0?COLORS[p.color][0]:p.hover>=0?'смотрит на '+COLORS[p.hover][0]:'выбирает…';
+const colOf=p=>p.color>=0?COLORS[p.color][1]:'#555',nameOf=p=>p.color>=0?COLORS[p.color][0]:p.hover>=0?'looking at '+COLORS[p.hover][0]:'choosing…';
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const note=(owner,mine,i)=>{if(owner)return mine?'':'<small>'+esc(owner.name)+'</small>';   // подпись под цветом: владелец или те, кто присматривается
   const hs=players.filter(p=>!p.ready&&p.hover===i&&p.id!==me.id).map(p=>p.name);
-  return hs.length?'<small>смотрят: '+esc(hs.slice(0,2).join(', '))+(hs.length>2?' +'+(hs.length-2):'')+'</small>':''};
+  return hs.length?'<small>looking: '+esc(hs.slice(0,2).join(', '))+(hs.length>2?' +'+(hs.length-2):'')+'</small>':''};
 const send=o=>ws.send(JSON.stringify(o));
 
 function connect(){
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-  ws.onopen=()=>{$('#status').textContent='Подключились к серверу.';$('#create').disabled=false;$('#join').disabled=false};
+  ws.onopen=()=>{$('#status').textContent='Connected to the server.';$('#create').disabled=false;$('#join').disabled=false};
   ws.onmessage=e=>onMsg(JSON.parse(e.data));
-  ws.onclose=()=>{$('#status').textContent='Соединение потеряно. Обновите страницу.';$('#create').disabled=$('#join').disabled=true};
+  ws.onclose=()=>{$('#status').textContent='Connection lost. Refresh the page.';$('#create').disabled=$('#join').disabled=true};
 }
 function enter(create){
-  const name=$('#name').value.trim()||'Игрок';localStorage.setItem('ptw-name',name);
+  const name=$('#name').value.trim()||'Player';localStorage.setItem('ptw-name',name);
   room=create?Array.from(crypto.getRandomValues(new Uint8Array(5)),b=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b%31]).join(''):$('#room').value.trim();
   $('#err').textContent='';
   send({t:'join',room,name,create});
@@ -106,15 +106,15 @@ function enter(create){
 $('#create').onclick=()=>enter(true);
 $('#join').onclick=()=>enter(false);
 $('#lock').onclick=()=>send({t:'lock'});
-$('#reopen').onclick=()=>{if(confirm('Вернуться к сбору? Все выбранные драконы сбросятся.'))send({t:'reopen'})};
+$('#reopen').onclick=()=>{if(confirm('Return to the lobby? All selected dragons will be reset.'))send({t:'reopen'})};
 $('#ready').onclick=()=>{const m0=players.find(p=>p.id===me.id);
   if(m0&&m0.ready){send({t:'ready',ready:false});if(want>=0)send({t:'hover',color:want})}
   else send({t:'ready',ready:true,color:want})};
 $('#start').onclick=()=>{const pend=players.filter(p=>!p.ready).length;
-  if(pend&&!confirm(pend+' игрок(ов) ещё не закрепили дракона. Им выдадут свободных. Начать игру?'))return;
+  if(pend&&!confirm(pend+' игрок(ов) ещё не закрепили дракона. Им выдадут свободных. Start game?'))return;
   send({t:'start'})};
 $('#link').onclick=()=>{const u=location.origin+'/?room='+me.room;
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>$('#hint').textContent='Ссылка скопирована',()=>prompt('Скопируйте ссылку:',u));else prompt('Скопируйте ссылку:',u)};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>$('#hint').textContent='Link copied',()=>prompt('Copy the link:',u));else prompt('Copy the link:',u)};
 
 function onMsg(m){
   if(m.t==='joined'){me=m;players=m.players;phase=m.phase;k=m.k;$('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;render()}
@@ -122,7 +122,7 @@ function onMsg(m){
   else if(m.t==='error'){
     if($('#lobby-view').classList.contains('hide'))$('#err').textContent=m.msg;
     else{if(m.msg.includes('занят'))want=-1;render();$('#err2').textContent=m.msg}}
-  else if(m.t==='host_left'){alert('Хост вышел, комната закрыта.');location.href=location.pathname}
+  else if(m.t==='host_left'){alert('The host has left. The room is closed.');location.href=location.pathname}
   else if(m.t==='started'){$('#lobby-view').classList.add('hide');document.body.classList.add('playing');Game.start({ws,me,players:m.players})}
   else if(m.t==='msg'){Game.onMsg(m)}
 }
@@ -131,12 +131,12 @@ function render(){
   if(!picking||want>=k||players.some(p=>p.ready&&p.color===want&&p.id!==me.id))want=-1;   // выбор сброшен или дракона успели закрепить другие
   const me0=players.find(p=>p.id===me.id),locked=!!(me0&&me0.ready);
   $('#count').textContent=players.length;
-  $('#players').innerHTML=players.map(p=>'<div class="row"><span class="dot" style="background:'+colOf(p)+'"></span>'+esc(p.name)+(picking?' · '+nameOf(p):'')+(p.host?' (хост)':'')+(p.id===me.id?' (вы)':'')+'<span class="ok">'+(picking&&p.ready?'✓':'')+'</span></div>').join('');
+  $('#players').innerHTML=players.map(p=>'<div class="row"><span class="dot" style="background:'+colOf(p)+'"></span>'+esc(p.name)+(picking?' · '+nameOf(p):'')+(p.host?' (host)':'')+(p.id===me.id?' (you)':'')+'<span class="ok">'+(picking&&p.ready?'✓':'')+'</span></div>').join('');
   $('#gather-box').classList.toggle('hide',picking);
   $('#pick-box').classList.toggle('hide',!picking);
   $('#lock').classList.toggle('hide',!me.host);
-  $('#lock').textContent='Все в сборе ('+players.length+')';
-  $('#wait').textContent=me.host?'Когда все зашли, нажмите «Все в сборе»: новых игроков принимать не будем, а число драконов подстроится под число игроков.':'Ждём, пока хост нажмёт «Все в сборе».';
+  $('#lock').textContent='Everyone's here ('+players.length+')';
+  $('#wait').textContent=me.host?'Когда все зашли, нажмите «Everyone's here»: новых игроков принимать не будем, а число драконов подстроится под число игроков.':'Ждём, пока хост нажмёт «Everyone's here».';
   $('#err2').textContent='';
   if(!picking){$('#hint').textContent='';return}
   $('#colors').innerHTML='';
@@ -148,14 +148,14 @@ function render(){
     b.innerHTML='<span class="dot" style="background:'+col+'"></span><span>'+name+note(owner,mine,i)+'</span>';
     b.onclick=()=>{want=i;render();send({t:'hover',color:i})};
     $('#colors').appendChild(b)});
-  const label=me.host?'Зафиксировать дракона':'Я готов';
-  $('#ready').textContent=locked?(me.host?'Снять фиксацию':'Снять готовность'):label;
+  const label=me.host?'Lock in dragon':'I'm ready';
+  $('#ready').textContent=locked?(me.host?'Unlock dragon':'Cancel ready status'):label;
   $('#ready').disabled=!locked&&want<0;
   $('#start').classList.toggle('hide',!me.host);$('#reopen').classList.toggle('hide',!me.host);
   const pend=players.filter(p=>!p.ready).length;
-  $('#hint').textContent=(locked?(me.host?'':'Дракон закреплён. Чтобы выбрать другого, снимите готовность.')
-    :want>=0?'Вы примеряете: '+COLORS[want][0]+'. Нажмите «'+label+'», чтобы закрепить дракона.':'Выберите дракона.')
-    +(me.host?' Закреплены '+(players.length-pend)+' из '+players.length+(pend?'. Остальным при старте выдадим свободных.':'.'):'');
+  $('#hint').textContent=(locked?(me.host?'':'Dragon locked in. To choose another one, cancel your ready status.')
+    :want>=0?'You're previewing: '+COLORS[want][0]+' . Click “'+label+'” to lock in this dragon.':'Choose your dragon.')
+    +(me.host?' Locked in '+(players.length-pend)+' из '+players.length+(pend?'. The remaining players will be assigned available dragons when the game starts.':'.'):'');
 }
 connect();
 </script>
