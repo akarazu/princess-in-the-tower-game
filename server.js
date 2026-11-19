@@ -270,26 +270,26 @@ wss.on('connection', ws => {
       if (!allowRate(client, 'lobby', 10)) return;
 
       const code = String(message.room || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-      if (!code) return send(client, { t: 'error', msg: 'Нужен код комнаты' });
+      if (!code) return send(client, { t: 'error', msg: 'A room code is required' });
 
       leave(client);
       let room = rooms.get(code);
       if (message.create === true && room) {
-        return send(client, { t: 'error', msg: 'Комната с таким кодом уже есть' });
+        return send(client, { t: 'error', msg: 'A room with that code already exists' });
       }
       if (message.create !== true && !room) {
-        return send(client, { t: 'error', msg: 'Такой комнаты нет: хост ещё не создал её' });
+        return send(client, { t: 'error', msg: 'No room with that code exists. The host hasn't created it yet.' });
       }
       if (!room) {
         room = { host: null, clients: new Map(), n: 0, started: false, phase: 'gather', k: 0 };
         rooms.set(code, room);
       }
-      if (room.started) return send(client, { t: 'error', msg: 'Игра в этой комнате уже идёт' });
+      if (room.started) return send(client, { t: 'error', msg: 'The game in this room has already started' });
       if (room.phase === 'pick') {
-        return send(client, { t: 'error', msg: 'Хост уже начал выбор драконов. Попросите его вернуться к сбору и зайдите снова' });
+        return send(client, { t: 'error', msg: 'The host has already started choosing dragons. Ask them to return to the lobby, then try joining again.' });
       }
       if (room.clients.size >= MAX_PLAYERS) {
-        return send(client, { t: 'error', msg: 'Комната заполнена (максимум 20 игроков)' });
+        return send(client, { t: 'error', msg: 'The room is full (maximum 20 players)' });
       }
 
       client.color = -1;
@@ -297,7 +297,7 @@ wss.on('connection', ws => {
       client.ready = false;
       client.id = String(++room.n);
       client.room = code;
-      client.name = String(message.name || 'Игрок ' + client.id).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 20) || 'Игрок ' + client.id;
+      client.name = String(message.name || 'Player ' + client.id).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 20) || 'Player ' + client.id;
       room.clients.set(client.id, client);
       if (!room.host) room.host = client.id;
 
@@ -340,10 +340,10 @@ wss.on('connection', ws => {
       if (message.ready === true) {
         const index = Number(message.color);
         if (!Number.isInteger(index) || index < 0 || index >= room.k) {
-          return send(client, { t: 'error', msg: 'Сначала выберите дракона' });
+          return send(client, { t: 'error', msg: 'Choose a dragon first' });
         }
         if ([...room.clients.values()].some(other => other !== client && other.ready && other.color === index)) {
-          return send(client, { t: 'error', msg: 'Этот дракон уже занят, выберите другого' });
+          return send(client, { t: 'error', msg: 'That dragon is already taken. Choose another one.' });
         }
         client.color = index;
         client.hover = -1;
@@ -372,7 +372,7 @@ wss.on('connection', ws => {
           ? other.hover
           : freeColors.shift();
         if (!Number.isInteger(preferred)) {
-          return send(client, { t: 'error', msg: 'Не удалось назначить драконов всем игрокам. Вернитесь к выбору и попробуйте снова.' });
+          return send(client, { t: 'error', msg: 'Could not assign dragons to all players. Return to the selection screen and try again.' });
         }
         other.color = preferred;
         other.ready = true;
@@ -440,6 +440,6 @@ const heartbeat = setInterval(() => {
 server.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
-  console.log('Сервер запущен на порту ' + PORT);
-  console.log('Файлы сайта ищутся в:', PUB);
+  console.log('Server listening on port ' + PORT);
+  console.log('Serving website files from:', PUB);
 });
