@@ -143,9 +143,23 @@ function dragonFor(ci){
   return stunnedDragonCache[ci]=c;
 }
 
+// Чистая функция масштаба: используется игровым рендером и тестовым режимом.
+// Хитбоксы, радиусы столкновений, скорость и урон от неё не зависят.
+// При 1–6 игроках сохраняем исходный размер, при 20 — уменьшаем до 87.5%.
+function dragonCrowdScaleForCount(visiblePlayers) {
+  const count = Math.max(0, Math.floor(Number(visiblePlayers) || 0));
+  const extraPlayers = Math.max(0, Math.min(14, count - 6));
+  return 1 - extraPlayers * (0.125 / 14);
+}
+function dragonCrowdScale() {
+  const visiblePlayers = players.reduce((count, player) => count + (player.gone ? 0 : 1), 0);
+  return dragonCrowdScaleForCount(visiblePlayers);
+}
+
 // Единая матрица трансформации дракона.
 // Порядок полностью совпадает с отрисовкой: translate → scale(face) → rotate(angle).
-// Так координаты рта и видимый спрайт используют одну и ту же геометрию.
+// Масштаб толпы применяется и к спрайту, и к точке выхода огня изо рта.
+// Так уменьшенный дракон не стреляет из прежней, визуально смещённой точки.
 function dragonTransform(p, angleOverride) {
   const angle = Number.isFinite(angleOverride)
     ? angleOverride
@@ -154,14 +168,16 @@ function dragonTransform(p, angleOverride) {
   const face = p.face < 0 ? -1 : 1;
   const cs = Math.cos(angle);
   const sn = Math.sin(angle);
+  const scale = dragonCrowdScale();
 
   return {
-    a: face * cs,
-    b: sn,
-    c: -face * sn,
-    d: cs,
+    a: face * cs * scale,
+    b: sn * scale,
+    c: -face * sn * scale,
+    d: cs * scale,
     angle,
-    face
+    face,
+    scale
   };
 }
 
@@ -277,12 +293,13 @@ function updateDragonDrawAngle(p, dt) {
 }
 
 function drawDragonSprite(p){
+  const crowdScale=dragonCrowdScale();
   const stunned=p.asleep&&!p.dead;
   const sh=stunned
     ?(dragonStunnedFor(p.ci)||IMG.dragonStunned||dragonFor(p.ci)||IMG.dragon)
     :(dragonFor(p.ci)||IMG.dragon);
 
-  if(!sh){emoji('🐲',p.x,p.y,46);return}
+  if(!sh){emoji('🐲',p.x,p.y,46*crowdScale);return}
   if(!p.face)p.face=1;
 
   const frameCount=stunned?SDFR:DFR;
@@ -747,7 +764,13 @@ function explode(b){const o=players[b.owner],dmg=Math.max(1,Math.round(b.dmg*BLA
   for(const e of enemies)if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<BLAST.r+e.t.r)damageEnemy(e,dmg,o);
   for(const n of notes)if(n.hp>0&&Math.hypot(n.x-b.x,n.y-b.y)<BLAST.r)n.hp=0}
 const BOSSCFG={hpPrince:1,hpKing:1.4,roseEvery:9,roseDelay:1.5,roseR:55,castT:7,castBreak:.18,castHit:.25,stun:4,castCd:16,decreeEvery:12,disgraceEvery:9.5,disgraceT:8};
-const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5,KING_MIN_DISGRACES=5;
+const THROW_T=.8,KING_ACT=1.3,KING_MIN_DECREES=5,KING_MIN_DISGRACES=5,EDICT_KNIGHT_SPEED=1.25;
+// Единственная точка расчёта скорости врага: тестовый режим проверяет
+// именно эту функцию, поэтому диагностика совпадает с реальной симуляцией.
+function enemyMoveSpeed(e,lone,insp){
+  const edictBoost=e.k==='knight'&&e.chase?EDICT_KNIGHT_SPEED:1;
+  return e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp)*edictBoost;
+}
 function castInfo(e){
   if(e.ab){const a=e.ab,th=a.thr>0?Math.max(1,Math.round((1-a.thr/(a.thrT||THROW_T))*100)):0;
     return a.cast>0?[Math.round((1-a.cast/a.castT)*100),Math.min(100,Math.round(Math.max(0,a.castHp-e.hp)/(e.max*BOSSCFG.castBreak)*100)),th]:[0,0,th]}
@@ -1534,7 +1557,9 @@ players.forEach(p=>{
       if(e.t.kind==='heal'){e.scd=(e.scd??1.5+Math.random()*2)-dt;if(e.scd<=0){e.scd=2.5;shieldAllies(e)}}
     }
     else if(!e.hold){
-      const sm=e.t.sp*(lone?1.8:1)*(e.k==='bard'?1:insp);
+      // Рыцари под королевской опалой активнее преследуют отмеченного дракона.
+      // Скорость рассчитывается общей функцией, которую проверяет тестовый режим.
+      const sm=enemyMoveSpeed(e,lone,insp);
 if (e.path) {
   if (!e.path.arrived) {
     e.path.u = Math.min(1, e.path.u + sm * dt / e.path.len);
@@ -1719,8 +1744,10 @@ function drawCrownIcon(x,y,w=34,h=24){
 }
 function drawDragon(p){
   const now=typeof performance!=='undefined'?performance.now():0;
+  const visualScale=dragonCrowdScale();
 
-  drawShadow(p.x,p.y+38,42,12,0.18);
+  // Масштабируем вместе со спрайтом только декоративные эффекты.
+  drawShadow(p.x,p.y+38*visualScale,42*visualScale,12*visualScale,0.18);
 
   // Compact shield rings, close to the dragon and with a lighter outline.
   if(p.sh>0){
@@ -1730,7 +1757,7 @@ function drawDragon(p){
       ctx.strokeStyle='rgba(143,216,255,'+(0.68*pulse)+')';
       ctx.lineWidth=1.5;
       ctx.beginPath();
-      ctx.arc(p.x,p.y,38+i*4.5,0,6.283);
+      ctx.arc(p.x,p.y,(38+i*4.5)*visualScale,0,6.283);
       ctx.stroke();
     }
     ctx.restore();
@@ -1752,13 +1779,13 @@ function drawDragon(p){
   if((p.coinGlow||0)>0 && !isFiring){
     const strength=Math.min(1,p.coinGlow/1.2);
     const pulse=.88+.12*Math.sin(now/70+p.id*1.7);
-    const radius=44+1.5*Math.sin(now/110+p.id);
+    const radius=(44+1.5*Math.sin(now/110+p.id))*visualScale;
     ctx.save();
     ctx.globalCompositeOperation='lighter';
     ctx.shadowColor='rgba(255,205,45,'+(0.72*strength)+')';
-    ctx.shadowBlur=8*strength;
+    ctx.shadowBlur=8*visualScale*strength;
     ctx.strokeStyle='rgba(255,211,65,'+(0.82*strength*pulse)+')';
-    ctx.lineWidth=2.5;
+    ctx.lineWidth=2.5*visualScale;
     ctx.beginPath();
     ctx.arc(p.x,p.y,radius,0,6.283);
     ctx.stroke();
@@ -1766,18 +1793,18 @@ function drawDragon(p){
     ctx.strokeStyle='rgba(255,239,160,'+(0.46*strength*pulse)+')';
     ctx.lineWidth=1;
     ctx.beginPath();
-    ctx.arc(p.x,p.y,radius-3,0,6.283);
+    ctx.arc(p.x,p.y,radius-3*visualScale,0,6.283);
     ctx.stroke();
     ctx.restore();
   }
 
   if(p.dead){
-    emoji('💀',p.x,p.y-34,26);
+    emoji('💀',p.x,p.y-34*visualScale,26*visualScale);
   }else if(p.asleep){
-    text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52,16,'#ffdd88');
-    ctx.lineWidth=4;
+    text(String(Math.max(0,Math.ceil(p.wt))),p.x,p.y-52*visualScale,16,'#ffdd88');
+    ctx.lineWidth=4*visualScale;
     ctx.beginPath();
-    ctx.arc(p.x,p.y,36,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));
+    ctx.arc(p.x,p.y,36*visualScale,-1.57,-1.57+6.283*Math.min(1,Math.max(p.rv/2,1-p.wt/wakeTime())));
     ctx.stroke();
     ctx.lineWidth=1;
   }
@@ -1785,21 +1812,21 @@ function drawDragon(p){
   if(p.mark){
     const t=now/1000;
     ctx.strokeStyle='rgba(255,60,60,'+(.6+.35*Math.sin(t*10))+')';
-    ctx.lineWidth=4;
+    ctx.lineWidth=4*visualScale;
     ctx.beginPath();
-    ctx.arc(p.x,p.y,48,0,6.283);
+    ctx.arc(p.x,p.y,48*visualScale,0,6.283);
     ctx.stroke();
     ctx.lineWidth=1;
-    drawCrownIcon(p.x,p.y-57,34,24);
+    drawCrownIcon(p.x,p.y-57*visualScale,34*visualScale,24*visualScale);
   }
 
   // Merchant's gold-bag effect uses the animated coinBag sprite already in assets.
   if(p.frz>0){
-    if(IMG.coinBag)drawSheet(IMG.coinBag,6,p.x+54,p.y-38,30,now/110+p.id);
-    else emoji('💰',p.x+54,p.y-38,22);
+    if(IMG.coinBag)drawSheet(IMG.coinBag,6,p.x+54*visualScale,p.y-38*visualScale,30*visualScale,now/110+p.id);
+    else emoji('💰',p.x+54*visualScale,p.y-38*visualScale,22*visualScale);
   }
 
-  text(p.name,p.x,p.y+50,14,c);
+  text(p.name,p.x,p.y+50*visualScale,14,c);
 }
 
 function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
@@ -2438,8 +2465,98 @@ function testSpawn(kind){
 function testSetInvulnerable(enabled){
   if(TEST_MODE)testInvulnerable=!!enabled;
 }
+function testSetPlayerCount(count){
+  if(!TEST_MODE||!me)return {players:players.length,scale:dragonCrowdScale()};
+  const target=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));
+  const primary=me;
+  primary.id=0;
+  primary.gone=false;
+  primary.asleep=false;
+  primary.x=CX;
+  primary.y=CY+145;
+  primary.in.mx=0;
+  primary.in.my=0;
+  primary.in.ax=CX;
+  primary.in.ay=CY-100;
+  players=[primary];
+
+  // Дополнительные неподвижные драконы имитируют состав комнаты.
+  // Они участвуют в расчёте crowd scale, но не управляются и не стреляют.
+  const goldenAngle=2.399963229728653;
+  for(let i=1;i<target;i++){
+    const p=makePlayer(i,i%COLORS.length);
+    const angle=(i-1)*goldenAngle;
+    const ring=105+(i%3)*38;
+    p.name='Тестовый дракон '+(i+1);
+    p.nid='test-dummy-'+i;
+    p.testDummy=true;
+    p.x=Math.max(70,Math.min(W-70,CX+Math.cos(angle)*ring*1.55));
+    p.y=Math.max(95,Math.min(H-70,CY+Math.sin(angle)*ring*.72));
+    p.in.ax=p.x;
+    p.in.ay=p.y;
+    p.face=Math.cos(angle)>=0?1:-1;
+    players.push(p);
+  }
+  if(markId>=players.length){markId=-1;markT=0}
+  return {players:players.length,scale:dragonCrowdScale()};
+}
+function testStartEdict(){
+  if(!TEST_MODE||!me)return {active:false,knights:0};
+  me.asleep=false;
+  me.dead=false;
+  me.gone=false;
+  enemies=enemies.filter(e=>e.k!=='knight');
+  markId=me.id;
+  markT=BOSSCFG.disgraceT;
+  me.mark=true;
+  for(let i=0;i<5;i++){
+    spawn('knight');
+    const knight=enemies[enemies.length-1];
+    const angle=i*Math.PI*2/5;
+    knight.x=Math.max(42,Math.min(W-42,me.x+Math.cos(angle)*220));
+    knight.y=Math.max(76,Math.min(H-42,me.y+Math.sin(angle)*145));
+    knight.chase=1;
+  }
+  say('ТЕСТ ОПАЛЫ: рыцари преследуют отмеченного дракона',3);
+  return {active:true,knights:enemies.filter(e=>e.k==='knight'&&e.hp>0).length,duration:markT};
+}
+function testRunDiagnostics(){
+  if(!TEST_MODE)return [];
+  const checks=[];
+  const add=(id,label,pass,detail)=>checks.push({id,label,pass:!!pass,detail});
+  const counts=[1,6,10,15,20];
+  const scales=counts.map(dragonCrowdScaleForCount);
+  const expected20=.875;
+  add('scale-baseline','1–6 драконов сохраняют исходный размер',
+    counts.slice(0,2).every((n,i)=>Math.abs(scales[i]-1)<1e-9),'100%');
+  add('scale-20','При 20 драконах масштаб равен 87,5%',
+    Math.abs(scales[4]-expected20)<1e-9,(scales[4]*100).toFixed(1)+'%');
+  add('scale-smooth','Масштаб плавно уменьшается при росте числа драконов',
+    scales.every((v,i)=>i===0||v<=scales[i-1])&&scales.every(v=>v<=1&&v>=.875),
+    counts.map((n,i)=>n+': '+(scales[i]*100).toFixed(1)+'%').join(' · '));
+
+  const normalKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
+  const markedKnight=enemyMoveSpeed({k:'knight',chase:1,t:{sp:T.knight.sp}},false,1);
+  const unmarkedKnight=enemyMoveSpeed({k:'knight',chase:0,t:{sp:T.knight.sp}},false,1);
+  const markedMage=enemyMoveSpeed({k:'mage',chase:1,t:{sp:T.mage.sp}},false,1);
+  add('knight-base','Обычная скорость рыцаря не изменилась',
+    Math.abs(normalKnight-T.knight.sp)<1e-9,normalKnight.toFixed(1)+' ед./с');
+  add('knight-edict','Под опалой рыцарь ускоряется ровно на 25%',
+    Math.abs(markedKnight/normalKnight-1.25)<1e-9,normalKnight.toFixed(1)+' → '+markedKnight.toFixed(1)+' ед./с');
+  add('knight-scope','Ускорение не действует на неотмеченных рыцарей и других врагов',
+    Math.abs(unmarkedKnight-normalKnight)<1e-9&&Math.abs(markedMage-T.mage.sp)<1e-9,
+    'Неотмеченный рыцарь: '+unmarkedKnight.toFixed(1)+' · маг: '+markedMage.toFixed(1)+' ед./с');
+  add('live-scale','Текущий тестовый состав использует тот же масштаб, что и спрайты',
+    Math.abs(dragonTransform(me).scale-dragonCrowdScale())<1e-9,
+    players.filter(p=>!p.gone).length+' игроков · '+(dragonCrowdScale()*100).toFixed(1)+'%');
+  return checks;
+}
 function testInfo(){
-  return {wave,state,enemies:enemies.length,queue:queue.length,invulnerable:testInvulnerable};
+  return {wave,state,enemies:enemies.length,queue:queue.length,invulnerable:testInvulnerable,
+    players:players.filter(p=>!p.gone).length,dragonScale:dragonCrowdScale(),
+    knights:enemies.filter(e=>e.k==='knight'&&e.hp>0).length,
+    chasingKnights:enemies.filter(e=>e.k==='knight'&&e.hp>0&&e.chase).length,
+    edict:markId>=0};
 }
 function startTest(){
   resizeCanvas();addEventListener('resize',resizeCanvas);
@@ -2479,6 +2596,6 @@ function onMsg(m){
     for(const v of d.V)spark(v[0],v[1],v[2],Math.min(v[3],8));
   }
 }
-window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testInfo,get active(){return active}};
+window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
 
 })();

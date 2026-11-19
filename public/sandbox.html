@@ -19,6 +19,11 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
 #test-panel .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
 #test-panel label{display:flex;align-items:center;gap:6px;margin:8px 0;color:#e8d8ed;font-size:12px}
 #test-panel input[type=checkbox]{accent-color:var(--rose);margin:0}
+#test-panel input[type=range]{accent-color:var(--rose);min-width:0;flex:1}
+#test-results{list-style:none;padding:0;margin:8px 0 0;font-size:11px}
+#test-results li{padding:5px 6px;margin:4px 0;border-radius:6px;background:#ffffff0b;color:var(--dim)}
+#test-results li.ok{color:#a8ffc0;background:#7dff9a12}
+#test-results li.bad{color:#ff9eab;background:#ff6b8112}
 #test-panel small,#test-panel p{color:var(--dim);font-size:11px;margin:6px 0}
 #test-info{color:#ffd98a;background:#ffffff10;padding:7px 8px;border-radius:7px;margin:8px 0;font-size:12px}
 @media(max-width:600px){#test-panel{width:218px;left:6px;top:6px;padding:8px;max-height:58dvh}}
@@ -55,6 +60,23 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
     </div>
     <label><input type="checkbox" id="invulnerable" checked> Неуязвимость и защита башни</label>
     <label><input type="checkbox" id="max-upgrades" checked> Максимальные улучшения</label>
+    <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
+      <b style="font-size:12px">Проверка масштаба толпы</b>
+      <div class="row">
+        <label for="test-player-count" style="margin:0;white-space:nowrap">Драконов</label>
+        <input id="test-player-count" type="range" min="1" max="20" step="1" value="1">
+        <strong id="test-player-count-value">1</strong>
+      </div>
+      <button id="apply-player-count" class="secondary">Показать состав</button>
+      <small>Добавляет неподвижных тестовых драконов на поле, чтобы увидеть масштаб при 1–20 участниках.</small>
+    </div>
+    <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
+      <b style="font-size:12px">Проверка королевской опалы</b>
+      <div class="row"><button id="test-edict" class="secondary">Запустить погоню рыцарей</button></div>
+      <small>Отмечает основного дракона и выпускает пять рыцарей. Сравни скорость погони с обычной.</small>
+    </div>
+    <div class="row"><button id="run-diagnostics">Проверить параметры</button></div>
+    <ul id="test-results" aria-live="polite"></ul>
     <div id="test-info">Подготовка теста…</div>
     <p>Движение: WASD / стрелки. Мышь — прицел и стрельба. Правая кнопка — особая атака.</p>
     <div class="row"><button id="exit" class="secondary">Выйти из теста</button></div>
@@ -76,11 +98,48 @@ $('#invulnerable').addEventListener('change',e=>Game.testSetInvulnerable(e.targe
 $('#max-upgrades').addEventListener('change',e=>Game.testSetUpgrades(e.target.checked));
 $('#exit').addEventListener('click',()=>{location.href='/'});
 
+$('#test-player-count').addEventListener('input',e=>{
+  $('#test-player-count-value').textContent=e.target.value;
+});
+$('#apply-player-count').addEventListener('click',()=>{
+  const result=Game.testSetPlayerCount($('#test-player-count').value);
+  logTest('Состав: '+result.players+' драконов · масштаб '+(result.scale*100).toFixed(1)+'%');
+  runDiagnostics();
+});
+$('#test-edict').addEventListener('click',()=>{
+  const result=Game.testStartEdict();
+  logTest(result.active?'Опала активна · рыцарей: '+result.knights+' · длительность: '+result.duration+' с':'Не удалось запустить опалу');
+});
+$('#run-diagnostics').addEventListener('click',runDiagnostics);
+
+function logTest(message){
+  $('#test-info').textContent=message;
+}
+function runDiagnostics(){
+  const checks=Game.testRunDiagnostics();
+  const list=$('#test-results');
+  list.replaceChildren();
+  for(const check of checks){
+    const li=document.createElement('li');
+    li.className=check.pass?'ok':'bad';
+    const title=document.createElement('div');
+    title.textContent=(check.pass?'✓ ':'✗ ')+check.label;
+    const detail=document.createElement('small');
+    detail.textContent=check.detail;
+    li.append(title,detail);
+    list.append(li);
+  }
+  const passed=checks.filter(c=>c.pass).length;
+  logTest('Проверки: '+passed+'/'+checks.length+' пройдено · игроков: '+Game.testInfo().players+' · масштаб: '+(Game.testInfo().dragonScale*100).toFixed(1)+'%');
+}
+
 function refreshTestInfo(){
   const info=Game.testInfo();
-  $('#test-info').textContent='Волна: '+info.wave+' · На поле: '+info.enemies+' · В очереди: '+info.queue;
-  setTimeout(refreshTestInfo,300);
+  const status=info.edict?' · опала активна':' · опалы нет';
+  $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' ('+(info.dragonScale*100).toFixed(1)+'%) · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
+  setTimeout(refreshTestInfo,500);
 }
+runDiagnostics();
 refreshTestInfo();
 </script>
 </body>
