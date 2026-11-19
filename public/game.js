@@ -1953,31 +1953,7 @@ function drawDragon(p){
     ctx.globalAlpha=1;
   }
 
-  // A clearly visible, shield-like golden halo appears when the dragon
-  // collects a gold coin. Draw it after the sprite so it cannot be hidden.
-  const isFiring = !!(p.in && (p.in.fire || p.in.alt)) ||
-    (p===me && !!(mouse && (mouse.down || mouse.alt)));
-  if((p.coinGlow||0)>0 && !isFiring){
-    const strength=Math.min(1,p.coinGlow/1.2);
-    const pulse=.88+.12*Math.sin(now/70+p.id*1.7);
-    const radius=(44+1.5*Math.sin(now/110+p.id))*visualScale;
-    ctx.save();
-    ctx.globalCompositeOperation='lighter';
-    ctx.shadowColor='rgba(255,205,45,'+(0.72*strength)+')';
-    ctx.shadowBlur=8*visualScale*strength;
-    ctx.strokeStyle='rgba(255,211,65,'+(0.82*strength*pulse)+')';
-    ctx.lineWidth=2.5*visualScale;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,radius,0,6.283);
-    ctx.stroke();
-    ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(255,239,160,'+(0.46*strength*pulse)+')';
-    ctx.lineWidth=1;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,radius-3*visualScale,0,6.283);
-    ctx.stroke();
-    ctx.restore();
-  }
+  // Gold pickup no longer draws a ring around the dragon.
 
   if(p.dead){
     emoji('💀',p.x,p.y-34*visualScale,26*visualScale);
