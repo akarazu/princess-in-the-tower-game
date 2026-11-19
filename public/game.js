@@ -973,7 +973,7 @@ function descNew(p,i){const n=capped(p,i)?p:nx(p,i);
   return['Fire × damage: '+flames(p)+'×'+dmgOf(p)+' → '+flames(n)+'×'+dmgOf(n),
     'Shots/sec: '+(1/(.5*Math.pow(.85,p.lv[1]))).toFixed(1)+' → '+(1/(.5*Math.pow(.85,n.lv[1]))).toFixed(1),
     'Speed: '+Math.round(230*(1+.2*p.lv[2]))+' → '+Math.round(230*(1+.2*n.lv[2])),
-    'Shield: '+shMax(p)+' → '+shMax(n)+', recharge '+(SH_T[n.lv[3]]||'—')+' с'][i]}
+    'Shield: '+shMax(p)+' → '+shMax(n)+', recharge '+(SH_T[n.lv[3]]||'—')+' sec'][i]}
 function drop(e,o){
   if(isBoss(e)&&activePlayerCount()>1){
     // Боссовая награда общая: итоговый удар не должен определять, кто может купить улучшения.
@@ -2264,7 +2264,7 @@ function drawShop(){
     else{ctx.textAlign='right';text(String(cost(me,i)),x+84,y+158,22,ok?CUR[u.t].c:'#8a7096');ctx.textAlign='center';ctx.save();if(!ok)ctx.globalAlpha*=.55;drawIcon(u.t,x+108,y+155,12);ctx.restore();text('['+(i+1)+']',x+160,y+158,14,'#8a7096')}});
   ctx.fillStyle='#ff9bb3';ctx.beginPath();ctx.roundRect(CX-110,450,220,48,12);ctx.fill();text(me.ready?'Waiting for others':'Continue',CX,481,22,'#2a1235');
   text('Press 1–4 to buy an upgrade, or Space to continue. Let's save our treasury!',CX,545,15,'#d9c3e8','italic');
-  text('Time left '+Math.max(0,Math.ceil(shopLeft))+' sec · ready '+players.filter(p=>p.ready&&!p.gone).length+' из '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
+  text('Time left '+Math.max(0,Math.ceil(shopLeft))+' sec · ready '+players.filter(p=>p.ready&&!p.gone).length+' of '+players.filter(p=>!p.gone).length,CX,578,16,'#d9c3e8');ctx.globalAlpha=1}
 function drawBossGuardBar(e){
   if(!isBoss(e)||!(e.guardMax>0)||!(e.guard>0))return;
   const ratio=Math.max(0,Math.min(1,e.guard/e.guardMax));
@@ -2427,7 +2427,7 @@ function draw(){tintedNow=false;ctx.setTransform(K,0,0,K,0,0);
   if(state==='play'&&chorusT>0){
     text('Chorus! Enemies move 60% faster',hudCenterX,hudTop+51,12,'#ff9bb3','italic');
   }else if(state==='play'&&activeBardCount){
-    text('The bard sings in '+Math.ceil(chorusCd)+' с',hudCenterX,hudTop+51,12,'#d9c3e8','italic');
+    text('The bard sings in '+Math.ceil(chorusCd)+' sec',hudCenterX,hudTop+51,12,'#d9c3e8','italic');
   }
 
   // Правый край viewport: счёт, состояние и индикаторы игроков.
@@ -2522,7 +2522,7 @@ function drawEndScreen(){
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   const endingLine=state==='win'
-    ?'«Are they all gone? Точно все? Драконы, вы спасли мой покой!»'
+    ?'“Are they all gone? Really all of them? Dragons, you have saved my peace and quiet!”'
     :tower<=0
       ?'“That's it… I urgently need a vacation from all these suitors.”'
       :'“The dragons have fallen, and I still need somewhere to hide…”';
@@ -2530,7 +2530,7 @@ function drawEndScreen(){
 
   const summary=state==='win'
     ?'Suitors turned away: '+score
-    :'Reached wave '+wave+' из '+TOTAL+'  ·  Suitors turned away: '+score;
+    :'Reached wave '+wave+' of '+TOTAL+'  ·  Suitors turned away: '+score;
   text(summary,CX,tableY+67,15,'#fbe8d3');
 
   // Колонки распределены от левого до правого края таблицы.
@@ -3046,7 +3046,7 @@ function testRunDiagnostics(){
     'Unmarked knight: '+unmarkedKnight.toFixed(1)+' · mage: '+markedMage.toFixed(1)+' units/sec');
   add('live-scale','The current test lineup uses the same scale as the rendered sprites',
     Math.abs(dragonTransform(me).scale-dragonCrowdScale())<1e-9,
-    players.filter(p=>!p.gone).length+' игроков · '+(dragonCrowdScale()*100).toFixed(1)+'%');
+    players.filter(p=>!p.gone).length+' players · '+(dragonCrowdScale()*100).toFixed(1)+'%');
   add('live-scene-scale','The current scene uses the scale that matches the player count',
     Math.abs(sceneCrowdScale()-sceneCrowdScaleForCount(players.filter(p=>!p.gone).length))<1e-9,
     'Scene '+(sceneCrowdScale()*100).toFixed(1)+'%');
@@ -3126,7 +3126,7 @@ function testRunDiagnostics(){
   const princeGuard20=bossGuardForMaxHp('prince',princeHp20),kingGuard20=bossGuardForMaxHp('king',kingHp20);
   add('boss-guard-party-scaling','The boss barrier scales with boss health at 20 players',
     princeGuard20===Math.round(princeHp20*BOSS_GUARD_RATIO.prince)&&kingGuard20===Math.round(kingHp20*BOSS_GUARD_RATIO.king),
-    '20 игроков · Prince: '+princeGuard20+'/'+princeHp20+' · King: '+kingGuard20+'/'+kingHp20);
+    '20 players · Prince: '+princeGuard20+'/'+princeHp20+' · King: '+kingGuard20+'/'+kingHp20);
   const guardHit=resolveEnemyDamage({k:'prince',sh:0,guard:20},10);
   add('boss-guard-absorbs','While the barrier is active, damage does not reach health',
     guardHit.bossGuard===10&&guardHit.hpDamage===0,
@@ -3134,14 +3134,14 @@ function testRunDiagnostics(){
   const breakHit=resolveEnemyDamage({k:'king',sh:0,guard:5},20);
   add('boss-guard-no-overflow','A hit that breaks the barrier does not carry through to health',
     breakHit.bossGuard===0&&breakHit.hpDamage===0&&breakHit.guardBroken,
-    'Barrier: 5 → 0 · урон здоровью этим ударом: '+breakHit.hpDamage);
+    'Barrier: 5 → 0 · health damage from this hit: '+breakHit.hpDamage);
   const openHit=resolveEnemyDamage({k:'prince',sh:0,guard:0},7);
   add('boss-guard-open','Once the barrier is removed, the boss can take health damage again',
     openHit.hpDamage===7&&openHit.bossGuard===0,'Health damage: '+openHit.hpDamage);
   const layeredHit=resolveEnemyDamage({k:'king',sh:2,guard:10},3);
   add('boss-guard-distinct','The mage's shield and the boss barrier work as separate layers',
     layeredHit.mageShield===0&&layeredHit.bossGuard===9&&layeredHit.hpDamage===0,
-    'Mage shield: 2 → 0 · барьер босса: 10 → 9');
+    'Mage shield: 2 → 0 · boss barrier: 10 → 9');
   return checks;
 }
 function testInfo(){
