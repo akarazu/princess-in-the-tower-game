@@ -447,7 +447,7 @@ const isBoss=e=>e.k==='prince'||e.k==='king';
 function say(t,s=3){quip=t;quipT=s}
 function tag(e,txt){tags.push({x:e.x,y:e.y-34,txt,life:1.3})}
 function boom(x,y,col,n){if(isHost&&evs.length<40)evs.push([Math.round(x),Math.round(y),col,n]);spark(x,y,col,n)}
-function spark(x,y,col,n){if(parts.length>400)return;for(let i=0;i<n;i++){const a=Math.random()*6.283,v=30+Math.random()*100;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.42+Math.random()*.25,col})}}
+function spark(x,y,col,n){for(let i=0;i<n&&parts.length<400;i++){const a=Math.random()*6.283,v=30+Math.random()*100;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.42+Math.random()*.25,col})}}
 
 // ===== Магазин =====
 function buy(p,i){const c=cost(p,i),t=UP[i].t;if(p.w[t]>=c&&!capped(p,i)){p.w[t]-=c;p.lv[i]++;if(i===3){p.sh=shMax(p);p.shT=0}}}
@@ -1429,7 +1429,7 @@ if(chorusT <= 0){
   chorusBardId = null;
 }
 
-  chorusT=Math.max(0,chorusT-dt);
+  // chorusT is decremented once per frame above; keep the boost timer in sync with its visual effect.
   const insp=inspV=chorusT>0?1.6:1;
 
 if(markId>=0){
