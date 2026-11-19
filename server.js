@@ -410,8 +410,6 @@ wss.on('connection', ws => {
           ax: clamp(finiteNumber(data.ax), -4096, 4096),
           ay: clamp(finiteNumber(data.ay), -2048, 2048),
           // Accept booleans (current clients) and 1/0 (older cached clients).
-          // The previous guest client sent numeric flags, which were silently
-          // converted to false here and prevented remote players from firing.
           f: data.f === true || data.f === 1,
           al: data.al === true || data.al === 1
         };
