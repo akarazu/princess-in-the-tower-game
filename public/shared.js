@@ -1,8 +1,8 @@
-// Общие данные для лобби и игры: 22 дракона (греческие буквы) и их цвета.
-// Первые цвета подобраны для максимальной различимости; последние дают запас для комнат до 20 игроков.
-const COLORS = [['Альфа','#ff5a4d'],['Бета','#4db8ff'],['Гамма','#ffd24d'],['Дельта','#a46bff'],
-  ['Эпсилон','#4dff9a'],['Дзета','#ff9a3d'],['Эта','#ff7ac8'],['Тета','#2fd6c0'],
-  ['Йота','#6b6bff'],['Каппа','#b4e34a'],['Лямбда','#d9b98a'],['Мю','#c9c9d6'],
-  ['Ню','#ff4d8d'],['Кси','#d86bff'],['Сигма','#ff8f7a'],['Омега','#4d9bff'],
-  ['Пи','#00c8d7'],['Ро','#e5e5e5'],['Тау','#8c564b'],['Ипсилон','#f000d0'],
-  ['Фи','#a8c686'],['Хи','#355c9a']];
+// Shared data for the lobby and game: 22 dragons (Greek letters) and their colors.
+// The first colors are chosen for maximum contrast; the remaining colors provide options for rooms with up to 20 players.
+const COLORS = [['Alpha','#ff5a4d'],['Beta','#4db8ff'],['Gamma','#ffd24d'],['Delta','#a46bff'],
+  ['Epsilon','#4dff9a'],['Zeta','#ff9a3d'],['Eta','#ff7ac8'],['Theta','#2fd6c0'],
+  ['Iota','#6b6bff'],['Kappa','#b4e34a'],['Lambda','#d9b98a'],['Mu','#c9c9d6'],
+  ['Nu','#ff4d8d'],['Xi','#d86bff'],['Sigma','#ff8f7a'],['Omega','#4d9bff'],
+  ['Pi','#00c8d7'],['Rho','#e5e5e5'],['Tau','#8c564b'],['Upsilon','#f000d0'],
+  ['Phi','#a8c686'],['Chi','#355c9a']];
