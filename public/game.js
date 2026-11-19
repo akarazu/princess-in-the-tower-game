@@ -69,7 +69,7 @@ const A={
   kingDecree:['Стража, ко мне!','Ещё рыцарей!','Выполнять указ!','Гвардия, сюда!'],
   kingDecreeFinal:['Последний указ!','Стройся!','Хватит!','Всё сюда!'],
   kingDisgrace:['Ты — подозреваемый!','Похититель: {name}!','Корона решила: {name}!','Виноват!'],
-  kingNoKnights:['Где гвардия?','Значит, сам.','Куда все делись?'],
+  kingNoKnights:['Where are my guards?','Значит, сам.','Куда все делись?'],
   kingApproach:['Хватит бумаг!','Поговорим лично!','К башне!','Иду сам!']
 };
 
@@ -2251,7 +2251,7 @@ function drawShopWrapped(value,x,centerY,maxWidth,fontSize,color,maxLines=2,line
 
 function drawShop(){
   ctx.globalAlpha=Math.min(1,shopT/.6);ctx.fillStyle='rgba(20,8,35,.9)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';
-  text('Волна '+wave+' отбита',CX,90,40,'#ff9bb3','italic');
+  text('Волна '+wave+' cleared',CX,90,40,'#ff9bb3','italic');
   ctx.textAlign='left';drawIcon(0,CX-120,136,16);text(String(me.w[0]),CX-98,141,28,CUR[0].c);drawIcon(1,CX+30,136,16);text(String(me.w[1]),CX+52,141,28,CUR[1].c);ctx.textAlign='center';
   const rewardScale=multiplayerRewardMultiplierForPlayers(activePlayerCount());
   text(activePlayerCount()>1?'Награды и цены ×'+rewardScale.toFixed(2)+' · округление без потерь':'Награды и цены: стандартные',CX,171,12,'#cbb5dc');
@@ -3049,7 +3049,7 @@ function testRunDiagnostics(){
     players.filter(p=>!p.gone).length+' игроков · '+(dragonCrowdScale()*100).toFixed(1)+'%');
   add('live-scene-scale','Текущая сцена использует масштаб, соответствующий составу игроков',
     Math.abs(sceneCrowdScale()-sceneCrowdScaleForCount(players.filter(p=>!p.gone).length))<1e-9,
-    'Сцена '+(sceneCrowdScale()*100).toFixed(1)+'%');
+    'Scene '+(sceneCrowdScale()*100).toFixed(1)+'%');
 
   const baseBounds=playerMovementBoundsForScale(1,1);
   add('player-edge-base','При исходном масштабе сохранены прежние границы движения',
@@ -3113,31 +3113,31 @@ function testRunDiagnostics(){
   const princeReward=BOSS_REWARDS.prince,kingReward=BOSS_REWARDS.king;
   add('boss-party-rewards','Награда босса рассчитана на каждого участника команды',
     princeReward[0]===10&&princeReward[1]===4&&kingReward[0]===20&&kingReward[1]===8,
-    'Принц: '+princeReward.join('/')+' · Король: '+kingReward.join('/')+' (золото/свитки)');
+    'Prince: '+princeReward.join('/')+' · King: '+kingReward.join('/')+' (gold/scrolls)');
   const princeGuard=bossGuardForMaxHp('prince',T.prince.hp),kingGuard=bossGuardForMaxHp('king',T.king.hp);
   add('boss-guard-values','У принца и короля есть отдельная шкала защиты',
     princeGuard===11&&kingGuard===36,
-    'Принц: '+princeGuard+' · Король: '+kingGuard+' ед. (15% / 18% HP)');
+    'Prince: '+princeGuard+' · King: '+kingGuard+' ед. (15% / 18% HP)');
   const guardLayout=bossGuardBarLayout({k:'king',x:500,y:300,t:T.king});
   add('boss-guard-layout','Фиолетовая шкала находится над полосой здоровья и не сливается с ней',
     guardLayout.y+guardLayout.height<guardLayout.hpBarY&&guardLayout.width>=80&&guardLayout.height>=10,
-    'Шкала '+guardLayout.width+'×'+guardLayout.height+' px · зазор до HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
+    'Bar '+guardLayout.width+'×'+guardLayout.height+' px · зазор до HP '+(guardLayout.hpBarY-(guardLayout.y+guardLayout.height))+' px');
   const princeHp20=T.prince.hp*20,kingHp20=T.king.hp*20;
   const princeGuard20=bossGuardForMaxHp('prince',princeHp20),kingGuard20=bossGuardForMaxHp('king',kingHp20);
   add('boss-guard-party-scaling','Барьер босса масштабируется вместе с его здоровьем при 20 игроках',
     princeGuard20===Math.round(princeHp20*BOSS_GUARD_RATIO.prince)&&kingGuard20===Math.round(kingHp20*BOSS_GUARD_RATIO.king),
-    '20 игроков · Принц: '+princeGuard20+'/'+princeHp20+' · Король: '+kingGuard20+'/'+kingHp20);
+    '20 игроков · Принц: '+princeGuard20+'/'+princeHp20+' · King: '+kingGuard20+'/'+kingHp20);
   const guardHit=resolveEnemyDamage({k:'prince',sh:0,guard:20},10);
   add('boss-guard-absorbs','Пока барьер активен, урон не проходит в здоровье',
     guardHit.bossGuard===10&&guardHit.hpDamage===0,
-    'Барьер: 20 → '+guardHit.bossGuard+' · урон здоровью: '+guardHit.hpDamage);
+    'Барьер: 20 → '+guardHit.bossGuard+' · health damage: '+guardHit.hpDamage);
   const breakHit=resolveEnemyDamage({k:'king',sh:0,guard:5},20);
   add('boss-guard-no-overflow','Удар, разрушающий барьер, не пробивает здоровье насквозь',
     breakHit.bossGuard===0&&breakHit.hpDamage===0&&breakHit.guardBroken,
     'Барьер: 5 → 0 · урон здоровью этим ударом: '+breakHit.hpDamage);
   const openHit=resolveEnemyDamage({k:'prince',sh:0,guard:0},7);
   add('boss-guard-open','После снятия барьера здоровье босса снова получает урон',
-    openHit.hpDamage===7&&openHit.bossGuard===0,'Урон здоровью: '+openHit.hpDamage);
+    openHit.hpDamage===7&&openHit.bossGuard===0,'Health damage: '+openHit.hpDamage);
   const layeredHit=resolveEnemyDamage({k:'king',sh:2,guard:10},3);
   add('boss-guard-distinct','Защита мага и барьер босса работают как отдельные слои',
     layeredHit.mageShield===0&&layeredHit.bossGuard===9&&layeredHit.hpDamage===0,
@@ -3158,7 +3158,7 @@ function startTest(){
   resizeCanvas();addEventListener('resize',resizeCanvas);
   TEST_MODE=true;testInvulnerable=true;ws=null;isHost=true;active=true;
   players=[makePlayer(0,0)];
-  me=players[0];me.name='Тестовый дракон';me.nid='test';
+  me=players[0];me.name='Test Dragon';me.nid='test';
   me.x=CX;me.y=CY+145;me.in.ax=CX;me.in.ay=CY-100;
   towerMax=100;
   testSetUpgrades(true);
