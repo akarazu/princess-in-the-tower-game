@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Башня принцессы — тестовый режим</title>
+<title>Princess in the Tower — Test Mode</title>
 <style>
 :root{color-scheme:dark;--bg:#1b1030;--ink:#fbe8d3;--dim:#c9b6d4;--rose:#ff9bb3;--card:#2a1740}
 *{box-sizing:border-box}
@@ -40,85 +40,85 @@ canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
 <canvas id="c" width="1138" height="640"></canvas>
 <aside id="test-panel">
   <details open>
-    <summary>Тестовый режим</summary>
+    <summary>Test Mode</summary>
     <div class="row">
-      <label for="test-wave" style="margin:0">Волна</label>
+      <label for="test-wave" style="margin:0">Wave</label>
       <select id="test-wave">
-        <option value="1">1 · Рыцари</option><option value="2">2 · Рыцари</option>
-        <option value="3">3 · Барды</option><option value="4">4 · Барды</option>
-        <option value="5">5 · Принц</option><option value="6">6 · Маги</option>
-        <option value="7">7 · Маги</option><option value="8">8 · Купцы</option>
-        <option value="9">9 · Купцы</option><option value="10">10 · Король</option>
+        <option value="1">1 · Knights</option><option value="2">2 · Knights</option>
+        <option value="3">3 · Bards</option><option value="4">4 · Bards</option>
+        <option value="5">5 · Prince</option><option value="6">6 · Mages</option>
+        <option value="7">7 · Mages</option><option value="8">8 · Merchants</option>
+        <option value="9">9 · Merchants</option><option value="10">10 · King</option>
       </select>
-      <button id="run-wave">Старт</button>
+      <button id="run-wave">Start</button>
     </div>
-    <small>Появление отдельного противника</small>
+    <small>Spawn an individual enemy</small>
     <div class="grid">
-      <button class="secondary" data-spawn="knight">Рыцарь</button>
-      <button class="secondary" data-spawn="bard">Бард</button>
-      <button class="secondary" data-spawn="mage">Маг</button>
-      <button class="secondary" data-spawn="merchant">Купец</button>
-      <button class="secondary" data-spawn="prince">Принц + барьер</button>
-      <button class="secondary" data-spawn="king">Король + барьер</button>
+      <button class="secondary" data-spawn="knight">Knight</button>
+      <button class="secondary" data-spawn="bard">Bard</button>
+      <button class="secondary" data-spawn="mage">Mage</button>
+      <button class="secondary" data-spawn="merchant">Merchant</button>
+      <button class="secondary" data-spawn="prince">Prince + Barrier</button>
+      <button class="secondary" data-spawn="king">King + Barrier</button>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
-      <b style="font-size:12px">Экономика мультиплеера</b>
-      <small>Число врагов растёт мягче размера команды. Награды масштабируются с точным накоплением дробного остатка: каждый подобранный дроп остаётся целым, а суммарная валюта не теряется из-за округления. Цены улучшений сохранены как в одиночной игре; награда босса выдаётся каждому участнику.</small>
-      <div id="economy-info" style="color:#f6dcaa;font-size:11px;margin-top:6px">Загрузка расчёта экономики…</div>
+      <b style="font-size:12px">Multiplayer Economy</b>
+      <small>Enemy count scales more gently than team size. Rewards use carried fractional remainders: each collected drop remains a whole number, and currency is not lost through rounding. Upgrade prices stay the same as in solo mode; every team member receives the boss reward.</small>
+      <div id="economy-info" style="color:#f6dcaa;font-size:11px;margin-top:6px">Loading economy calculation…</div>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
-      <b style="font-size:12px">Проверка защиты босса</b>
-      <small>У босса отдельная увеличенная фиолетовая шкала «БАРЬЕР» над головой (принц: 15% HP, король: 18% HP). Стреляй по нему: сначала должна уменьшаться эта шкала, а здоровье — только после её полного снятия. Голубой круг мага остаётся отдельной защитой.</small>
-      <div id="boss-guard-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">Босс не появился. Выбери принца или короля выше.</div>
+      <b style="font-size:12px">Boss Barrier Check</b>
+      <small>The boss has a separate, enlarged purple “BARRIER” bar above its head (Prince: 15% HP, King: 18% HP). Shoot the boss: this bar should decrease first, and health should only drop after the barrier is fully removed. The mage's blue shield remains a separate layer of protection.</small>
+      <div id="boss-guard-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">No boss has spawned. Select the Prince or King above.</div>
     </div>
     <div class="row">
-      <button id="clear-field" class="secondary">Очистить поле</button>
-      <button id="repair" class="secondary">Восстановить</button>
+      <button id="clear-field" class="secondary">Clear field</button>
+      <button id="repair" class="secondary">Restore</button>
     </div>
-    <label><input type="checkbox" id="invulnerable" checked> Неуязвимость и защита башни</label>
-    <label><input type="checkbox" id="max-upgrades" checked> Максимальные улучшения</label>
+    <label><input type="checkbox" id="invulnerable" checked> Invulnerability and tower protection</label>
+    <label><input type="checkbox" id="max-upgrades" checked> Max upgrades</label>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
-      <b style="font-size:12px">Проверка масштаба толпы</b>
+      <b style="font-size:12px">Crowd Scaling Check</b>
       <div class="row">
-        <label for="test-player-count" style="margin:0;white-space:nowrap">Драконов</label>
+        <label for="test-player-count" style="margin:0;white-space:nowrap">Dragons</label>
         <input id="test-player-count" type="range" min="1" max="20" step="1" value="1">
         <strong id="test-player-count-value">1</strong>
       </div>
-      <button id="apply-player-count" class="secondary">Показать состав</button>
-      <small>Проверяет стартовую расстановку и границы движения: при росте команды драконы становятся меньше, камера отдаляется, формация расширяется, а доступная область полёта увеличивается вместе с видимой сценой. Хитбоксы и боевые параметры не меняются.</small>
-      <div id="movement-bounds-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">Границы движения рассчитываются…</div>
+      <button id="apply-player-count" class="secondary">Show lineup</button>
+      <small>Checks starting positions and movement boundaries: as the team grows, dragons become smaller, the camera zooms out, the formation spreads out, and the available flight area expands with the visible scene. Hitboxes and combat stats do not change.</small>
+      <div id="movement-bounds-info" style="color:#d9c3e8;font-size:11px;margin-top:6px">Calculating movement boundaries…</div>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
-      <b style="font-size:12px">Нагрузка хоста</b>
+      <b style="font-size:12px">Host Load</b>
       <div class="grid">
-        <button id="start-host-load-test">Запустить тест · 30 сек.</button>
-        <button id="stop-host-load-test" class="secondary">Остановить</button>
+        <button id="start-host-load-test">Run test · 30 sec.</button>
+        <button id="stop-host-load-test" class="secondary">Stop</button>
       </div>
-      <small>Тестовые драконы двигаются и стреляют с максимальными улучшениями. Измеряются игровой цикл, отрисовка и JSON-сериализация снимка хоста; реальные сетевые задержки не моделируются.</small>
+      <small>Test dragons move and fire with max upgrades. The game loop, rendering, and host snapshot JSON serialization are measured; real network latency is not simulated.</small>
       <div id="perf-box">
         <div class="perf-grid">
-          <div class="metric"><small>Средний FPS</small><strong id="perf-fps">—</strong></div>
-          <div class="metric"><small>Кадр p95</small><strong id="perf-frame">—</strong></div>
-          <div class="metric"><small>Обновление p95</small><strong id="perf-update">—</strong></div>
-          <div class="metric"><small>Отрисовка p95</small><strong id="perf-draw">—</strong></div>
+          <div class="metric"><small>Average FPS</small><strong id="perf-fps">—</strong></div>
+          <div class="metric"><small>Frame p95</small><strong id="perf-frame">—</strong></div>
+          <div class="metric"><small>Update p95</small><strong id="perf-update">—</strong></div>
+          <div class="metric"><small>Render p95</small><strong id="perf-draw">—</strong></div>
         </div>
-        <div id="perf-grade">Ожидание нагрузочного теста</div>
-        <small>p95 — время, в которое укладываются 95% измеренных кадров. Для 60 FPS ориентир кадра — около 16,7 мс.</small>
-        <small id="perf-objects">Объекты: —</small>
-        <small id="perf-snapshot">Размер снимка: —</small>
-        <small id="perf-run-status">Запусти тест на 30 секунд.</small>
+        <div id="perf-grade">Waiting for stress test</div>
+        <small>p95 is the frame time within which 95% of measured frames fall. At 60 FPS, the target frame time is about 16.7 ms.</small>
+        <small id="perf-objects">Objects: —</small>
+        <small id="perf-snapshot">Snapshot size: —</small>
+        <small id="perf-run-status">Run the test for 30 seconds.</small>
       </div>
     </div>
     <div class="card" style="padding:8px;margin:8px 0;background:#ffffff0a">
-      <b style="font-size:12px">Проверка королевской опалы</b>
-      <div class="row"><button id="test-edict" class="secondary">Запустить погоню рыцарей</button></div>
-      <small>Отмечает основного дракона и выпускает пять рыцарей. Сравни скорость погони с обычной.</small>
+      <b style="font-size:12px">Royal Disgrace Check</b>
+      <div class="row"><button id="test-edict" class="secondary">Start knight chase</button></div>
+      <small>Marks the main dragon and spawns five knights. Compare their chase speed with their normal speed.</small>
     </div>
-    <div class="row"><button id="run-diagnostics">Проверить параметры</button></div>
+    <div class="row"><button id="run-diagnostics">Run diagnostics</button></div>
     <ul id="test-results" aria-live="polite"></ul>
-    <div id="test-info">Подготовка теста…</div>
-    <p>Движение: WASD / стрелки. Мышь — прицел и стрельба. Правая кнопка — особая атака.</p>
-    <div class="row"><button id="exit" class="secondary">Выйти из теста</button></div>
+    <div id="test-info">Preparing test…</div>
+    <p>Movement: WASD / arrow keys. Mouse to aim and fire. Right-click for the special attack.</p>
+    <div class="row"><button id="exit" class="secondary">Exit test</button></div>
   </details>
 </aside>
 <script src="shared.js"></script>
@@ -143,20 +143,20 @@ $('#test-player-count').addEventListener('input',e=>{
 $('#apply-player-count').addEventListener('click',()=>{
   const result=Game.testSetPlayerCount($('#test-player-count').value);
   const layout=result.spawnLayout||{radiusX:0,radiusY:0};
-  logTest('Состав: '+result.players+' dragons · персонажи '+(result.scale*100).toFixed(1)+'% · сцена '+(result.sceneScale*100).toFixed(1)+'% · расстановка '+layout.radiusX.toFixed(0)+' × '+layout.radiusY.toFixed(0)+' px');
+  logTest('Lineup: '+result.players+' dragons · characters '+(result.scale*100).toFixed(1)+'% · scene '+(result.sceneScale*100).toFixed(1)+'% · formation '+layout.radiusX.toFixed(0)+' × '+layout.radiusY.toFixed(0)+' px');
   runDiagnostics();
 });
 $('#start-host-load-test').addEventListener('click',()=>{
   const result=Game.testStartHostLoadTest($('#test-player-count').value,30);
-  logTest(result.started?'Нагрузочный тест запущен: '+result.players+' dragons · '+result.duration+' sec.':'Не удалось запустить тест');
+  logTest(result.started?'Stress test started: '+result.players+' dragons · '+result.duration+' sec.':'Could not start the test');
 });
 $('#stop-host-load-test').addEventListener('click',()=>{
   const result=Game.testStopHostLoadTest();
-  logTest(result.stopped?'Нагрузочный тест остановлен.':'Тестовый режим не активен');
+  logTest(result.stopped?'Stress test stopped.':'Тестовый режим не активен');
 });
 $('#test-edict').addEventListener('click',()=>{
   const result=Game.testStartEdict();
-  logTest(result.active?'Опала активна · рыцарей: '+result.knights+' · длительность: '+result.duration+' sec':'Не удалось запустить опалу');
+  logTest(result.active?'Royal disgrace active · knights: '+result.knights+' · duration: '+result.duration+' sec':'Could not start royal disgrace');
 });
 $('#run-diagnostics').addEventListener('click',runDiagnostics);
 
@@ -178,7 +178,7 @@ function runDiagnostics(){
     list.append(li);
   }
   const passed=checks.filter(c=>c.pass).length;
-  logTest('Проверки: '+passed+'/'+checks.length+' пройдено · игроков: '+Game.testInfo().players+' · масштаб: '+(Game.testInfo().dragonScale*100).toFixed(1)+'%');
+  logTest('Checks: '+passed+'/'+checks.length+' passed · players: '+Game.testInfo().players+' · scale: '+(Game.testInfo().dragonScale*100).toFixed(1)+'%');
 }
 
 function refreshTestInfo(){
@@ -186,30 +186,30 @@ function refreshTestInfo(){
   const status=info.edict?' · royal disgrace active':' · no royal disgrace';
   const layout=info.spawnLayout||{radiusX:0,radiusY:0};
   const movement=info.movementBounds||{minX:0,maxX:0,minY:0,maxY:0};
-  $('#movement-bounds-info').textContent='Границы полёта: X '+movement.minX.toFixed(0)+'…'+movement.maxX.toFixed(0)+' · Y '+movement.minY.toFixed(0)+'…'+movement.maxY.toFixed(0)+' мировых px';
-  $('#test-info').textContent='Волна: '+info.wave+' · Врагов: '+info.enemies+' · В очереди: '+info.queue+' · Драконов: '+info.players+' · персонажи '+(info.dragonScale*100).toFixed(1)+'% · сцена '+(info.sceneScale*100).toFixed(1)+'% · расстановка '+layout.radiusX.toFixed(0)+' × '+layout.radiusY.toFixed(0)+' px · Рыцарей: '+info.knights+' · преследуют: '+info.chasingKnights+status;
+  $('#movement-bounds-info').textContent='Flight bounds: X '+movement.minX.toFixed(0)+'…'+movement.maxX.toFixed(0)+' · Y '+movement.minY.toFixed(0)+'…'+movement.maxY.toFixed(0)+' world px';
+  $('#test-info').textContent='Wave: '+info.wave+' · Enemies: '+info.enemies+' · In queue: '+info.queue+' · Dragons: '+info.players+' · characters '+(info.dragonScale*100).toFixed(1)+'% · scene '+(info.sceneScale*100).toFixed(1)+'% · formation '+layout.radiusX.toFixed(0)+' × '+layout.radiusY.toFixed(0)+' px · Knights: '+info.knights+' · chasing: '+info.chasingKnights+status;
   const economyInfo=$('#economy-info');
   if(info.economy){
     const economy=info.economy;
-    economyInfo.textContent='Команда '+info.players+' · врагов на волну ×'+economy.populationFactor.toFixed(2)+' · множитель дропа ×'+economy.rewardMultiplier.toFixed(2)+' · базовый дроп 1 → '+economy.one+', 2 → '+economy.two+' · цены без изменений';
+    economyInfo.textContent='Team '+info.players+' · enemies per wave ×'+economy.populationFactor.toFixed(2)+' · drop multiplier ×'+economy.rewardMultiplier.toFixed(2)+' · base drop 1 → '+economy.one+', 2 → '+economy.two+' · prices unchanged';
   }
   const bossInfo=$('#boss-guard-info');
   if(info.bossGuard){
     const guard=info.bossGuard;
-    bossInfo.textContent=(guard.kind==='prince'?'Принц':'Король')+' · барьер: '+Math.ceil(guard.guard)+' / '+Math.ceil(guard.guardMax)+' · здоровье: '+Math.ceil(guard.hp)+' / '+Math.ceil(guard.max);
-  }else bossInfo.textContent='Босс не появился. Выбери принца или короля выше.';
+    bossInfo.textContent=(guard.kind==='prince'?'Prince':'King')+' · barrier: '+Math.ceil(guard.guard)+' / '+Math.ceil(guard.guardMax)+' · health: '+Math.ceil(guard.hp)+' / '+Math.ceil(guard.max);
+  }else bossInfo.textContent='No boss has spawned. Select the Prince or King above.';
   const perf=Game.testPerfInfo();
   $('#perf-fps').textContent=perf.fps?perf.fps.toFixed(1):'—';
-  $('#perf-frame').textContent=perf.frameP95Ms?perf.frameP95Ms.toFixed(1)+' мс':'—';
-  $('#perf-update').textContent=perf.updateP95Ms?perf.updateP95Ms.toFixed(1)+' мс':'—';
-  $('#perf-draw').textContent=perf.drawP95Ms?perf.drawP95Ms.toFixed(1)+' мс':'—';
+  $('#perf-frame').textContent=perf.frameP95Ms?perf.frameP95Ms.toFixed(1)+' ms':'—';
+  $('#perf-update').textContent=perf.updateP95Ms?perf.updateP95Ms.toFixed(1)+' ms':'—';
+  $('#perf-draw').textContent=perf.drawP95Ms?perf.drawP95Ms.toFixed(1)+' ms':'—';
   const grade=$('#perf-grade');grade.className=perf.grade;grade.textContent=perf.status;
   $('#perf-objects').textContent='Dragons: '+perf.dragons+' · enemies: '+perf.enemies+' · projectiles: '+perf.projectiles+' · particles: '+perf.particles+' · total objects: '+perf.renderObjects;
   $('#perf-snapshot').textContent='Host snapshot: '+(perf.snapshotKB?perf.snapshotKB.toFixed(1)+' KB':'—')+' · JSON serialization enabled';
   if(perf.durationSeconds){
     const state=perf.done?'completed':perf.running?'running':'ready';
-    $('#perf-run-status').textContent='Test '+state+' · '+perf.elapsedSeconds.toFixed(1)+' / '+perf.durationSeconds.toFixed(0)+' сек. · кадров: '+perf.samples;
-  }else $('#perf-run-status').textContent='Запусти тест на 30 секунд.';
+    $('#perf-run-status').textContent='Test '+state+' · '+perf.elapsedSeconds.toFixed(1)+' / '+perf.durationSeconds.toFixed(0)+' sec. · кадров: '+perf.samples;
+  }else $('#perf-run-status').textContent='Run the test for 30 seconds.';
   setTimeout(refreshTestInfo,500);
 }
 runDiagnostics();
