@@ -96,7 +96,7 @@ function showPlayers(){$('#plist').textContent='In room: '+players.map(p=>p.name
 function onMsg(m){
   const now=performance.now();
   if(m.t==='echo'){rttS.push(now-m.ts);if(rttS.length>30)rttS.shift();const s=stat(rttS);
-    mark('rtt',color(s.avg,80,200),'average '+Math.round(s.avg)+' ms, from '+Math.round(s.min)+' to '+Math.round(s.max)+' мс')}
+    mark('rtt',color(s.avg,80,200),'average '+Math.round(s.avg)+' ms, from '+Math.round(s.min)+' to '+Math.round(s.max)+' ms')}
   else if(m.t==='joined'){me=m;players=m.players;mark('room','ok','room '+m.room+', you are '+(m.host?'host':'player'));showPlayers()}
   else if(m.t==='players'){players=m.players;showPlayers()}
   else if(m.t==='host_left'){me=null;mark('room','bad','the host left; the room is closed');showPlayers()}
@@ -104,7 +104,7 @@ function onMsg(m){
   else if(m.t==='msg'){const d=m.data;
     if(d.k==='ping')reply(m.from,{k:'pong',ts:d.ts});
     else if(d.k==='pong'){rttR.push(now-d.ts);if(rttR.length>30)rttR.shift();const s=stat(rttR);
-      mark('rel',color(s.avg,120,300),'average '+Math.round(s.avg)+' ms, from '+Math.round(s.min)+' to '+Math.round(s.max)+' мс')}
+      mark('rel',color(s.avg,120,300),'average '+Math.round(s.avg)+' ms, from '+Math.round(s.min)+' to '+Math.round(s.max)+' ms')}
     else if(d.k==='load')reply(m.from,{k:'ack',ts:d.ts});
     else if(d.k==='ack'&&load)load.rtts.push(now-d.ts)}
 }
