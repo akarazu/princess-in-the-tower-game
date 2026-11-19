@@ -2095,7 +2095,7 @@ function stepParts(dt){for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=d
 
 function guestFrame(dt,now){
   const k=keys,mx=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my=(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0);
-  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:mouse.down?1:0,al:mouse.alt?1:0})}
+  if(now-lastIn>40){lastIn=now;net({k:'in',mx,my,ax:r1(mouse.x),ay:r1(mouse.y),f:!!mouse.down,al:!!mouse.alt})}
   stepParts(dt);
   if(state==='shop')shopT+=dt;else shopT=0;
   const L=snaps.length;if(!L)return;
