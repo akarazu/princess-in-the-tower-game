@@ -7,7 +7,7 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=1138,H=640,CX=W/
 const TOTAL=10,TOWER_R=70,MOUTH_X=42,MOUTH_Y=8,SX=(W-808)/2,FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const T={knight:{e:'🤵',hp:3,sp:42,dmg:6,r:24,sz:38},bard:{e:'🎻',hp:2,sp:88,dmg:4,r:20,sz:32,rng:260,rate:3},prince:{e:'🤴',hp:70,sp:28,dmg:30,r:38,sz:70,boss:true},king:{e:'👑',hp:200,sp:22,dmg:45,r:44,sz:84,boss:true},mage:{e:'🧙',hp:3,sp:70,dmg:3,r:20,sz:36,rng:270,rate:2,kind:'heal'},merchant:{e:'🤑',hp:4,sp:60,dmg:0,r:20,sz:34,rng:280,rate:3.4,kind:'bag'}};
 const BOSS={5:'prince',10:'king'},BOSS_GUARD_RATIO={prince:.15,king:.18},BOSS_REWARDS={prince:[10,4],king:[20,8]},BN={
-  3:'«Тише! У меня тут серенада!»',
+  3:'Волна 3: Бард с серенадами!',
   5:'«Принц снова с кольцом?!»',
   6:'«Маг, не лечи им всех!»',
   8:'«Купец! Что в мешке?»',
