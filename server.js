@@ -253,9 +253,17 @@ wss.on('connection', ws => {
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('error', () => {});
-  ws.on('close', () => {
+  ws.on('close', (code, reason) => {
     // A replaced socket belongs to an older connection; it must not disconnect the resumed session.
     if (client.ws !== ws || !client.room || client.disconnected) return;
+
+    // The browser sends this explicit close when the page is reloaded or left.
+    // A real network interruption still uses the reconnect grace period.
+    if (code === 1000 && reason.toString() === 'page unload') {
+      leave(client);
+      return;
+    }
+
     client.disconnected = true;
     client.reconnectTimer = setTimeout(() => leave(client), RECONNECT_GRACE_MS);
     const room = rooms.get(client.room);
