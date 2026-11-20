@@ -474,7 +474,7 @@ wss.on('connection', ws => {
   });
 });
 
-// Heartbeat detects half-open connections without adding frequent application traffic.
+// Check frequently so other players learn about a dropped connection quickly.
 const heartbeat = setInterval(() => {
   wss.clients.forEach(ws => {
     if (!ws.isAlive) {
@@ -484,7 +484,7 @@ const heartbeat = setInterval(() => {
     ws.isAlive = false;
     ws.ping();
   });
-}, 25000);
+}, 5000);
 
 server.on('close', () => clearInterval(heartbeat));
 
