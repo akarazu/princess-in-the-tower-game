@@ -2835,7 +2835,7 @@ function loop(t){
   draw();
   const drawEnd=measuring?performance.now():0;
   if(measuring)recordTestPerformance(t,measuredFrameMs,updateEnd-updateStart,drawEnd-updateEnd,drawEnd-loopStart);
-  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Connection to the server lost. Refresh the page.',CX,CY,26,'#ff9bb3','italic')}
+  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Connection lost. Reconnecting…',CX,CY,26,'#ff9bb3','italic')}
   requestAnimationFrame(loop);
 }
 
