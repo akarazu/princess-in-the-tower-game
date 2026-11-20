@@ -17,6 +17,7 @@ const SPARE = 2;
 const MIN_DRAGONS = 4;
 const MAX_CONNECTIONS = 60; // запас для 2 одновременных комнат и повторных подключений
 const MAX_PENDING_BYTES = 1024 * 1024;
+const RECONNECT_GRACE_MS = 90 * 1000;
 const MAX_PAYLOAD = 64 * 1024;
 
 const TYPES = {
@@ -139,7 +140,8 @@ const list = room => [...room.clients.values()].map(client => ({
   host: client.id === room.host,
   color: client.color,
   ready: client.ready,
-  hover: client.hover
+  hover: client.hover,
+  online: !client.disconnected
 }));
 const state = room => ({ t: 'players', players: list(room), phase: room.phase, k: room.k });
 
@@ -162,6 +164,8 @@ function leave(client) {
   const room = rooms.get(client.room);
   if (!room) return;
 
+  if (client.reconnectTimer) clearTimeout(client.reconnectTimer);
+  client.reconnectTimer = null;
   room.clients.delete(client.id);
   if (client.id === room.host) {
     toAll(room, { t: 'host_left' });
@@ -232,7 +236,7 @@ wss.on('connection', ws => {
     return;
   }
 
-  const client = {
+  let client = {
     ws,
     id: null,
     room: null,
@@ -240,13 +244,23 @@ wss.on('connection', ws => {
     color: -1,
     ready: false,
     hover: -1,
+    reconnectToken: '',
+    disconnected: false,
+    reconnectTimer: null,
     rates: new Map()
   };
 
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('error', () => {});
-  ws.on('close', () => leave(client));
+  ws.on('close', () => {
+    // A replaced socket belongs to an older connection; it must not disconnect the resumed session.
+    if (client.ws !== ws || !client.room || client.disconnected) return;
+    client.disconnected = true;
+    client.reconnectTimer = setTimeout(() => leave(client), RECONNECT_GRACE_MS);
+    const room = rooms.get(client.room);
+    if (room) toAll(room, state(room));
+  });
 
   ws.on('message', raw => {
     let message;
@@ -256,6 +270,31 @@ wss.on('connection', ws => {
       return;
     }
     if (!message || typeof message !== 'object' || Array.isArray(message)) return;
+
+    if (message.t === 'reconnect') {
+      if (!allowRate(client, 'reconnect', 5)) return;
+      const code = String(message.room || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      const token = String(message.token || '');
+      const room = rooms.get(code);
+      const existing = room && [...room.clients.values()].find(item => item.reconnectToken && item.reconnectToken === token);
+      if (!existing) return send(client, { t: 'error', msg: 'Your session can no longer be resumed. Please join the room again.' });
+
+      if (existing.reconnectTimer) clearTimeout(existing.reconnectTimer);
+      existing.reconnectTimer = null;
+      if (existing.ws && existing.ws !== ws && existing.ws.readyState < 2) existing.ws.close(4001, 'Session resumed on another connection');
+      client = existing;
+      client.ws = ws;
+      client.disconnected = false;
+      ws.isAlive = true;
+      send(client, {
+        t: 'joined', reconnected: true, id: client.id,
+        host: client.id === room.host, room: code,
+        players: list(room), phase: room.phase, k: room.k
+      });
+      toAll(room, state(room), client);
+      return;
+    }
+
     if (!allowRate(client, 'all', 80)) return;
 
     if (message.t === 'echo') {
@@ -295,6 +334,8 @@ wss.on('connection', ws => {
       client.color = -1;
       client.hover = -1;
       client.ready = false;
+      client.disconnected = false;
+      client.reconnectToken = String(message.token || '').slice(0, 100);
       client.id = String(++room.n);
       client.room = code;
       client.name = String(message.name || 'Player ' + client.id).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 20) || 'Player ' + client.id;

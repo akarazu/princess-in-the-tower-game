@@ -678,7 +678,7 @@ const cost=(p,i)=>Math.ceil((UP[i].b+p.lv[i]*UP[i].s)*multiplayerRewardMultiplie
 const capped=(p,i)=>p.lv[i]>=[5,5,3,3][i];
 const descOf=(p,i)=>[['Two fireballs per shot','Fire damage +1','Three fireballs per shot','Fire damage +1','Right-click blast (every 5 sec)'][p.lv[0]],'Fire rate +15%','Flight speed +20%',['Shield absorbs 1 hit (10 sec)','Faster shield recharge: 7 sec','2 charges, 6 sec'][p.lv[3]]][i]||UP[i].d;
 function makePlayer(id,ci){
-  return{id,ci,name:'',nid:'',gone:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,viewW:cvW,viewH:cvH,
+  return{id,ci,name:'',nid:'',gone:false,disconnected:false,dead:false,acd:0,tilt:0,ph:0,x:CX,y:CY-105,h:3,inv:0,asleep:false,wt:0,rv:0,cd:0,frz:0,sh:0,shT:0,coinGlow:0,ready:false,viewW:cvW,viewH:cvH,
     w:[0,0],lv:[0,0,0,0],kills:0,earned:0,slept:0,
     in:{mx:0,my:0,ax:CX,ay:0,fire:false}}
 }
@@ -2519,7 +2519,7 @@ function drawEndScreen(){
   ctx.fillRect(-ox,-oy,cvW,cvH);
 
   const rows=players
-    .filter(p=>!p.gone)
+    .filter(p=>!p.gone||p.disconnected)
     .slice()
     .sort((a,b)=>b.kills-a.kills);
 
@@ -2633,7 +2633,7 @@ function clampP(p){clampPlayerToMovementBounds(p)}
 function sendSnap(now){
   if(now-lastSnap<SNAP_MS)return;lastSnap=now;
   net({k:'snap',st:state,ph:phase,w:wave,tw:r10(tower),sc:score,q:[quip,Math.max(0,quipT)],cT:chorusT,cC:chorusCd,cb:chorusBardId,iv:inspV,sl:Math.max(0,shopLeft),sk:r1(shake),
-    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0)|((p.in&&(p.in.fire||p.in.alt))?64:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
+    P:players.map(p=>[r1(p.x),r1(p.y),p.h,p.sh,(p.asleep?1:0)|(p.gone?2:0)|(p.ready?4:0)|(p.face<0?8:0)|(p.mark?16:0)|(p.dead?32:0)|((p.in&&(p.in.fire||p.in.alt))?64:0)|(p.disconnected?128:0),r10(p.inv),r10(p.frz),r10(p.wt),r10(p.rv),p.kills,p.w[0],p.w[1],p.lv[0],p.lv[1],p.lv[2],p.lv[3],Math.round(p.tilt*100),r10(p.coinGlow||0)]),
    E:enemies.map(e=>[
   e.id,KINDS.indexOf(e.k),
   r1(e.x),r1(e.y),r10(e.hp),r1(e.max),
@@ -2681,7 +2681,7 @@ chorusBardId=b.cb??null;
 inspV=b.iv;shopLeft=b.sl;
   if(b.sk>shake)shake=b.sk;shake=Math.max(0,shake-40*dt);
   b.P.forEach((q,i)=>{const p=players[i],pa=a.P[i]||q,pn=nx.P[i]||q;
-    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);p.in=p.in||{};p.in.fire=!!(q[4]&64);p.in.alt=false;if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];p.coinGlow=p.in.fire?0:(q[17]||0);
+    p.h=q[2];p.sh=q[3];p.asleep=!!(q[4]&1);p.gone=!!(q[4]&2);p.ready=!!(q[4]&4);p.mark=!!(q[4]&16);p.dead=!!(q[4]&32);p.disconnected=!!(q[4]&128);p.in=p.in||{};p.in.fire=!!(q[4]&64);p.in.alt=false;if(p!==me){p.face=(q[4]&8)?-1:1;p.tilt=q[16]/100}p.inv=q[5];p.frz=q[6];p.wt=q[7];p.rv=q[8];p.kills=q[9];p.coinGlow=p.in.fire?0:(q[17]||0);
     p.w=[q[10],q[11]];p.lv=[q[12],q[13],q[14],q[15]];
     if(p!==me){p.x=lp(pa[0],pn[0]);p.y=lp(pa[1],pn[1])}});
   if(!me.asleep&&me.frz<=0){const l=Math.hypot(mx,my);if(l){const s=230*(1+.2*me.lv[2]);me.x+=mx/l*s*dt;me.y+=my/l*s*dt}}
@@ -2835,7 +2835,7 @@ function loop(t){
   draw();
   const drawEnd=measuring?performance.now():0;
   if(measuring)recordTestPerformance(t,measuredFrameMs,updateEnd-updateStart,drawEnd-updateEnd,drawEnd-loopStart);
-  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Connection to the server lost. Refresh the page.',CX,CY,26,'#ff9bb3','italic')}
+  if(ws&&ws.readyState>1){ctx.fillStyle='rgba(20,8,35,.8)';ctx.fillRect(-ox,-oy,cvW,cvH);ctx.textAlign='center';text('Connection lost. Reconnecting…',CX,CY,26,'#ff9bb3','italic')}
   requestAnimationFrame(loop);
 }
 
@@ -3194,7 +3194,18 @@ function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
 }
 function onMsg(m){
   if(m.t==='players'){
-    if(isHost){const ids=new Set(m.players.map(q=>q.id));players.forEach(p=>{if(!ids.has(p.nid)&&!p.gone){p.gone=true;p.asleep=true;if(state==='shop')checkGo()}})}
+    if(isHost){
+      const online=new Map(m.players.map(q=>[q.id,q.online!==false]));
+      players.forEach(p=>{
+        if(online.has(p.nid)){
+          p.disconnected=!online.get(p.nid);
+          if(p.disconnected)p.in={mx:0,my:0,ax:p.x,ay:p.y,fire:false,alt:false};
+        }else if(!p.gone){
+          p.gone=true;p.disconnected=true;p.asleep=true;
+          if(state==='shop')checkGo();
+        }
+      });
+    }
     return}
   if(m.t!=='msg')return;
   const d=m.data;
@@ -3212,6 +3223,6 @@ function onMsg(m){
     for(const v of d.V)spark(v[0],v[1],v[2],Math.min(v[3],8));
   }
 }
-window.Game={start:startGame,startTest,onMsg,testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testSetLoadMode,testStartHostLoadTest,testStopHostLoadTest,testPerfInfo,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
+window.Game={start:startGame,startTest,onMsg,setSocket(socket){ws=socket},testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testSetLoadMode,testStartHostLoadTest,testStopHostLoadTest,testPerfInfo,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
 
 })();

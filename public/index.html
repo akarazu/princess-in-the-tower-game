@@ -80,7 +80,8 @@ body.playing canvas#c{display:block;width:100vw;height:100vh;height:100dvh}
 <script src="game.js"></script>
 <script>
 const $=s=>document.querySelector(s);
-let ws=null,me=null,players=[],room='',want=-1,phase='gather',k=0;   // want: дракон, которого игрок примеряет (закрепляется по кнопке «Готов»)
+let ws=null,me=null,players=[],room='',want=-1,phase='gather',k=0;
+let sessionToken='',reconnectSession=null,reconnectDelay=1000,reconnectTimer=null;   // want: дракон, которого игрок примеряет (закрепляется по кнопке «Готов»)
 const qs=new URLSearchParams(location.search);
 $('#room').value=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 $('#name').value=localStorage.getItem('ptw-name')||'';
@@ -91,19 +92,37 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const note=(owner,mine,i)=>{if(owner)return mine?'':'<small>'+esc(owner.name)+'</small>';   // подпись под цветом: владелец или те, кто присматривается
   const hs=players.filter(p=>!p.ready&&p.hover===i&&p.id!==me.id).map(p=>p.name);
   return hs.length?'<small>looking: '+esc(hs.slice(0,2).join(', '))+(hs.length>2?' +'+(hs.length-2):'')+'</small>':''};
-const send=o=>ws.send(JSON.stringify(o));
+const send=o=>{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))};
 
 function connect(){
+  if(ws&&(ws.readyState===WebSocket.CONNECTING||ws.readyState===WebSocket.OPEN))return;
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-  ws.onopen=()=>{$('#status').textContent='Connected to the server.';$('#create').disabled=false;$('#join').disabled=false};
+  ws.onopen=()=>{
+    if(reconnectSession){
+      $('#status').textContent='Connection lost. Reconnecting…';
+      send({t:'reconnect',room:reconnectSession.room,token:reconnectSession.token});
+    }else{
+      $('#status').textContent='Connected to the server.';
+      $('#create').disabled=false;$('#join').disabled=false;
+    }
+  };
   ws.onmessage=e=>onMsg(JSON.parse(e.data));
-  ws.onclose=()=>{$('#status').textContent='Connection lost. Refresh the page.';$('#create').disabled=$('#join').disabled=true};
+  ws.onclose=()=>{
+    $('#status').textContent=reconnectSession?'Connection lost. Reconnecting…':'Connection lost. Please reconnect.';
+    $('#create').disabled=$('#join').disabled=true;
+    if(Game.active)Game.setSocket(ws);
+    if(reconnectSession&&!reconnectTimer){
+      reconnectTimer=setTimeout(()=>{reconnectTimer=null;reconnectDelay=Math.min(5000,reconnectDelay*1.5);connect()},reconnectDelay);
+    }
+  };
 }
 function enter(create){
   const name=$('#name').value.trim()||'Player';localStorage.setItem('ptw-name',name);
   room=create?Array.from(crypto.getRandomValues(new Uint8Array(5)),b=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b%31]).join(''):$('#room').value.trim();
   $('#err').textContent='';
-  send({t:'join',room,name,create});
+  sessionToken=crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
+  reconnectSession=null;
+  send({t:'join',room,name,create,token:sessionToken});
 }
 $('#create').onclick=()=>enter(true);
 $('#join').onclick=()=>enter(false);
@@ -119,9 +138,26 @@ $('#link').onclick=()=>{const u=location.origin+'/?room='+me.room;
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(()=>$('#hint').textContent='Link copied',()=>prompt('Copy the link:',u));else prompt('Copy the link:',u)};
 
 function onMsg(m){
-  if(m.t==='joined'){me=m;players=m.players;phase=m.phase;k=m.k;$('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;render()}
+  if(m.t==='joined'){
+    me=m;players=m.players;phase=m.phase;k=m.k;
+    reconnectDelay=1000;
+    if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
+    reconnectSession={room:m.room,token:sessionToken|| (reconnectSession&&reconnectSession.token)};
+    $('#status').textContent=m.reconnected?'Reconnected. Welcome back!':'Connected to the server.';
+    if(m.reconnected&&Game.active){
+      Game.setSocket(ws);
+      Game.onMsg({t:'players',players:m.players});
+      return;
+    }
+    $('#join-view').classList.add('hide');$('#lobby-view').classList.remove('hide');$('#code').textContent=m.room;render()
+  }
   else if(m.t==='players'){players=m.players;phase=m.phase;k=m.k;if(Game.active)Game.onMsg(m);else render()}
   else if(m.t==='error'){
+    if(reconnectSession){
+      reconnectSession=null;sessionToken='';
+      if(Game.active)Game.setSocket(null);
+      $('#status').textContent=m.msg;
+    }
     if($('#lobby-view').classList.contains('hide'))$('#err').textContent=m.msg;
     else{if(m.msg.includes('taken'))want=-1;render();$('#err2').textContent=m.msg}}
   else if(m.t==='host_left'){alert('The host has left. The room is closed.');location.href=location.pathname}
