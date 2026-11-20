@@ -639,7 +639,7 @@ let mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false,quipPriori
 
 // ===== Playerи =====
 let players=[],me=null,isHost=false,ws=null;
-const activePlayerCount=()=>Math.max(1,players.reduce((n,p)=>n+(!p.gone?1:0),0));
+const activePlayerCount=()=>Math.max(1,players.reduce((n,p)=>n+(!p.gone&&!p.disconnected?1:0),0));
 // Численность волн растёт мягче числа игроков, чтобы 20 драконов не перегружали поле.
 // Командный объём награды при этом масштабируется пропорционально числу участников.
 function enemyPopulationFactorForPlayers(count){const n=Math.max(1,Math.min(20,Math.floor(Number(count)||1)));return 1+.85*Math.sqrt(n-1)}
@@ -1352,7 +1352,7 @@ function drawBossProjectiles(){
 }
 function roseRain(e){
   const n=Math.min(12,3+Math.ceil(activePlayerCount()*.6));
-  const alive=players.filter(p=>!p.asleep&&!p.gone);
+  const alive=players.filter(p=>!p.asleep&&!p.gone&&!p.disconnected);
 
   for(let i=0;i<n;i++){
     let x,y;
@@ -1608,13 +1608,15 @@ function cast(e,dx,dy,d,force){
   tag(e,k==='bag'?'Here!':'♪ La-la!');notes.push({id:++uid,owner:e.id,x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hp:1,k:k==='bag'?'bag':'note',dmg:e.t.dmg,r:12,life:5,sx:e.x,sy:e.y,tx,ty,t:0,d:1.1})}
 function wakeUp(p,byFriend){p.asleep=false;p.h=1;p.inv=2;p.rv=0;
   if(byFriend)sayQ('wakeFriend');else{p.w[0]=Math.floor(p.w[0]*.75);sayQ('wakeSolo');}}
-function hitDragon(p,e){if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8,2)}else damageEnemy(e,1,p,e.x,e.y);
+function hitDragon(p,e){if(p.disconnected)return;if(TEST_MODE&&testInvulnerable){if(e.k==='note')e.hp=0;return}if(p.sh>0){p.sh--;p.shT=0;p.inv=.8;shake=3;boom(p.x,p.y,'#8fd8ff',10)}else{p.h--;p.inv=1.5;shake=8;boom(p.x,p.y,'#ff6b81',10)}if(e.k==='note'){e.hp=0;sayPrincessEvent('note',2.5,8,2)}else damageEnemy(e,1,p,e.x,e.y);
   if(p.h<=0){p.h=0;p.asleep=true;p.wt=wakeTime();p.rv=0;sayQ('dragonDown',4,{name:p.name})}}
 
 function updatePlayer(p,dt){
   p.coinGlow=Math.max(0,(p.coinGlow||0)-dt);
   if(p.in&&(p.in.fire||p.in.alt))p.coinGlow=0;
   if(p.gone){p.asleep=true;return}
+  // Keep disconnected dragons in the roster, but freeze them until they reconnect.
+  if(p.disconnected){p.in={mx:0,my:0,ax:p.x,ay:p.y,fire:false,alt:false};return}
 
   p.inv=Math.max(0,p.inv-dt);
   p.cd-=dt;
@@ -1750,7 +1752,7 @@ function update(dt){
   Object.assign(me.in,{mx:(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0),my:(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0),ax:mouse.x,ay:mouse.y,fire:mouse.down,alt:mouse.alt});
   updateTestBots(dt);
   for(const p of players)updatePlayer(p,dt);
-  if(!players.some(p=>!p.asleep&&!p.gone)){state='lose';return}
+  if(!players.some(p=>!p.asleep&&!p.gone&&!p.disconnected)){state='lose';return}
   for(const b of balls){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
     for(const e of enemies){if(e.hp>0&&b.life>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.t.r+8){b.life=0;const owner=players[b.owner];damageEnemy(e,b.dmg,owner,b.x,b.y);boom(b.x,b.y,'#ffb347',5)}}}
   for(const b of balls)for(const n of notes){if(n.hp>0&&b.life>0&&Math.hypot(n.x-b.x,n.y-b.y)<n.r+8){n.hp=0;b.life=0;boom(n.x,n.y,'#7fd6ff',8)}}
@@ -1920,7 +1922,7 @@ e.path = makeBossPath(
   e.y += dy / d * sm * dt;
 }
     }
-    for(const p of players){if(e.hp>0&&!p.asleep&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
+    for(const p of players){if(e.hp>0&&!p.asleep&&!p.disconnected&&p.inv<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.t.r+20)hitDragon(p,e)}
     if(e.hp>0&&Math.hypot(CX-e.x,CY-e.y)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=e.t.dmg*enemyPopulationFactorForPlayers(activePlayerCount());e.hp=0;shake=10;boom(CX,CY,'#ffd1dc',10);if(Math.random()<.3)sayPrincessEvent('hit',2.5,14,0)}}
   enemies=enemies.filter(e=>e.hp>0);
   if(!enemies.some(o=>o.t.kind==='heal'))for(const o of enemies)o.sh=false;
@@ -1944,7 +1946,7 @@ e.path = makeBossPath(
     }
     else{n.x+=n.vx*dt;n.y+=n.vy*dt;n.life-=dt;if(n.life<=0)n.hp=0}
     if(n.k==='note'&&n.hp>0&&Math.hypot(n.x-CX,n.y-CY)<TOWER_R){if(!(TEST_MODE&&testInvulnerable))tower-=n.dmg*enemyPopulationFactorForPlayers(activePlayerCount());n.hp=0;shake=6;boom(CX,CY,'#ffd1dc',8);sayPrincessEvent('note',2.5,8,2);if(Math.random()<.4){const source=enemies.find(o=>o.id===n.owner);if(source)sayActor(source,'bardNoteHit',2.2);}}
-    for(const p of players){if(n.hp<=0||p.asleep||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
+    for(const p of players){if(n.hp<=0||p.asleep||p.disconnected||Math.hypot(n.x-p.x,n.y-p.y)>=n.r+20)continue;if(n.k==='note'&&p.inv<=0)hitDragon(p,n)}}
   notes=notes.filter(n=>n.hp>0);
   for(const z of zones){z.t+=dt;if(z.t>=z.d){for(const p of players)if(!p.asleep&&!p.gone&&p.inv<=0&&Math.hypot(p.x-z.x,p.y-z.y)<z.r)hitDragon(p,{k:'note',hp:1});boom(z.x,z.y,'#ff4d6d',12)}}
   zones=zones.filter(z=>z.t<z.d);
