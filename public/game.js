@@ -1472,7 +1472,7 @@ function casterOnly(){return !enemies.some(o=>o.hp>0&&!isCaster(o.t.kind))&&!que
 function drawRoster(){
   ctx.save();
   const ps=players.filter(p=>!p.gone);
-  const active=ps.filter(p=>!p.asleep&&!p.dead).length;
+  const active=ps.filter(p=>!p.asleep&&!p.dead&&!p.disconnected).length;
 
   // HUD coordinates are anchored to the visible viewport, not the 1138x640 world.
   // draw() has already translated by (ox, oy), so subtract those offsets here.
@@ -1497,7 +1497,7 @@ function drawRoster(){
     const x=markerRight-col*gap;
     const y=top+row*27;
 
-    ctx.globalAlpha=p.dead?.38:p.asleep?.72:1;
+    ctx.globalAlpha=(p.dead||p.disconnected)?.38:p.asleep?.72:1;
     ctx.fillStyle=COLORS[p.ci][1];
     ctx.beginPath();
     ctx.arc(x,y,9,0,6.283);
