@@ -94,6 +94,10 @@ const note=(owner,mine,i)=>{if(owner)return mine?'':'<small>'+esc(owner.name)+'<
   return hs.length?'<small>looking: '+esc(hs.slice(0,2).join(', '))+(hs.length>2?' +'+(hs.length-2):'')+'</small>':''};
 const send=o=>{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))};
 
+// A deliberate host page exit closes the room immediately; ordinary network loss keeps reconnect grace.
+window.addEventListener('pagehide',()=>{
+  if(me&&me.host&&ws&&ws.readyState===WebSocket.OPEN)ws.close(1000,'page unload');
+});
 function connect(){
   if(ws&&(ws.readyState===WebSocket.CONNECTING||ws.readyState===WebSocket.OPEN))return;
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
