@@ -2108,7 +2108,7 @@ function drawDragon(p){
   // он выглядит как постороннее жёлтое свечение во время выстрела.
 
   if(!(p.inv>0&&Math.floor(p.inv*10)%2)){
-    ctx.globalAlpha=p.dead?.22:p.asleep?.45:1;
+    ctx.globalAlpha=p.disconnected?.5:p.dead?.22:p.asleep?.45:1;
     drawDragonSprite(p);
     ctx.globalAlpha=1;
   }
