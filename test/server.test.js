@@ -218,3 +218,84 @@ test('server is safe to serve files and supports a 20-player room', async t => {
   assert.equal(releasedInput.data.f, false, 'released fire input must reach the host as false');
   assert.equal(releasedInput.data.al, false, 'released special-attack input must reach the host as false');
 });
+
+// Reconnect regression test: simulate a guest losing its WebSocket and opening a new one.
+test('a disconnected guest can reconnect to the same room and keep the same player identity', async t => {
+  const port = await getFreePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const wsUrl = `ws://127.0.0.1:${port}/ws`;
+  const child = spawn(process.execPath, ['server.js'], {
+    cwd: projectRoot,
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'ignore', 'pipe']
+  });
+  const clients = [];
+
+  t.after(async () => {
+    clients.forEach(client => client.close());
+    if (child.exitCode === null) {
+      child.kill('SIGTERM');
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, 1000);
+        child.once('exit', () => { clearTimeout(timer); resolve(); });
+      });
+    }
+  });
+
+  await waitForHealth(baseUrl, child);
+
+  const host = await connectClient(wsUrl);
+  clients.push(host);
+  host.send({ t: 'join', room: 'RECON1', name: 'Host', create: true });
+  const hostJoined = await host.next(message => message.t === 'joined');
+  assert.equal(hostJoined.id, '1');
+
+  const token = 'reconnect-test-token-guest-2';
+  const guest = await connectClient(wsUrl);
+  clients.push(guest);
+  guest.send({ t: 'join', room: 'RECON1', name: 'Guest', create: false, token });
+  const guestJoined = await guest.next(message => message.t === 'joined');
+  assert.equal(guestJoined.id, '2');
+
+  // Simulate the guest's network connection dropping.
+  const guestClosed = new Promise(resolve => guest.socket.once('close', resolve));
+  guest.close();
+  await guestClosed;
+
+  const offlineState = await host.next(message =>
+    message.t === 'players' &&
+    message.players.some(player => player.id === guestJoined.id && player.online === false)
+  );
+  assert.ok(offlineState.players.some(player => player.id === guestJoined.id));
+
+  // The browser reconnects with the room code and the token issued at initial join.
+  const resumedGuest = await connectClient(wsUrl);
+  clients.push(resumedGuest);
+  resumedGuest.send({ t: 'reconnect', room: 'RECON1', token });
+  const resumed = await resumedGuest.next(message => message.t === 'joined' && message.reconnected === true);
+
+  assert.equal(resumed.id, guestJoined.id, 'reconnect must preserve the original player ID');
+  assert.equal(resumed.room, 'RECON1');
+  assert.equal(resumed.host, false);
+  assert.ok(resumed.players.some(player =>
+    player.id === guestJoined.id && player.name === 'Guest' && player.online === true
+  ), 'the guest must be online again in the original room');
+
+  const onlineState = await host.next(message =>
+    message.t === 'players' &&
+    message.players.some(player => player.id === guestJoined.id && player.online === true)
+  );
+  assert.ok(onlineState.players.some(player => player.id === guestJoined.id));
+
+  // Verify that messages from the replacement socket are routed under the original player ID.
+  resumedGuest.send({
+    t: 'msg',
+    to: 'host',
+    data: { k: 'in', mx: 1, my: 0, ax: 120, ay: 240, f: true, al: false }
+  });
+  const forwardedInput = await host.next(message =>
+    message.t === 'msg' && message.from === guestJoined.id && message.data?.k === 'in'
+  );
+  assert.equal(forwardedInput.data.mx, 1);
+  assert.equal(forwardedInput.data.f, true);
+});
