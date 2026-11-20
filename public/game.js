@@ -638,7 +638,8 @@ let enemies=[],notes=[],beams=[],balls=[],pickups=[],parts=[],shake=0,quip='',qu
 let mobIntroShown=new Set(),princessEventCd=0,towerWarningShown=false,quipPriority=0;
 
 // ===== Playerи =====
-let players=[],me=null,isHost=false,ws=null;
+let players=[],me=null,isHost=false,ws=null,localConnectionLost=false;
+const dragonDisconnected=p=>p.disconnected||(!isHost&&p===me&&localConnectionLost);
 const activePlayerCount=()=>Math.max(1,players.reduce((n,p)=>n+(!p.gone&&!p.disconnected?1:0),0));
 // Численность волн растёт мягче числа игроков, чтобы 20 драконов не перегружали поле.
 // Командный объём награды при этом масштабируется пропорционально числу участников.
@@ -2089,7 +2090,7 @@ function drawDragon(p){
 
   // Fade the entire dragon (sprite, shadow, effects and name) while its player is offline.
   ctx.save();
-  if(p.disconnected)ctx.globalAlpha*=0.5;
+  if(dragonDisconnected(p))ctx.globalAlpha*=0.5;
 
   // Масштабируем вместе со спрайтом только декоративные эффекты.
   drawShadow(p.x,p.y+38*visualScale,42*visualScale,12*visualScale,0.18);
@@ -2116,7 +2117,7 @@ function drawDragon(p){
     else if(p.asleep)ctx.globalAlpha*=.45;
     drawDragonSprite(p);
     // Restore the alpha for the whole dragon, not full opacity; disconnected players stay translucent.
-    ctx.globalAlpha=p.disconnected?0.5:1;
+    ctx.globalAlpha=dragonDisconnected(p)?0.5:1;
   }
 
   if(p.dead){
@@ -3193,7 +3194,7 @@ function startTest(){
 }
 
 function startGame(o){resizeCanvas();addEventListener('resize',resizeCanvas);
-  TEST_MODE=false;testInvulnerable=false;
+  TEST_MODE=false;testInvulnerable=false;localConnectionLost=false;
   ws=o.ws;
   players=o.players.map((q,i)=>{const p=makePlayer(i,q.color);p.name=q.name;p.nid=q.id;const position=playerSpawnPositionForIndex(i,o.players.length);p.x=position.x;p.y=position.y;return p});
   me=players.find(p=>p.nid===o.me.id);isHost=!!o.me.host;active=true;towerMax=Math.round(100*enemyPopulationFactorForPlayers(players.length));
@@ -3232,6 +3233,6 @@ function onMsg(m){
     for(const v of d.V)spark(v[0],v[1],v[2],Math.min(v[3],8));
   }
 }
-window.Game={start:startGame,startTest,onMsg,setSocket(socket){ws=socket},testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testSetLoadMode,testStartHostLoadTest,testStopHostLoadTest,testPerfInfo,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
+window.Game={start:startGame,startTest,onMsg,setSocket(socket){ws=socket},setConnectionLost(value){if(!isHost&&me)localConnectionLost=!!value},testStartWave,testSpawn,testClear:testClearActors,testRepair,testSetUpgrades,testSetInvulnerable,testSetPlayerCount,testSetLoadMode,testStartHostLoadTest,testStopHostLoadTest,testPerfInfo,testStartEdict,testRunDiagnostics,testInfo,get active(){return active}};
 
 })();
