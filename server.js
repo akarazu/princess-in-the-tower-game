@@ -236,7 +236,7 @@ wss.on('connection', ws => {
     return;
   }
 
-  const client = {
+  let client = {
     ws,
     id: null,
     room: null,
