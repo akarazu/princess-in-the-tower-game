@@ -114,7 +114,7 @@ function connect(){
   ws.onclose=()=>{
     $('#status').textContent=reconnectSession?'Connection lost. Reconnecting…':'Connection lost. Please reconnect.';
     $('#create').disabled=$('#join').disabled=true;
-    if(Game.active)Game.setSocket(ws);
+    if(Game.active){Game.setConnectionLost(true);Game.setSocket(ws);}
     if(reconnectSession&&!reconnectTimer){
       reconnectTimer=setTimeout(()=>{reconnectTimer=null;reconnectDelay=Math.min(5000,reconnectDelay*1.5);connect()},reconnectDelay);
     }
@@ -145,6 +145,7 @@ function onMsg(m){
   if(m.t==='joined'){
     me=m;players=m.players;phase=m.phase;k=m.k;
     reconnectDelay=1000;
+    if(Game.active)Game.setConnectionLost(false);
     if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
     reconnectSession={room:m.room,token:sessionToken|| (reconnectSession&&reconnectSession.token)};
     $('#status').textContent=m.reconnected?'Reconnected. Welcome back!':'Connected to the server.';
