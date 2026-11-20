@@ -727,7 +727,9 @@ function sayPrincessEvent(key,seconds=2.5,cooldown=9,priority=1){
   if(quipT>0&&!canInterrupt)return false;
   if(princessEventCd>0&&priority<2)return false;
   sayQ(key,seconds,{},priority);
-  princessEventCd=cooldown;
+  // Slightly shorten the global pause between princess lines so she comments more often
+  // without making dialogue overlap or interrupt higher-priority gameplay messages.
+  princessEventCd=Math.max(3,cooldown*0.75);
   return true;
 }
 function sayActor(e,key,seconds=2.5,vars={}){
