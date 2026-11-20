@@ -2087,6 +2087,10 @@ function drawDragon(p){
   const now=typeof performance!=='undefined'?performance.now():0;
   const visualScale=dragonCrowdScale();
 
+  // Fade the entire dragon (sprite, shadow, effects and name) while its player is offline.
+  ctx.save();
+  if(p.disconnected)ctx.globalAlpha*=0.5;
+
   // Масштабируем вместе со спрайтом только декоративные эффекты.
   drawShadow(p.x,p.y+38*visualScale,42*visualScale,12*visualScale,0.18);
 
@@ -2108,7 +2112,8 @@ function drawDragon(p){
   // он выглядит как постороннее жёлтое свечение во время выстрела.
 
   if(!(p.inv>0&&Math.floor(p.inv*10)%2)){
-    ctx.globalAlpha=p.disconnected?.5:p.dead?.22:p.asleep?.45:1;
+    if(p.dead)ctx.globalAlpha*=.22;
+    else if(p.asleep)ctx.globalAlpha*=.45;
     drawDragonSprite(p);
     ctx.globalAlpha=1;
   }
@@ -2142,6 +2147,7 @@ function drawDragon(p){
   }
 
   text(p.name,p.x,p.y+50*visualScale,14,COLORS[p.ci][1]);
+  ctx.restore();
 }
 
 function drawCoin(x,y,r){ctx.fillStyle='#ffd24d';ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(1.5,r*.18);ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();ctx.stroke();
