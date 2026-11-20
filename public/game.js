@@ -242,7 +242,11 @@ function playerMovementBoundsForScale(sceneScale, spriteScale, viewportWidth = W
   // Сохраняем отступ от физических краёв экрана, а не от старого W×H.
   const densityPadding = 18 * (1 - safeSceneScale * safeSpriteScale);
   const marginX = 24 + densityPadding;
-  const marginTop = 70 + densityPadding;
+  // The dragon sprite is 96 px wide and is rendered with the combined scene/sprite scale.
+  // Keep roughly half a sprite-height plus a small safety gap above it, instead of
+  // the old fixed 70 px dead zone. This lets the dragon fly closer to the top edge
+  // while keeping the visible body inside the viewport at every crowd scale.
+  const marginTop = 48 * safeSceneScale * safeSpriteScale + 6;
   const marginBottom = 24 + densityPadding;
   const screenMinX = -viewOffsetX + marginX;
   const screenMaxX = viewWidth - viewOffsetX - marginX;
@@ -3063,7 +3067,7 @@ function testRunDiagnostics(){
 
   const baseBounds=playerMovementBoundsForScale(1,1);
   add('player-edge-base','Original movement boundaries are preserved at the default scale',
-    Math.abs(baseBounds.minX-24)<1e-8&&Math.abs(baseBounds.maxX-(W-24))<1e-8&&Math.abs(baseBounds.minY-70)<1e-8&&Math.abs(baseBounds.maxY-(H-24))<1e-8,
+    Math.abs(baseBounds.minX-24)<1e-8&&Math.abs(baseBounds.maxX-(W-24))<1e-8&&Math.abs(baseBounds.minY-54)<1e-8&&Math.abs(baseBounds.maxY-(H-24))<1e-8,
     'X: '+baseBounds.minX.toFixed(1)+'–'+baseBounds.maxX.toFixed(1)+' · Y: '+baseBounds.minY.toFixed(1)+'–'+baseBounds.maxY.toFixed(1));
   const maxMoveBounds=playerMovementBoundsForScale(.92,.70);
   const wideViewportBounds=playerMovementBoundsForScale(.92,.70,1480,640);
