@@ -2115,7 +2115,8 @@ function drawDragon(p){
     if(p.dead)ctx.globalAlpha*=.22;
     else if(p.asleep)ctx.globalAlpha*=.45;
     drawDragonSprite(p);
-    ctx.globalAlpha=1;
+    // Restore the alpha for the whole dragon, not full opacity; disconnected players stay translucent.
+    ctx.globalAlpha=p.disconnected?0.5:1;
   }
 
   if(p.dead){
